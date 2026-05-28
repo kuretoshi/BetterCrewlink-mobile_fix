@@ -156,11 +156,11 @@ public class BetterCrewlinkNativeServicePlugin extends Plugin {
                 "bettercrewlink-background-id")
                 .setSmallIcon(R.drawable.ic_notification)
                 .setContentIntent(refreshAction)
-                .setContentTitle("BetterCrewlinkKai")
+                .setContentTitle("BetterCrewlinkMobileKai")
                 .setContentText("Click to refresh or expand for more")
 
                 // .setStyle(new
-                // NotificationCompat.BigTextStyle().bigText(spannableString).setBigContentTitle("BetterCrewlinkKai"))
+                // NotificationCompat.BigTextStyle().bigText(spannableString).setBigContentTitle("BetterCrewlinkMobileKai"))
                 .addAction(0, "refresh", refreshAction)
                 .addAction(0, this.micMuted ? "unmute" : "mute",
                         createAction(BetterCrewlinkNativeService.MUTEMICROPHONE))

@@ -1,6 +1,6 @@
 {
   "appId": "io.bettercrewlink.app",
-  "appName": "BetterCrewlinkKai",
+  "appName": "BetterCrewlinkMobileKai",
   "bundledWebRuntime": false,
   "npmClient": "npm",
   "webDir": "www",
