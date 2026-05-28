@@ -1,0 +1,57 @@
+{
+  "api": {
+    "name": "BetterCrewlinkNativeServicePlugin",
+    "slug": "bettercrewlinknativeserviceplugin",
+    "docs": "",
+    "tags": [],
+    "methods": [
+      {
+        "name": "disconnect",
+        "signature": "() => Promise<{ value: string; }>",
+        "parameters": [],
+        "returns": "Promise<{ value: string; }>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [],
+        "slug": "disconnect"
+      },
+      {
+        "name": "showTalking",
+        "signature": "(options: { color: number; talking: boolean; }) => Promise<{ value: string; }>",
+        "parameters": [
+          {
+            "name": "options",
+            "docs": "",
+            "type": "{ color: number; talking: boolean; }"
+          }
+        ],
+        "returns": "Promise<{ value: string; }>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [],
+        "slug": "showtalking"
+      },
+      {
+        "name": "showNotification",
+        "signature": "(options: { audiomuted: boolean; micmuted: boolean; overlayEnabled: boolean; }) => Promise<{ value: string; }>",
+        "parameters": [
+          {
+            "name": "options",
+            "docs": "",
+            "type": "{ audiomuted: boolean; micmuted: boolean; overlayEnabled: boolean; }"
+          }
+        ],
+        "returns": "Promise<{ value: string; }>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [],
+        "slug": "shownotification"
+      }
+    ],
+    "properties": []
+  },
+  "interfaces": [],
+  "enums": [],
+  "typeAliases": [],
+  "pluginConfigs": []
+}
