@@ -32,7 +32,13 @@ BetterCrewLinkKai Mobile は、Among Us 向け近接ボイスチャットアプ�
 
 Android では APK ファイルを端末にインストールします。環境によっては、ブラウザやファイルマネージャーからのアプリインストールを許可する必要があります。
 
-Web 版としてブラウザで利用する場合は、マイク権限を許可してください。ブラウザ版でも、同じロビー内に `Mobile Host` を有効にした PC版 BetterCrewLink ユーザーが必要です。
+## Web版
+
+インストールせずにブラウザから利用する場合は、以下の URL にアクセスしてください。
+
+https://bettercrewlink.kuretoshi.work
+
+Web版ではブラウザのマイク権限を許可してください。Android版と同じく、同じロビー内に `Mobile Host` を有効にした PC版 BetterCrewLink ユーザーが必要です。
 
 ## 使い方
 

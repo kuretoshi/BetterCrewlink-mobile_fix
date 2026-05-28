@@ -39,6 +39,10 @@ node_modules/
 /www/
 /coverage/
 
+# Local Android SDK used for ad-hoc APK builds
+/.android-sdk/
+/.android-commandlinetools.zip
+
 # IDEs
 .idea/
 *.sublime-project
