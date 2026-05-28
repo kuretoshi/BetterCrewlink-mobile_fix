@@ -33,7 +33,7 @@
     "@ionic/storage-angular": "^4.0.0",
     "bcl-mobile-overlay": "file:plugins/bcl-mobile-overlay",
     "cordova-plugin-android-permissions": "^1.1.5",
-    "cordova-plugin-background-mode": "github:OhMyGuus/cordova-plugin-background-mode",
+    "cordova-plugin-background-mode": "https://github.com/OhMyGuus/cordova-plugin-background-mode/tarball/795f036c3ba7e3af1f7b4bbaffa6e7b6f6af69d4",
     "cordova-plugin-device": "^2.0.3",
     "jetifier": "^1.6.6",
     "rxjs": "~7.8.0",
