@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">BetterCrewlinkMobile</string>
-    <string name="title_activity_main">BetterCrewlinkMobile</string>
+    <string name="app_name">BetterCrewlinkKai</string>
+    <string name="title_activity_main">BetterCrewlinkKai</string>
     <string name="package_name">io.bettercrewlink.app</string>
     <string name="custom_url_scheme">io.bettercrewlink.app</string>
 </resources>
