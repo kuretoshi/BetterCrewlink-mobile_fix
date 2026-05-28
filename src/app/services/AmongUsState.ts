@@ -14,6 +14,8 @@ export interface AmongUsState {
 	clientId: number;
 	hostId: number;
 	comsSabotaged: boolean;
+	mushroomMixupSabotaged?: boolean;
+	camouflaged?: boolean;
 	lightRadius: number;
 }
 
@@ -26,6 +28,8 @@ export interface Player {
 	hatId: number;
 	petId: number;
 	skinId: number;
+	visorId?: string;
+	appearanceId?: string;
 	disconnected: boolean;
 	isImpostor: boolean;
 	isDead: boolean;
@@ -37,6 +41,7 @@ export interface Player {
 	y: number;
 	inVent: boolean;
 	isbetter: boolean;
+	bugged?: boolean;
 }
 
 export enum GameState {

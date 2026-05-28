@@ -12,7 +12,8 @@ const DEFAULTSETTINGS: ISettings = {
 	natFix: false,
 	playerSettings: new PlayerSettingsMap(),
 	overlayEnabled: false,
-	isMobile: false
+	isMobile: false,
+	voiceEffectStrength: 100,
 };
 
 const DEFAULTPLAYERSETTING: PlayerSetting = {

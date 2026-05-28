@@ -1,161 +1,139 @@
-[![GitHub Downloads][github-shield]][github-url] [![GPL-3.0 License][license-shield]][license-url] [![Support BetterCrewLink][paypal-shield]][paypal-url] [![Support BetterCrewLink][kofi-shield]][kofi-url] [![Discord Server][discord-shield]][discord-url] [![Contributors][contributors-shield]][contributors-url]
+# BetterCrewLinkKai Mobile
 
-<br />
-<p align="center">
-  <a href="https://github.com/OhMyGuus/BetterCrewlink-mobile">
-    <img src="logo.png" alt="Logo" width="80" height="80">
-  </a>
-  <h3 align="center">BetterCrewLink Mobile is here!</h3>
+BetterCrewLinkKai Mobile は、Among Us 向け近接ボイスチャットアプリ [BetterCrewLink Mobile](https://github.com/OhMyGuus/BetterCrewlink-mobile) をベースに、日本語環境で使いやすいよう調整している非公式フォークです。
 
+元プロジェクトは [BetterCrewLink](https://github.com/OhMyGuus/BetterCrewLink) と [CrewLink](https://github.com/ottomated/CrewLink) の流れを引き継いでいます。Among Us、Innersloth、CrewLink、BetterCrewLink の公式プロジェクトとは別の非公式版です。
 
-  <p align="center">
-    Free, open, Among Us proximity voice chat.
-    <br />
-    <a href="https://github.com/OhMyGuus/BetterCrewlink-mobile/issues">Report Bug</a>
-    ·
-    <a href="https://github.com/OhMyGuus/BetterCrewlink-mobile/issues">Request Feature</a>
-    ·
-    <a href="#installation">Installation Instructions</a>
-  </p>
-  <p align="center">
-    <b><a href="https://www.paypal.com/donate?hosted_button_id=KS43BDTGN76JQ">Donate to BetterCrewLink</a></b></br>
-  (all donations will be used for the apple developer license and extra servers)</br>
-   <b><a href="https://paypal.me/ottomated">Donate to ottomated (offical crewlink)</a></b>
-  </p>
-</p>
-<hr />
+## このフォークについて
 
-<p>
-  
-<b>Notes:</b><br />
+- 日本語 UI / 日本語説明を中心に調整しています。
+- BetterCrewLink Mobile の機能をベースにしつつ、国内プレイヤー向けの使いやすさを優先しています。
+- キノコカオスやカモフラージュ系の状態に合わせたボイスエフェクト調整を追加しています。
+- ボイスエフェクトの強度調整とマイクテスト機能を追加しています。
+- Android / Web での利用を主な対象にしています。
 
-- This is an unofficial fork of CrewLink, for any problem, question, issue or suggestion you have with BetterCrewLink talk to us on our [Discord](https://discord.gg/qDqTzvj4SH), or [GitHub](https://github.com/OhMyGuus/BetterCrewlink-mobile/issues) or message me on Discord ([ThaGuus#2140](https://discordapp.com/users/508426414387757057)) do not report any problems to the official Discord or GitHub project of CrewLink as they will not support you.
+## 主な機能
 
-- To get the most of BetterCrewLink use the voice server: <a href="https://bettercrewl.ink">`https://bettercrewl.ink`</a>
+- Among Us の位置情報に連動した近接ボイスチャット
+- PC版 BetterCrewLink の `Mobile Host` と連携したモバイル接続
+- 死亡者、インポスター、会議中などの状態に応じた音声制御
+- マイク選択
+- Android オーバーレイ表示
+- プレイヤーごとの音量調整
+- ロビー設定の同期
+- キノコカオス / カモフラージュ時のボイスエフェクト
+- ボイスエフェクト強度の調整とマイクテスト
 
-</p>
-<a href="https://discord.gg/qDqTzvj4SH"> <img src="https://i.imgur.com/XpnBhTW.png" width="150px" /> </a>
+## ダウンロード
 
-<!-- TABLE OF CONTENTS -->
-## Table of Contents
+配布版を使う場合は、このフォークの Releases から最新版をダウンロードしてください。
 
-* [About the Project](#about-the-project)
-* [Installation](#installation)
-  * [Setup Instructions](#setup-instructions)
-  * [Android](#android)
-  * [iOS](#ios)
-* [Development](#development)
-  * [Prerequisites](#prerequisites)
-  * [Setup](#setup)
-* [Contributing](#contributing)
-  * [Contributors](#contributors)
-* [License](#license)
+[Releases](https://github.com/kuretoshi/BetterCrewlink-mobile_fix/releases)
 
-<!-- ABOUT THE PROJECT -->
-## About The Project
+Android では APK ファイルを端末にインストールします。環境によっては、ブラウザやファイルマネージャーからのアプリインストールを許可する必要があります。
 
-This project implements proximity voice chat for mobile users in Among Us. As long as there is a PC user with "Mobile Host" enabled in your lobby, you will be able to hear people near you.
+Web 版としてブラウザで利用する場合は、マイク権限を許可してください。ブラウザ版でも、同じロビー内に `Mobile Host` を有効にした PC版 BetterCrewLink ユーザーが必要です。
 
-## Installation
+## 使い方
 
-Download the latest version from [releases](https://github.com/OhMyGuus/BetterCrewlink-mobile/releases/latest) and run the `Bettercrewlink-v-X-X-X-a.apk` file on your phone. You may have to allow chrome to install apps on your phone.
+1. PC版 BetterCrewLinkKai または BetterCrewLink を起動します。
+2. PC版側で `Mobile Host` を有効にします。
+3. Among Us で同じロビーに入ります。
+4. BetterCrewLinkKai Mobile を起動します。
+5. ボイスサーバー、ゲーム内の名前、ロビーコード、マイクを設定します。
+6. `接続` を押します。
 
-You can also use the web version in your browser [here](https://web.bettercrewl.ink/).
+全員が同じボイスサーバーを使っている必要があります。接続できない場合は、ロビーコード、ゲーム内の名前、サーバー URL、PC版側の `Mobile Host` 設定を確認してください。
 
-If you have a PC and want to download the PC version of BetterCrewLink (without being the Bluestacks) go to category [Windows](https://github.com/OhMyGuus/BetterCrewLink#windows).
+## ボイスエフェクト
 
-## Setup Instructions
+このフォークでは、キノコカオスやカモフラージュ系の状態に合わせて声にエフェクトをかけられます。
 
-### Android
+設定画面の `ボイスエフェクト` で効果量を調整できます。`テスト時のエフェクト` を ON にして `マイクテスト` を開始すると、実際にどのように聞こえるか確認できます。
 
-* Open the app.
-* Ensure there is one person in the lobby with "Mobile Host" enabled on their PC (they must use [BetterCrewLink](https://github.com/OhMyGuus/BetterCrewLink)).
-* Fill in the required information (make sure you have a unique name in your lobby).
-* Hit the connect button.
-  * If you are waiting on the connecting screen for a while you may want to check that all the information is correct and the is a pc user with "Mobile Host" enabled in the lobby.
-* All done!
+この機能は環境差やゲーム状態の取得タイミングに影響される可能性があります。動作確認や不具合報告を歓迎します。
 
-### iOS
+## 不具合報告
 
-An iOS version is still being developed and will be released soon, but you can use in the meantime the [web version](https://web.bettercrewl.ink/). (requires a PC player)
+こちらの Discord サーバーに報告をお願いします。
 
-## Development
+https://discord.gg/cUX5KUkZPD
 
-You only need to follow the below instructions if you are trying to modify this software. Otherwise, please download the latest version from the [github releases](https://github.com/OhMyGuus/BetterCrewlink-mobile/releases).
+GitHub Issues を使う場合はこちらです。
 
-Server code is located at [OhMyGuus/BetterCrewLink-server](https://github.com/OhMyGuus/BetterCrewLink-server). Please use a local server for development purposes.
+https://github.com/kuretoshi/BetterCrewlink-mobile_fix/issues
 
-### Prerequisites
+## 開発
 
-This is an example of how to list things you need to use the software and how to install them.
-* [node.js](https://nodejs.org/en/download/)
-* Ionic cli
-```sh
-npm install -g @ionic/cli
+### 必要なもの
+
+- Node.js
+- npm
+- Git
+- Android Studio
+- Ionic CLI
+
+```powershell
+npm.cmd install -g @ionic/cli
 ```
 
-### Setup
+PowerShell で `npm` が実行ポリシーにより止まる場合は、`npm.cmd` を使ってください。
 
-1. Clone the repo
-```sh
-git clone https://github.com/OhMyGuus/BetterCrewlink-mobile.git
-cd BetterCrewlink-mobile
-```
-2. Install packages and sync
-```sh
-npm install 
-ionic capacitor sync
-```
-3. Run the project
-```JS
-ionic serve
+### セットアップ
+
+```powershell
+git clone https://github.com/kuretoshi/BetterCrewlink-mobile_fix.git
+cd BetterCrewlink-mobile_fix
+npm.cmd install
+npx.cmd cap sync
 ```
 
-<!-- CONTRIBUTING -->
-## Contributing
+### 開発起動
 
-Any contributions you make are greatly appreciated.
+```powershell
+npm.cmd start
+```
 
-1. [Fork the Project](https://github.com/OhMyGuus/BetterCrewlink-mobile/fork)
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+または Ionic CLI が入っている場合:
 
-## Contributors
+```powershell
+npm.cmd run dev
+```
 
-[![Contributors][contributors-shield]][contributors-url]
+### コンパイル
 
-* [OhMyGuus](https://github.com/OhMyGuus) for make various things for [BetterCrewLink](https://github.com/OhMyGuus/BetterCrewLink), example: NAT Fix, more overlays, support for Mobile and owner of project
-* [ottomated](https://github.com/ottomated) for make [CrewLink](https://github.com/ottomated/CrewLink)
-* [vrnagy](https://github.com/vrnagy) for make WebRTC reconnects automatically for [BetterCrewLink](https://github.com/OhMyGuus/BetterCrewLink)
-* [TheGreatMcPain](https://github.com/TheGreatMcPain) & [Donokami](https://github.com/Donokami) for make support for Linux
-* [squarebracket](https://github.com/squarebracket) for make support overlay for Linux
-* [JKohlman](https://github.com/JKohlman) for make various things for [BetterCrewLink](https://github.com/OhMyGuus/BetterCrewLink), example: push to mute, visual changes and making Multi Stage builds for [BetterCrewLink Server](https://github.com/OhMyGuus/BetterCrewLink-server)
-* [Diemo-zz](https://github.com/Diemo-zz) for make the default Voice Server for: <a href="https://bettercrewl.ink">`https://bettercrewl.ink`</a>
-* [KadenBiel](https://github.com/KadenBiel) for make various things for [BetterCrewLink Mobile](https://github.com/OhMyGuus/BetterCrewlink-mobile), example: Better UI, Settings page
-* [adofou](https://github.com/adofou) for make new parameters for node-turn server for [BetterCrewLink-Server](https://github.com/OhMyGuus/BetterCrewLink-server)
-* [Kore-Development](https://github.com/Kore-Development) for make support for Repl.it and gitignore changes for [BetterCrewLink-Server](https://github.com/OhMyGuus/BetterCrewLink-server)
-* [cybershard](https://github.com/cybershard) & [edqx](https://github.com/edqx) for make Only hear people in vision, Walls block voice and Hear through cameras
-* [electron-overlay-window](https://github.com/SnosMe/electron-overlay-window) for make it easier to do overlays
-* [node-keyboard-watcher](https://github.com/OhMyGuus/node-keyboard-watcher) for make it easy to push to talk and push to mute
-* [MatadorProBr](https://github.com/MatadorProBr) for make this list of Contribuators, better README.md, wiki
+```powershell
+npm.cmd run ngbuild
+```
 
-A big thank you to all those people who contributed and still contribute to this project to stay alive, thank you for being part of this BetterCrewLink community!
+### Android ビルド
 
-## License
+```powershell
+npm.cmd run build
+```
 
-Distributed under the GNU General Public License v3.0. See <a href="https://github.com/OhMyGuus/BetterCrewlink-mobile/blob/master/LICENSE">`LICENSE`</a> for more information.
+環境によっては Android Studio で `android` プロジェクトを開いてビルドしてください。
 
-[github-shield]: https://img.shields.io/github/downloads/OhMyGuus/BetterCrewlink-mobile/total?label=Downloads
-[github-url]: https://github.com/OhMyGuus/BetterCrewlink-mobile/releases/
-[license-shield]: https://img.shields.io/github/license/OhMyGuus/BetterCrewlink-mobile?label=License
-[license-url]: https://github.com/OhMyGuus/BetterCrewlink-mobile/blob/master/LICENSE
-[paypal-shield]: https://img.shields.io/badge/Support-BetterCrewLink-purple?logo=PayPal
-[paypal-url]: https://www.paypal.com/donate?hosted_button_id=KS43BDTGN76JQ
-[kofi-shield]: https://img.shields.io/badge/Support-BetterCrewLink-purple?logo=Ko-fi&logoColor=white
-[kofi-url]: https://ko-fi.com/ohmyguus
-[discord-shield]: https://img.shields.io/discord/791516611143270410?color=cornflowerblue&label=Discord&logo=Discord&logoColor=white
-[discord-url]: https://discord.gg/qDqTzvj4SH
-[contributors-shield]: https://img.shields.io/github/contributors/OhMyGuus/BetterCrewlink-mobile?label=Contributors
-[contributors-url]: https://github.com/OhMyGuus/BetterCrewlink-mobile/graphs/contributors
+## 貢献
+
+不具合修正、翻訳改善、日本語表現の調整、機能改善の Pull Request を歓迎します。
+
+大きな変更を入れる場合は、先に Issue などで方針を相談してもらえると助かります。
+
+## 元プロジェクト
+
+このリポジトリは以下のプロジェクトをベースにしています。
+
+- [OhMyGuus/BetterCrewlink-mobile](https://github.com/OhMyGuus/BetterCrewlink-mobile)
+- [OhMyGuus/BetterCrewLink](https://github.com/OhMyGuus/BetterCrewLink)
+- [ottomated/CrewLink](https://github.com/ottomated/CrewLink)
+
+元プロジェクトの開発者、コントリビューター、翻訳者の皆さまに感謝します。
+
+## ライセンス
+
+このプロジェクトは GNU General Public License v3.0 のもとで配布されています。詳細は [LICENSE](LICENSE) を確認してください。
+
+## 免責
+
+この mod は Among Us または Innersloth LLC とは関係ありません。内容は Innersloth LLC によって承認、支援、提供されたものではありません。Among Us に関する権利は Innersloth LLC に帰属します。

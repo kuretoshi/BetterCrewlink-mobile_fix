@@ -3,11 +3,11 @@
 		<ng-container [ngSwitch]="gameHelper.cManager.connectionState">
 			<ng-container *ngSwitchDefault>
 				<ion-row class="ion-justify-content-center">
-					<p style="text-align: center"><b>Please go to the settings page to setup Crewlink</b></p>
+					<p style="text-align: center"><b>設定ページで Crewlink の接続設定をしてください</b></p>
 				</ion-row>
 				<ion-row class="ion-justify-content-center">
-					<ion-button [routerLink]="['/settings']">Settings</ion-button>
-					<ion-button (click)="gameHelper.connect()">Reconnect</ion-button>
+					<ion-button [routerLink]="['/settings']">設定</ion-button>
+					<ion-button (click)="gameHelper.connect()">再接続</ion-button>
 				</ion-row>
 			</ng-container>
 			<ng-container id="connectPg" *ngSwitchCase="1">
@@ -16,21 +16,21 @@
 				</ion-row>
 				<p style="text-align: center"><b>{{gameHelper.getConnectionStage()}}</b></p>
 				<p style="text-align: center">
-					**Please make sure there is a PC user with "Mobile Host" enabled on Crewlink in the lobby**
+					**ロビー内に Crewlink の「Mobile Host」を有効にしたPCユーザーがいることを確認してください**
 				</p>
 				<ion-row class="ion-justify-content-center">
-					<ion-button (click)="gameHelper.connect()">refresh</ion-button>
-					<ion-button [routerLink]="['/settings']">Settings</ion-button>
-					<ion-button (click)="gameHelper.disconnect()">Disconnect</ion-button>
+					<ion-button (click)="gameHelper.connect()">再読み込み</ion-button>
+					<ion-button [routerLink]="['/settings']">設定</ion-button>
+					<ion-button (click)="gameHelper.disconnect()">切断</ion-button>
 				</ion-row>
 			</ng-container>
 
 			<ng-container id="connectPg" *ngSwitchCase="3">
-				<h2 style="text-align: center; color: red">Error</h2>
+				<h2 style="text-align: center; color: red">エラー</h2>
 				<p style="text-align: center;">{{ gameHelper.getError() }}</p>
 				<ion-row class="ion-justify-content-center">
-					<ion-button (click)="gameHelper.connect()">refresh</ion-button>
-					<ion-button [routerLink]="['/settings']">Settings</ion-button>
+					<ion-button (click)="gameHelper.connect()">再読み込み</ion-button>
+					<ion-button [routerLink]="['/settings']">設定</ion-button>
 				</ion-row>
 			</ng-container>
 			<ng-container id="connectedPg" *ngSwitchCase="2">
@@ -94,7 +94,7 @@
 
 <div class="testButtons" *ngIf="gameHelper.cManager.connectionState == 2">
 	<ion-row>
-		<ion-button (click)="gameHelper.connect()">Refresh</ion-button>
-		<ion-button (click)="gameHelper.disconnect()">Disconnect</ion-button>
+		<ion-button (click)="gameHelper.connect()">再読み込み</ion-button>
+		<ion-button (click)="gameHelper.disconnect()">切断</ion-button>
 	</ion-row>
 </div>

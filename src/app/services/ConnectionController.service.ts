@@ -74,7 +74,7 @@ export class ConnectionController implements IConnectionController {
 	private lastHostIndex = -1;
 	public error: string | undefined;
 	public events = new EventEmitterO();
-	constructor(private settingsService: SettingsService) {
+	constructor(public settingsService: SettingsService) {
 		this.audioController = new AudioController(this);
 		this.ConnectionCheck();
 	}
@@ -140,6 +140,7 @@ export class ConnectionController implements IConnectionController {
 		this.natFix = natFix;
 		this.currentGameState = undefined;
 		this.oldGameState = undefined;
+		this.audioController.clearAppearanceBaseline();
 		this.initialize(voiceserver);
 	}
 
@@ -153,6 +154,7 @@ export class ConnectionController implements IConnectionController {
 		this.socketIOClient?.emit('leave');
 		this.socketIOClient?.disconnect();
 		this.disconnectSockets();
+		this.audioController.clearAppearanceBaseline();
 		if (disconnectAudio) {
 			this.audioController.disconnect();
 		}
@@ -274,6 +276,7 @@ export class ConnectionController implements IConnectionController {
 			// console.log(this.socketElements);
 			this.oldGameState = this.currentGameState;
 			this.currentGameState = amongUsState;
+			this.audioController.updateAppearanceBaseline(amongUsState);
 			const newLocalplayer = amongUsState.players.filter(
 				(o) => o.name.replace(' ', '') === this.amongusUsername.replace(' ', '')
 			)[0];

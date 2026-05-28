@@ -56,7 +56,7 @@ export class GameHelperService implements IGameHelperService {
 			if (!haspermissions) {
 				console.error('permissions failed');
 				this.cManager.connectionState = ConnectionState.error;
-				this.error = 'No permissions to use microphone.';
+				this.error = 'マイクの使用が許可されていません。';
 				return;
 			}
 			this.backgroundMode.enable();
@@ -136,7 +136,7 @@ export class GameHelperService implements IGameHelperService {
 		try {
 			await this.cManager.audioController.requestPermissions();
 		} catch (exception) {
-			this.error = 'No permission to use microphone';
+			this.error = 'マイクの使用が許可されていません';
 			return false;
 		}
 		return true;
@@ -146,25 +146,25 @@ export class GameHelperService implements IGameHelperService {
 		const test = ['LOBBY', 'TASKS', 'DISCUSSION', 'MENU', 'UNKNOWN'];
 		switch (this.cManager.connectingStage) {
 			case ConnectingStage.connectingToVoiceServer:
-				return 'Connecting to voice server..';
+				return 'ボイスサーバーに接続しています...';
 			case ConnectingStage.startingMicrophone:
-				return 'Initializing audio/microphone';
+				return 'オーディオとマイクを初期化しています';
 			case ConnectingStage.searchingForHost:
-				return `Searching for bettercrewlink PC players in lobby: ${this.cManager.gamecode}`;
+				return `ロビー ${this.cManager.gamecode} で BetterCrewlink PC ユーザーを探しています`;
 			case ConnectingStage.waitingForHostToEnable:
-				return 'Waiting for a PC player to respond';
+				return 'PCユーザーからの応答を待っています';
 			case ConnectingStage.WaitingForGameData:
-				return 'Waiting to recieve gamedata from player';
+				return 'プレイヤーからゲームデータを受信するのを待っています';
 			case ConnectingStage.waitingForYouToJoin:
-				return `Waiting for you to join with the name ${this.cManager.amongusUsername} --> ${
+				return `${this.cManager.amongusUsername} という名前で参加するのを待っています --> ${
 					test[this.cManager.oldGameState.gameState.toString()]
 				}`;
 			case ConnectingStage.parsingGameData:
-				return 'Waiting for gamedata...';
+				return 'ゲームデータを待っています...';
 			case ConnectingStage.FullyConnected:
-				return 'Connected to the game...';
+				return 'ゲームに接続しました...';
 			default:
-				return `unkown state ${this.cManager.connectingStage}`;
+				return `不明な状態 ${this.cManager.connectingStage}`;
 		}
 	}
 

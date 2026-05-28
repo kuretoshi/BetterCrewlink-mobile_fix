@@ -1,23 +1,95 @@
-ion-label {
-	max-width: 300px;
-	min-width: 100px;
-	border-right: 1px solid rgba(56, 49, 49, 0.274);
-	margin-right: 5px;
+ion-item {
+	--inner-padding-end: 16px;
 }
 
-ion-select {
-	padding-left: 9px;
-	max-width: unset !important;
+ion-item::part(native) {
+	align-items: center;
+}
+
+ion-select,
+ion-input,
+ion-range {
+	max-width: 100% !important;
+	width: 100%;
 }
 
 ion-checkbox {
-	margin-left: 9px;
+	margin-left: 0;
 }
 
 .settingLabelCol {
-	max-width: 200px !important;
+	flex: 0 0 220px !important;
+	width: 220px !important;
+	max-width: 220px !important;
+}
+
+.settingLabelCol ion-label {
+	border-right: 1px solid rgba(255, 255, 255, 0.12);
+	margin-right: 12px;
+	max-width: none;
+	min-width: 0;
+	padding-right: 12px;
+	white-space: normal;
 }
 
 .settingInputCol {
-	max-width: 300px !important;
+	flex: 1 1 auto !important;
+	width: auto !important;
+	max-width: 420px !important;
+	min-width: 0;
+}
+
+.voice-test-controls {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	max-width: none !important;
+}
+
+.voice-test-controls ion-button {
+	flex: 0 0 auto;
+	margin: 0;
+	min-width: 96px;
+	white-space: nowrap;
+}
+
+.voice-test-controls ion-button::part(native) {
+	white-space: nowrap;
+}
+
+.voice-test-toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	flex: 0 0 auto;
+	white-space: nowrap;
+}
+
+.voice-test-toggle ion-toggle {
+	flex: 0 0 auto;
+	padding: 0;
+	width: auto;
+}
+
+.voice-test-label {
+	font-size: 14px;
+	line-height: 1;
+	white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+	.settingLabelCol {
+		flex-basis: 44% !important;
+		width: 44% !important;
+		max-width: 44% !important;
+	}
+
+	.settingInputCol {
+		max-width: 56% !important;
+	}
+
+	.voice-test-controls {
+		flex-wrap: wrap;
+		row-gap: 6px;
+	}
 }

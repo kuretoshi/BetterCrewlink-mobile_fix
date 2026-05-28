@@ -10,12 +10,12 @@ export class AppComponent implements OnInit {
 	public selectedIndex = 0;
 	public appPages = [
 		{
-			title: 'game',
+			title: 'ゲーム',
 			url: '/game',
 			icon: 'home',
 		},
 		{
-			title: 'settings',
+			title: '設定',
 			url: '/settings',
 			icon: 'settings',
 		},

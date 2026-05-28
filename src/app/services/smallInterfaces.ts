@@ -1,6 +1,7 @@
 import Peer from 'simple-peer';
 import { Player, GameState } from './AmongUsState';
 import { ConnectionController } from './ConnectionController.service';
+import { VoiceDisguiseEffect } from './voiceEffect';
 
 export enum VoiceServerOption {
 	ORIGINALCREWLINK = 0,
@@ -21,6 +22,7 @@ export interface ISettings {
 	playerSettings: PlayerSettingsMap;
 	overlayEnabled: boolean;
 	isMobile: boolean;
+	voiceEffectStrength: number;
 }
 
 export interface Client {
@@ -46,10 +48,12 @@ export interface AudioElement {
 	gain: GainNode;
 	pan: PannerNode;
 	muffle: BiquadFilterNode;
+	voiceEffect: VoiceDisguiseEffect;
 	// reverb: ConvolverNode;
 	destination: AudioNode;
 	// reverbConnected: boolean;
 	muffleConnected: boolean;
+	voiceEffectConnected: boolean;
 }
 
 export interface ILobbySettings {
@@ -58,6 +62,7 @@ export interface ILobbySettings {
 	hearImpostorsInVents: boolean;
 	impostersHearImpostersInvent: boolean;
 	commsSabotage: boolean;
+	voiceEffectEnabled?: boolean;
 	deadOnly: boolean;
 	meetingGhostOnly: boolean;
 	hearThroughCameras: boolean;
@@ -70,6 +75,7 @@ export const DEFAULT_LOBBYSETTINGS: ILobbySettings = {
 	hearImpostorsInVents: false,
 	impostersHearImpostersInvent: false,
 	commsSabotage: false,
+	voiceEffectEnabled: true,
 	deadOnly: false,
 	hearThroughCameras: false,
 	wallsBlockAudio: false,
