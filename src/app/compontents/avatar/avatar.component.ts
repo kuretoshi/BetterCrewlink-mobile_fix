@@ -3,6 +3,33 @@ import { Player } from '../../services/AmongUsState';
 import { SocketElement, PlayerSetting } from '../../services/smallInterfaces';
 import { SettingsService } from '../../services/settings.service';
 
+const HAT_COLLECTION_URL = 'https://cdn.jsdelivr.net/gh/OhMyGuus/BetterCrewLink-Hats@master/';
+
+interface CosmeticData {
+	image?: string;
+	back_image?: string;
+	top?: string;
+	width?: string;
+	left?: string;
+	multi_color?: boolean;
+	mod?: string;
+}
+
+interface CosmeticCollection {
+	[mod: string]: {
+		defaultWidth: string;
+		defaultTop: string;
+		defaultLeft: string;
+		hats: {
+			[id: string]: CosmeticData;
+		};
+	};
+}
+
+let cosmeticCollection: CosmeticCollection = {};
+let cosmeticRequest: Promise<void> | undefined;
+let cosmeticsInitialized = false;
+
 const hatOffsets: { [key in number]: number | undefined } = {
 	7: -50,
 	21: -50,
@@ -15,6 +42,23 @@ const hatOffsets: { [key in number]: number | undefined } = {
 };
 
 const coloredHats: number[] = [77, 90];
+
+function initializeCosmetics() {
+	if (cosmeticsInitialized || cosmeticRequest) {
+		return;
+	}
+
+	cosmeticRequest = fetch(`${HAT_COLLECTION_URL}/hats.json`)
+		.then((response) => response.json())
+		.then((data: CosmeticCollection) => {
+			cosmeticCollection = data;
+			cosmeticsInitialized = true;
+		})
+		.catch((error) => {
+			console.log('Failed to load cosmetics', error);
+			cosmeticRequest = undefined;
+		});
+}
 
 @Component({
 	selector: 'app-avatar',
@@ -39,12 +83,20 @@ export class AvatarComponent implements OnInit {
 		return this.player?.currentOutfit > 0 && this.player?.currentOutfit <= 10;
 	}
 
-	private toAssetId(value: number | string | undefined, emptyValues: string[] = []): number {
+	private normalizeCosmeticId(value: number | string | undefined, emptyValues: string[] = []): string {
 		if (value === undefined || value === null) {
-			return 0;
+			return '';
 		}
 		const normalized = `${value}`;
 		if (emptyValues.includes(normalized)) {
+			return '';
+		}
+		return normalized;
+	}
+
+	private toAssetId(value: number | string | undefined, emptyValues: string[] = []): number {
+		const normalized = this.normalizeCosmeticId(value, emptyValues);
+		if (!normalized) {
 			return 0;
 		}
 		const directNumber = Number(normalized);
@@ -71,6 +123,96 @@ export class AvatarComponent implements OnInit {
 
 	getSkinId(): number {
 		return this.toAssetId(this.hasDisplayOutfit() ? this.player.appearanceSkinId : this.player.skinId, ['skin_None']);
+	}
+
+	getVisorId(): string {
+		return this.normalizeCosmeticId(this.hasDisplayOutfit() ? this.player.appearanceVisorId : this.player.visorId, [
+			'visor_EmptyVisor',
+		]);
+	}
+
+	private getHatCosmeticId(): string {
+		return this.normalizeCosmeticId(this.hasDisplayOutfit() ? this.player.appearanceHatId : this.player.hatId, [
+			'hat_NoHat',
+		]);
+	}
+
+	private getSkinCosmeticId(): string {
+		return this.normalizeCosmeticId(this.hasDisplayOutfit() ? this.player.appearanceSkinId : this.player.skinId, [
+			'skin_None',
+		]);
+	}
+
+	private getCosmetic(id: string): CosmeticData | undefined {
+		if (!id) {
+			return undefined;
+		}
+		if (!cosmeticsInitialized) {
+			initializeCosmetics();
+			return undefined;
+		}
+
+		for (const mod of ['NONE']) {
+			const modCosmetics = cosmeticCollection[mod];
+			const cosmetic = modCosmetics?.hats[id];
+			if (cosmetic) {
+				return {
+					...cosmetic,
+					top: cosmetic.top ?? modCosmetics.defaultTop,
+					width: cosmetic.width ?? modCosmetics.defaultWidth,
+					left: cosmetic.left ?? modCosmetics.defaultLeft,
+					mod,
+				};
+			}
+		}
+		return undefined;
+	}
+
+	private getRemoteCosmeticUrl(id: string, back = false): string {
+		const cosmetic = this.getCosmetic(id);
+		const image = back ? cosmetic?.back_image : cosmetic?.image;
+		if (!cosmetic || !image || cosmetic.multi_color) {
+			return '';
+		}
+		return `${HAT_COLLECTION_URL}${cosmetic.mod}/${image}`;
+	}
+
+	private getCosmeticStyle(id: string): { [key: string]: string } {
+		const cosmetic = this.getCosmetic(id);
+		return {
+			width: cosmetic?.width || '',
+			top: cosmetic?.top ? `calc(22% + ${cosmetic.top})` : '',
+			left: cosmetic?.left ? `calc(${cosmetic.left} - 6px)` : '',
+		};
+	}
+
+	getRemoteHatUrl(): string {
+		return this.getHatId() > 0 ? '' : this.getRemoteCosmeticUrl(this.getHatCosmeticId());
+	}
+
+	getRemoteBackHatUrl(): string {
+		return this.getHatId() > 0 ? '' : this.getRemoteCosmeticUrl(this.getHatCosmeticId(), true);
+	}
+
+	getRemoteSkinUrl(): string {
+		return this.getSkinId() > 0 ? '' : this.getRemoteCosmeticUrl(this.getSkinCosmeticId());
+	}
+
+	getRemoteVisorUrl(): string {
+		return this.getRemoteCosmeticUrl(this.getVisorId());
+	}
+
+	getHatStyle(): { [key: string]: string } {
+		const style = this.getCosmeticStyle(this.getHatCosmeticId());
+		return Object.keys(style).some((key) => !!style[key]) ? style : { top: this.getHatY() };
+	}
+
+	getSkinStyle(): { [key: string]: string } {
+		return this.getCosmeticStyle(this.getSkinCosmeticId());
+	}
+
+	getVisorStyle(): { [key: string]: string } {
+		return this.getCosmeticStyle(this.getVisorId());
 	}
 
 	getHatY(): string {
@@ -101,5 +243,7 @@ export class AvatarComponent implements OnInit {
 		}
 	}
 
-	ngOnInit() {}
+	ngOnInit() {
+		initializeCosmetics();
+	}
 }

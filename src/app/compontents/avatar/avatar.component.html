@@ -31,6 +31,24 @@
 				onload="this.style.display=''"
 				onerror="this.style.display='none'"
 			/>
+			<img
+				*ngIf="!isDead && getRemoteSkinUrl()"
+				[src]="getRemoteSkinUrl()"
+				[ngStyle]="getSkinStyle()"
+				class="skin remote-cosmetic no-drag-img"
+				style="display: none"
+				onload="this.style.display=''"
+				onerror="this.style.display='none'"
+			/>
+			<img
+				*ngIf="!isDead && getRemoteBackHatUrl()"
+				[src]="getRemoteBackHatUrl()"
+				[ngStyle]="getHatStyle()"
+				class="hat remote-cosmetic backlayerd-hat no-drag-img"
+				style="display: none"
+				onload="this.style.display=''"
+				onerror="this.style.display='none'"
+			/>
 
 			<!-- {overflow && <img src={coloredHats[`${hat}${color}`] || hats[hat]} ref={hatImg} className={classes.hat} />} -->
 		</div>
@@ -40,6 +58,24 @@
 			[style.top]="getHatY()"
 			[class]="backLayerHats.has(getHatId()) ? 'backlayerd-hat' : ''"
 			class="hat no-drag-img"
+			style="display: none"
+			onload="this.style.display=''"
+			onerror="this.style.display='none'"
+		/>
+		<img
+			*ngIf="!isDead && getRemoteHatUrl()"
+			[src]="getRemoteHatUrl()"
+			[ngStyle]="getHatStyle()"
+			class="hat remote-cosmetic no-drag-img"
+			style="display: none"
+			onload="this.style.display=''"
+			onerror="this.style.display='none'"
+		/>
+		<img
+			*ngIf="!isDead && getRemoteVisorUrl()"
+			[src]="getRemoteVisorUrl()"
+			[ngStyle]="getVisorStyle()"
+			class="visor remote-cosmetic no-drag-img"
 			style="display: none"
 			onload="this.style.display=''"
 			onerror="this.style.display='none'"

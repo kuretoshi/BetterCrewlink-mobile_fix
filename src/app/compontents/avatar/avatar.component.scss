@@ -71,6 +71,21 @@
 	z-index: 3;
 	width: 100%;
 }
+
+.visor {
+	pointer-events: none;
+	position: absolute;
+	display: block;
+	left: -6px;
+	top: -11%;
+	z-index: 3;
+	width: 100%;
+}
+
+.remote-cosmetic {
+	pointer-events: none;
+}
+
 .backlayerd-hat {
 	z-index: 1;
 }
