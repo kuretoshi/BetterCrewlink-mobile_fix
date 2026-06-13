@@ -18,14 +18,14 @@
 	<div class="avatar" [class.talking]="talking" (click)="openVolume()">
 		<div class="avatar avatar-2">
 			<img
-				src="assets/avatar/players/{{ player.colorId }}-{{ isDead ? 'dead' : 'alive' }}.png"
+				src="assets/avatar/players/{{ getColorId() }}-{{ isDead ? 'dead' : 'alive' }}.png"
 				class="base no-drag-img"
 				style="display: none"
 				onload="this.style.display=''"
 			/>
 			<img
-				*ngIf="!isDead && player.skinId > 0"
-				src="assets/avatar/skins/{{ player.skinId }}.png"
+				*ngIf="!isDead && getSkinId() > 0"
+				src="assets/avatar/skins/{{ getSkinId() }}.png"
 				class="skin no-drag-img"
 				style="display: none"
 				onload="this.style.display=''"
@@ -35,10 +35,10 @@
 			<!-- {overflow && <img src={coloredHats[`${hat}${color}`] || hats[hat]} ref={hatImg} className={classes.hat} />} -->
 		</div>
 		<img
-			*ngIf="!isDead && player.hatId > 0"
+			*ngIf="!isDead && getHatId() > 0"
 			src="assets/avatar/hats/{{ getHatImage() }}.png"
 			[style.top]="getHatY()"
-			[class]="backLayerHats.has(player.hatId) ? 'backlayerd-hat' : ''"
+			[class]="backLayerHats.has(getHatId()) ? 'backlayerd-hat' : ''"
 			class="hat no-drag-img"
 			style="display: none"
 			onload="this.style.display=''"
@@ -46,6 +46,6 @@
 		/>
 	</div>
 	<p class="playername_container">
-		<span class="playername noselect">{{ player.name }}</span>
+		<span class="playername noselect">{{ getDisplayName() }}</span>
 	</p>
 </div>

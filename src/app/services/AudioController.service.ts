@@ -10,6 +10,8 @@ import {
 	VoiceDisguiseEffect,
 } from './voiceEffect';
 
+type VoiceDisguiseMode = 'none' | 'mixup';
+
 export default class AudioController {
 	localTalking: boolean;
 	constructor(private connectionController: ConnectionController) {
@@ -23,9 +25,11 @@ export default class AudioController {
 	microphoneMuted: boolean;
 	public events: EventEmitterO = new EventEmitterO();
 	private appearanceBaseline: { [clientId: number]: string } = {};
+	private previousVoiceDisguiseMode: VoiceDisguiseMode = 'none';
 
 	clearAppearanceBaseline() {
 		this.appearanceBaseline = {};
+		this.previousVoiceDisguiseMode = 'none';
 	}
 
 	async startAudio() {
@@ -139,6 +143,7 @@ export default class AudioController {
 			destination: context.destination,
 			muffleConnected: false,
 			voiceEffectConnected: false,
+			voiceDisguiseActive: false,
 		} as AudioElement;
 	}
 
@@ -164,7 +169,16 @@ export default class AudioController {
 
 	applyVoiceEffect(gain: AudioNode, effect: VoiceDisguiseEffect, destination: AudioNode, player: Player) {
 		try {
-			gain.disconnect(destination);
+			try {
+				gain.disconnect();
+			} catch {
+				// Already disconnected.
+			}
+			try {
+				effect.output.disconnect();
+			} catch {
+				// Already disconnected.
+			}
 			gain.connect(effect.input);
 			effect.output.connect(destination);
 		} catch {
@@ -172,22 +186,40 @@ export default class AudioController {
 		}
 	}
 
-	restoreVoiceEffect(gain: AudioNode, effect: VoiceDisguiseEffect, destination: AudioNode, player: Player) {
+	private resetAudioRoute(audioElement: AudioElement, player: Player) {
 		try {
-			effect.output.disconnect(destination);
-			gain.disconnect(effect.input);
-			gain.connect(destination);
+			updateVoiceDisguiseEffect(audioElement.voiceEffect, 0);
+			try {
+				audioElement.voiceEffect.output.disconnect();
+			} catch {
+				// Already disconnected.
+			}
+			try {
+				audioElement.muffle.disconnect();
+			} catch {
+				// Already disconnected.
+			}
+			try {
+				audioElement.gain.disconnect();
+			} catch {
+				// Already disconnected.
+			}
+			audioElement.gain.connect(audioElement.destination);
 		} catch {
-			console.log('error with restoring voice disguise effect: ', player.name);
+			console.log('error with resetting audio route: ', player.name);
 		}
+
+		audioElement.voiceEffectConnected = false;
+		audioElement.voiceDisguiseActive = false;
+		audioElement.muffleConnected = false;
 	}
 
 	private restoreTransientEffects(audioElement: AudioElement, player: Player) {
-		const { gain, muffle, voiceEffect, destination } = audioElement;
+		const { gain, muffle, destination } = audioElement;
 
-		if (audioElement.voiceEffectConnected) {
-			audioElement.voiceEffectConnected = false;
-			this.restoreVoiceEffect(gain, voiceEffect, destination, player);
+		if (audioElement.voiceEffectConnected || audioElement.voiceDisguiseActive) {
+			this.resetAudioRoute(audioElement, player);
+			return;
 		}
 		if (audioElement.muffleConnected) {
 			audioElement.muffleConnected = false;
@@ -195,8 +227,59 @@ export default class AudioController {
 		}
 	}
 
-	private getAppearanceKey(player: Player): string {
-		return player.appearanceId || `${player.colorId}|${player.hatId}|${player.skinId}|${player.visorId || ''}`;
+	private hasDisplayOutfit(player: Player): boolean {
+		return player.currentOutfit > 0 && player.currentOutfit <= 10;
+	}
+
+	private normalizeCosmeticId(id: number | string | undefined, emptyValues: string[] = []): string {
+		if (id === undefined || id === null) {
+			return '';
+		}
+		const value = `${id}`;
+		return emptyValues.includes(value) ? '' : value;
+	}
+
+	private getDisplayAppearanceKey(player: Player): string {
+		if (player.appearanceId) {
+			return player.appearanceId;
+		}
+		const useAppearance = this.hasDisplayOutfit(player);
+		return [
+			useAppearance && player.appearanceColorId >= 0 ? player.appearanceColorId : player.colorId,
+			this.normalizeCosmeticId(useAppearance ? player.appearanceHatId : player.hatId, ['hat_NoHat']),
+			this.normalizeCosmeticId(useAppearance ? player.appearanceSkinId : player.skinId, ['skin_None']),
+			this.normalizeCosmeticId(useAppearance ? player.appearanceVisorId : player.visorId, ['visor_EmptyVisor']),
+		].join('|');
+	}
+
+	private getOriginalAppearanceKey(player: Player): string {
+		return [
+			player.colorId,
+			this.normalizeCosmeticId(player.hatId, ['hat_NoHat']),
+			this.normalizeCosmeticId(player.skinId, ['skin_None']),
+			this.normalizeCosmeticId(player.visorId, ['visor_EmptyVisor']),
+		].join('|');
+	}
+
+	private captureAppearanceBaseline(players: Player[]) {
+		this.appearanceBaseline = players.reduce((baseline: { [clientId: number]: string }, player) => {
+			if (!player.disconnected && !player.bugged) {
+				baseline[player.clientId] = this.getDisplayAppearanceKey(player);
+			}
+			return baseline;
+		}, {});
+	}
+
+	private getBaselineAppearanceKey(player: Player): string {
+		return this.appearanceBaseline[player.clientId] || this.getOriginalAppearanceKey(player);
+	}
+
+	private getVoiceDisguiseMode(state: AmongUsState): VoiceDisguiseMode {
+		if (state.gameState !== GameState.TASKS || !state.players) {
+			return 'none';
+		}
+
+		return state.mushroomMixupSabotaged || state.camouflaged || (state as any).mixupSabotaged ? 'mixup' : 'none';
 	}
 
 	updateAppearanceBaseline(state: AmongUsState) {
@@ -204,25 +287,57 @@ export default class AudioController {
 			return;
 		}
 
-		if (state.gameState === GameState.TASKS) {
-			if (Object.keys(this.appearanceBaseline).length === 0) {
-				this.appearanceBaseline = state.players.reduce((baseline: { [clientId: number]: string }, player) => {
-					if (!player.disconnected && !player.bugged) {
-						baseline[player.clientId] = this.getAppearanceKey(player);
-					}
-					return baseline;
-				}, {});
-			}
+		if (state.gameState === GameState.LOBBY) {
+			this.captureAppearanceBaseline(state.players);
+			this.previousVoiceDisguiseMode = 'none';
 			return;
 		}
 
-		if (state.gameState === GameState.LOBBY || state.gameState === GameState.MENU || state.gameState === GameState.UNKNOWN) {
+		if (state.gameState === GameState.MENU || state.gameState === GameState.UNKNOWN) {
 			this.appearanceBaseline = {};
+			this.previousVoiceDisguiseMode = 'none';
+			return;
+		}
+
+		if (state.gameState === GameState.TASKS && Object.keys(this.appearanceBaseline).length === 0 && this.getVoiceDisguiseMode(state) === 'none') {
+			this.captureAppearanceBaseline(state.players);
+		}
+	}
+
+	reconcileVoiceDisguiseEffects(state: AmongUsState, socketElements: Iterable<SocketElement>) {
+		const voiceDisguiseMode = this.getVoiceDisguiseMode(state);
+		const previousVoiceDisguiseMode = this.previousVoiceDisguiseMode;
+		this.previousVoiceDisguiseMode = voiceDisguiseMode;
+
+		if (state.gameState !== GameState.TASKS || !state.players) {
+			return;
+		}
+
+		if (Object.keys(this.appearanceBaseline).length === 0 && voiceDisguiseMode === 'none') {
+			this.captureAppearanceBaseline(state.players);
+		}
+
+		const playersByClientId = new Map(state.players.map((player) => [player.clientId, player]));
+		for (const element of socketElements) {
+			const audioElement = element.audioElement;
+			if (!audioElement || (!audioElement.voiceEffectConnected && !audioElement.voiceDisguiseActive)) {
+				continue;
+			}
+
+			const player = element.client ? playersByClientId.get(element.client.clientId) : element.player;
+			if (previousVoiceDisguiseMode !== 'none' && voiceDisguiseMode === 'none') {
+				this.resetAudioRoute(audioElement, player || ({ name: element.socketId } as Player));
+				continue;
+			}
+
+			if (!player || !this.isVoiceDisguiseEffectActive(state, player)) {
+				this.resetAudioRoute(audioElement, player || ({ name: element.socketId } as Player));
+			}
 		}
 	}
 
 	private isVoiceDisguiseEffectActive(state: AmongUsState, player: Player): boolean {
-		if (state.gameState !== GameState.TASKS) {
+		if (this.getVoiceDisguiseMode(state) === 'none') {
 			return false;
 		}
 
@@ -231,7 +346,7 @@ export default class AudioController {
 			return false;
 		}
 
-		return this.getAppearanceKey(player) !== baselineAppearance;
+		return this.getDisplayAppearanceKey(player) !== this.getBaselineAppearanceKey(player);
 	}
 
 	// move to different controller
@@ -255,6 +370,10 @@ export default class AudioController {
 		let panPos = [other.x - localPLayer.x, other.y - localPLayer.y];
 		let endGain = 0;
 		let voiceEffectEnabled = false;
+		const voiceDisguiseActive = this.isVoiceDisguiseEffectActive(state, other);
+		if ((element.audioElement.voiceDisguiseActive || element.audioElement.voiceEffectConnected) && !voiceDisguiseActive) {
+			this.resetAudioRoute(element.audioElement, other);
+		}
 		switch (state.gameState) {
 			case GameState.MENU:
 				endGain = 0;
@@ -339,8 +458,7 @@ export default class AudioController {
 			state.gameState === GameState.TASKS
 		) {
 			if (element.audioElement.voiceEffectConnected) {
-				element.audioElement.voiceEffectConnected = false;
-				this.restoreVoiceEffect(gain, voiceEffect, destination, other);
+				this.resetAudioRoute(element.audioElement, other);
 			}
 			if (!element.audioElement.muffleConnected) {
 				element.audioElement.muffleConnected = true;
@@ -360,7 +478,7 @@ export default class AudioController {
 		}
 
 		if (
-			this.isVoiceDisguiseEffectActive(state, other) &&
+			voiceDisguiseActive &&
 			lobbySettings.voiceEffectEnabled !== false &&
 			settings.voiceEffectStrength > 0 &&
 			!localPLayer.isDead &&
@@ -369,6 +487,7 @@ export default class AudioController {
 		) {
 			updateVoiceDisguiseEffect(voiceEffect, settings.voiceEffectStrength);
 			voiceEffectEnabled = true;
+			element.audioElement.voiceDisguiseActive = true;
 			if (!element.audioElement.voiceEffectConnected) {
 				element.audioElement.voiceEffectConnected = true;
 				this.applyVoiceEffect(gain, voiceEffect, destination, other);
@@ -376,8 +495,7 @@ export default class AudioController {
 		}
 
 		if (element.audioElement.voiceEffectConnected && !voiceEffectEnabled) {
-			element.audioElement.voiceEffectConnected = false;
-			this.restoreVoiceEffect(gain, voiceEffect, destination, other);
+			this.resetAudioRoute(element.audioElement, other);
 		}
 
 		if (endGain <= 0) {

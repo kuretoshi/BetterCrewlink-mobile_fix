@@ -25,10 +25,16 @@ export interface Player {
 	clientId: number;
 	name: string;
 	colorId: number;
-	hatId: number;
+	hatId: number | string;
 	petId: number;
-	skinId: number;
+	skinId: number | string;
 	visorId?: string;
+	currentOutfit?: number;
+	appearanceName?: string;
+	appearanceColorId?: number;
+	appearanceHatId?: number | string;
+	appearanceSkinId?: number | string;
+	appearanceVisorId?: string;
 	appearanceId?: string;
 	disconnected: boolean;
 	isImpostor: boolean;

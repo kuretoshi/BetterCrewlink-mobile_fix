@@ -278,6 +278,7 @@ export class ConnectionController implements IConnectionController {
 			this.oldGameState = this.currentGameState;
 			this.currentGameState = amongUsState;
 			this.audioController.updateAppearanceBaseline(amongUsState);
+			this.audioController.reconcileVoiceDisguiseEffects(amongUsState, this.socketElements.values());
 			const newLocalplayer = amongUsState.players.filter(
 				(o) => o.name.replace(' ', '') === this.amongusUsername.replace(' ', '')
 			)[0];

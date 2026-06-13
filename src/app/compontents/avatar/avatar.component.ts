@@ -34,13 +34,54 @@ export class AvatarComponent implements OnInit {
 	clickable() {
 		return this.settings !== undefined;
 	}
-	getHatY(): string {
-		return `${(hatOffsets[this.player.hatId] || -33) + 22}%`;
+
+	private hasDisplayOutfit(): boolean {
+		return this.player?.currentOutfit > 0 && this.player?.currentOutfit <= 10;
 	}
+
+	private toAssetId(value: number | string | undefined, emptyValues: string[] = []): number {
+		if (value === undefined || value === null) {
+			return 0;
+		}
+		const normalized = `${value}`;
+		if (emptyValues.includes(normalized)) {
+			return 0;
+		}
+		const directNumber = Number(normalized);
+		if (Number.isFinite(directNumber)) {
+			return directNumber;
+		}
+		const trailingNumber = normalized.match(/(\d+)$/);
+		return trailingNumber ? Number(trailingNumber[1]) : 0;
+	}
+
+	getDisplayName(): string {
+		return this.hasDisplayOutfit() && this.player.appearanceName ? this.player.appearanceName : this.player.name;
+	}
+
+	getColorId(): number {
+		return this.hasDisplayOutfit() && this.player.appearanceColorId >= 0
+			? this.player.appearanceColorId
+			: this.player.colorId;
+	}
+
+	getHatId(): number {
+		return this.toAssetId(this.hasDisplayOutfit() ? this.player.appearanceHatId : this.player.hatId, ['hat_NoHat']);
+	}
+
+	getSkinId(): number {
+		return this.toAssetId(this.hasDisplayOutfit() ? this.player.appearanceSkinId : this.player.skinId, ['skin_None']);
+	}
+
+	getHatY(): string {
+		return `${(hatOffsets[this.getHatId()] || -33) + 22}%`;
+	}
+
 	getHatImage(): string {
-		return coloredHats.includes(this.player.hatId)
-			? `${this.player.hatId}-${this.player.colorId}`
-			: `${this.player.hatId}`;
+		const hatId = this.getHatId();
+		return coloredHats.includes(hatId)
+			? `${hatId}-${this.getColorId()}`
+			: `${hatId}`;
 	}
 
 	openVolume(state = !this.volumeOpen) {

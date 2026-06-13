@@ -54,6 +54,7 @@ export interface AudioElement {
 	// reverbConnected: boolean;
 	muffleConnected: boolean;
 	voiceEffectConnected: boolean;
+	voiceDisguiseActive: boolean;
 }
 
 export interface ILobbySettings {
