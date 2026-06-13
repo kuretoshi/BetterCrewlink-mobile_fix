@@ -1,6 +1,6 @@
-# BetterCrewLinkKai Mobile
+# タヌキのベタクルmobile
 
-BetterCrewLinkKai Mobile は、Among Us 向け近接ボイスチャットアプリ [BetterCrewLink Mobile](https://github.com/OhMyGuus/BetterCrewlink-mobile) をベースに、日本語環境で使いやすいよう調整している非公式フォークです。
+タヌキのベタクルmobile は、Among Us 向け近接ボイスチャットアプリ [BetterCrewLink Mobile](https://github.com/OhMyGuus/BetterCrewlink-mobile) をベースに、日本語環境で使いやすいよう調整している非公式フォークです。
 
 元プロジェクトは [BetterCrewLink](https://github.com/OhMyGuus/BetterCrewLink) と [CrewLink](https://github.com/ottomated/CrewLink) の流れを引き継いでいます。Among Us、Innersloth、CrewLink、BetterCrewLink の公式プロジェクトとは別の非公式版です。
 
@@ -42,10 +42,10 @@ Web版ではブラウザのマイク権限を許可してください。Android�
 
 ## 使い方
 
-1. PC版 BetterCrewLinkKai または BetterCrewLink を起動します。
+1. PC版 TanukiBCL または BetterCrewLink を起動します。
 2. PC版側で `Mobile Host` を有効にします。
 3. Among Us で同じロビーに入ります。
-4. BetterCrewLinkKai Mobile を起動します。
+4. タヌキのベタクルmobile を起動します。
 5. ボイスサーバー、ゲーム内の名前、ロビーコード、マイクを設定します。
 6. `接続` を押します。
 
