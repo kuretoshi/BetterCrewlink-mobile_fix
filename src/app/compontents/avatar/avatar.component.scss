@@ -47,18 +47,18 @@
 }
 
 .skin {
-	top: calc(33% + 22%);
-	width: 105%;
+	top: 32%;
+	width: 100%;
 	z-index: 3;
 	position: absolute;
-	left: -7px;
+	left: 0;
 }
 
 .base {
-	width: 105%;
+	width: 100%;
 	position: absolute;
-	top: 22%;
-	left: -7px;
+	top: 0;
+	left: 0;
 	z-index: 2;
 }
 
