@@ -38,7 +38,8 @@
     "jetifier": "^1.6.6",
     "rxjs": "~7.8.0",
     "simple-peer": "^9.9.3",
-    "socket.io-client": "^2.3.1",
+    "socket.io-client": "2.4.0",
+    "socket.io-client-v4": "npm:socket.io-client@4.7.5",
     "tslib": "^2.0.0",
     "zone.js": "~0.14.10"
   },

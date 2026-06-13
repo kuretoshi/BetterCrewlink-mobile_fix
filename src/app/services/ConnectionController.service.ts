@@ -1,6 +1,5 @@
 import { EventEmitter as EventEmitterO } from 'events';
 import Peer from 'simple-peer';
-import * as io from 'socket.io-client';
 import { AmongUsState, GameState, Player, MobileData } from './AmongUsState';
 import {
 	SocketElementMap,
@@ -15,6 +14,7 @@ import { DEFAULT_ICE_CONFIG, DEFAULT_ICE_CONFIG_TURN } from './turnServers';
 import { Injectable } from '@angular/core';
 import AudioController from './AudioController.service';
 import { SettingsService } from './settings.service';
+import { connectCompatibleSocket, CompatibleSocketVersion } from './socket';
 
 export enum ConnectionState {
 	disconnected = 0,
@@ -73,6 +73,7 @@ export class ConnectionController implements IConnectionController {
 	private triedGameHost: boolean;
 	private lastHostIndex = -1;
 	public error: string | undefined;
+	public socketVersion?: CompatibleSocketVersion;
 	public events = new EventEmitterO();
 	constructor(public settingsService: SettingsService) {
 		this.audioController = new AudioController(this);
@@ -341,12 +342,15 @@ export class ConnectionController implements IConnectionController {
 	private initialize(serverUrl: string) {
 		this.socketIOClient?.disconnect();
 		console.log('[Connect] got called');
-		this.socketIOClient = io(serverUrl, {
-			transports: ['websocket'],
-		});
+		this.socketVersion = undefined;
+		this.socketIOClient = connectCompatibleSocket(serverUrl);
 
 		this.socketIOClient.on('error', (error: string) => {
 			console.log('[client.error', error);
+		});
+		this.socketIOClient.on('compatible_socket_version', (version: CompatibleSocketVersion) => {
+			this.socketVersion = version;
+			this.updateViews();
 		});
 		this.socketIOClient.on('connect', () => {
 			console.log('[client.connect]');
