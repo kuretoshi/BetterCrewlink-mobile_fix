@@ -26,9 +26,19 @@ interface CosmeticCollection {
 	};
 }
 
+type CosmeticLayer = 'hat' | 'skin' | 'visor';
+
 let cosmeticCollection: CosmeticCollection = {};
 let cosmeticRequest: Promise<void> | undefined;
 let cosmeticsInitialized = false;
+
+const mobileRemoteCosmeticCorrection: {
+	[key in CosmeticLayer]: { scale: number; translateX: string; translateY: string };
+} = {
+	hat: { scale: 0.84, translateX: '9%', translateY: '-7%' },
+	skin: { scale: 0.86, translateX: '8%', translateY: '-7%' },
+	visor: { scale: 0.84, translateX: '9%', translateY: '-7%' },
+};
 
 const hatOffsets: { [key in number]: number | undefined } = {
 	7: -50,
@@ -177,12 +187,15 @@ export class AvatarComponent implements OnInit {
 		return `${HAT_COLLECTION_URL}${cosmetic.mod}/${image}`;
 	}
 
-	private getCosmeticStyle(id: string): { [key: string]: string } {
+	private getCosmeticStyle(id: string, layer: CosmeticLayer): { [key: string]: string } {
 		const cosmetic = this.getCosmetic(id);
+		const correction = mobileRemoteCosmeticCorrection[layer];
 		return {
 			width: cosmetic?.width || '',
 			top: cosmetic?.top ? `calc(22% + ${cosmetic.top})` : '',
 			left: cosmetic?.left ? `calc(${cosmetic.left} - 6px)` : '',
+			transform: `translate(${correction.translateX}, ${correction.translateY}) scale(${correction.scale})`,
+			'transform-origin': 'top left',
 		};
 	}
 
@@ -203,16 +216,16 @@ export class AvatarComponent implements OnInit {
 	}
 
 	getHatStyle(): { [key: string]: string } {
-		const style = this.getCosmeticStyle(this.getHatCosmeticId());
+		const style = this.getCosmeticStyle(this.getHatCosmeticId(), 'hat');
 		return Object.keys(style).some((key) => !!style[key]) ? style : { top: this.getHatY() };
 	}
 
 	getSkinStyle(): { [key: string]: string } {
-		return this.getCosmeticStyle(this.getSkinCosmeticId());
+		return this.getCosmeticStyle(this.getSkinCosmeticId(), 'skin');
 	}
 
 	getVisorStyle(): { [key: string]: string } {
-		return this.getCosmeticStyle(this.getVisorId());
+		return this.getCosmeticStyle(this.getVisorId(), 'visor');
 	}
 
 	getHatY(): string {
