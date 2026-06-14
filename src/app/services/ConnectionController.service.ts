@@ -69,9 +69,6 @@ export class ConnectionController implements IConnectionController {
 	natFix: boolean = false;
 	public audioController: AudioController;
 	public mobileHosts: Map<string, mobileHostInfo> = new Map<string, mobileHostInfo>();
-	private currentHost: string;
-	private triedGameHost: boolean;
-	private lastHostIndex = -1;
 	public error: string | undefined;
 	public socketVersion?: CompatibleSocketVersion;
 	public events = new EventEmitterO();
@@ -90,23 +87,13 @@ export class ConnectionController implements IConnectionController {
 	private ConnectionCheck() {
 		const recievedDataLength = Date.now() - this.lastPing;
 		if (this.connectionState !== ConnectionState.disconnected && this.lastPing !== -1 && recievedDataLength > 2000) {
-			let index = 0;
-			const nextIndex = this.mobileHosts.size > this.lastHostIndex ? this.lastHostIndex + 1 : 0;
-			this.mobileHosts.forEach((mobiledata, from) => {
-				if (mobiledata.mobileHostInfo.isGameHost || (this.triedGameHost && index++ === nextIndex)) {
-					this.currentHost = from;
-					this.lastHostIndex = this.triedGameHost ? nextIndex : -1;
-
-					this.socketIOClient?.emit('signal', {
-						to: from,
-						data: { mobilePlayerInfo: { code: this.gamecode, askingForHost: true } },
-					});
-					this.updateConnectingStage(ConnectingStage.waitingForHostToEnable);
-				}
-			});
-			this.triedGameHost = true;
-		} else {
-			this.triedGameHost = false;
+			if (this.mobileHosts.size > 0) {
+				this.socketIOClient?.emit('signal', {
+					to: this.gamecode,
+					data: { mobilePlayerInfo: { code: this.gamecode, askingForHost: true } },
+				});
+				this.updateConnectingStage(ConnectingStage.waitingForHostToEnable);
+			}
 		}
 		setTimeout(() => this.ConnectionCheck(), 8000);
 	}
@@ -132,7 +119,6 @@ export class ConnectionController implements IConnectionController {
 		this.lobbySettings = DEFAULT_LOBBYSETTINGS;
 		this.connectingStage = 0;
 		this.lastPing = Date.now();
-		this.lastHostIndex = -1;
 		this.connectionState = ConnectionState.connecting;
 		this.gamecode = gamecode;
 		this.amongusUsername = username;
