@@ -6,7 +6,7 @@ import { SettingsService } from '../../services/settings.service';
 const HAT_COLLECTION_URL = 'https://cdn.jsdelivr.net/gh/OhMyGuus/BetterCrewLink-Hats@master/';
 const MOBILE_AVATAR_TOP_OFFSET = '14%';
 const MOBILE_SKIN_TOP_OFFSET = '22%';
-const MOBILE_COSMETIC_Y_OFFSET = '8%';
+const MOBILE_COSMETIC_Y_OFFSET = '13%';
 
 interface CosmeticData {
 	image?: string;
