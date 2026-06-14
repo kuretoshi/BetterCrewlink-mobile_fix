@@ -88,14 +88,22 @@ export class ConnectionController implements IConnectionController {
 		const recievedDataLength = Date.now() - this.lastPing;
 		if (this.connectionState !== ConnectionState.disconnected && this.lastPing !== -1 && recievedDataLength > 2000) {
 			if (this.mobileHosts.size > 0) {
-				this.socketIOClient?.emit('signal', {
-					to: this.gamecode,
-					data: { mobilePlayerInfo: { code: this.gamecode, askingForHost: true } },
-				});
-				this.updateConnectingStage(ConnectingStage.waitingForHostToEnable);
+				this.requestMobileHostData();
 			}
 		}
 		setTimeout(() => this.ConnectionCheck(), 8000);
+	}
+
+	private requestMobileHostData(to = this.gamecode) {
+		if (!this.gamecode || !to) {
+			return;
+		}
+		console.log('[client.mobilePlayerInfo]', { code: this.gamecode, to, mobileHosts: this.mobileHosts.size });
+		this.socketIOClient?.emit('signal', {
+			to,
+			data: { mobilePlayerInfo: { code: this.gamecode, askingForHost: true } },
+		});
+		this.updateConnectingStage(ConnectingStage.waitingForHostToEnable);
 	}
 	private getSocketElement(socketId: string): SocketElement {
 		if (!this.socketElements.has(socketId)) {
@@ -350,6 +358,7 @@ export class ConnectionController implements IConnectionController {
 				this.connectionState = ConnectionState.connecting; // resetting it to connecting since connection to voice server got reset;
 				this.audioController.startAudio().then(() => {
 					this.socketIOClient.emit('join', this.gamecode + '_mobile', Number(Date.now()), Number(Date.now()));
+					this.requestMobileHostData();
 				});
 			}
 		});
@@ -391,6 +400,8 @@ export class ConnectionController implements IConnectionController {
 				const mobiledata = data as mobileHostInfo;
 				this.mobileHosts.set(from, mobiledata);
 				this.updateConnectingStage(ConnectingStage.searchingForHost);
+				this.requestMobileHostData(from);
+				this.requestMobileHostData();
 				return;
 			}
 
