@@ -210,7 +210,11 @@ export class AvatarComponent implements OnInit {
 	}
 
 	getSkinStyle(): { [key: string]: string } {
-		return this.getCosmeticStyle(this.getSkinCosmeticId(), MOBILE_SKIN_TOP_OFFSET);
+		return {
+			...this.getCosmeticStyle(this.getSkinCosmeticId(), MOBILE_SKIN_TOP_OFFSET),
+			left: '50%',
+			transform: 'translateX(-50%)',
+		};
 	}
 
 	getVisorStyle(): { [key: string]: string } {
