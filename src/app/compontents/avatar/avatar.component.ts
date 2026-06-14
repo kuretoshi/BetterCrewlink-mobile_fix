@@ -4,6 +4,7 @@ import { SocketElement, PlayerSetting } from '../../services/smallInterfaces';
 import { SettingsService } from '../../services/settings.service';
 
 const HAT_COLLECTION_URL = 'https://cdn.jsdelivr.net/gh/OhMyGuus/BetterCrewLink-Hats@master/';
+const MOBILE_AVATAR_TOP_OFFSET = '7%';
 
 interface CosmeticData {
 	image?: string;
@@ -181,7 +182,7 @@ export class AvatarComponent implements OnInit {
 		const cosmetic = this.getCosmetic(id);
 		return {
 			width: cosmetic?.width || '',
-			top: cosmetic?.top || '',
+			top: cosmetic?.top ? `calc(${MOBILE_AVATAR_TOP_OFFSET} + ${cosmetic.top})` : '',
 			left: cosmetic?.left || '',
 		};
 	}
@@ -216,7 +217,7 @@ export class AvatarComponent implements OnInit {
 	}
 
 	getHatY(): string {
-		return `${(hatOffsets[this.getHatId()] || -33) + 22}%`;
+		return `${(hatOffsets[this.getHatId()] || -33) + 29}%`;
 	}
 
 	getHatImage(): string {
