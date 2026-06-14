@@ -5,6 +5,7 @@ import { SettingsService } from '../../services/settings.service';
 
 const HAT_COLLECTION_URL = 'https://cdn.jsdelivr.net/gh/OhMyGuus/BetterCrewLink-Hats@master/';
 const MOBILE_AVATAR_TOP_OFFSET = '14%';
+const MOBILE_SKIN_TOP_OFFSET = '22%';
 
 interface CosmeticData {
 	image?: string;
@@ -178,11 +179,11 @@ export class AvatarComponent implements OnInit {
 		return `${HAT_COLLECTION_URL}${cosmetic.mod}/${image}`;
 	}
 
-	private getCosmeticStyle(id: string): { [key: string]: string } {
+	private getCosmeticStyle(id: string, topOffset = MOBILE_AVATAR_TOP_OFFSET): { [key: string]: string } {
 		const cosmetic = this.getCosmetic(id);
 		return {
 			width: cosmetic?.width || '',
-			top: cosmetic?.top ? `calc(${MOBILE_AVATAR_TOP_OFFSET} + ${cosmetic.top})` : '',
+			top: cosmetic?.top ? `calc(${topOffset} + ${cosmetic.top})` : '',
 			left: cosmetic?.left || '',
 		};
 	}
@@ -209,7 +210,7 @@ export class AvatarComponent implements OnInit {
 	}
 
 	getSkinStyle(): { [key: string]: string } {
-		return this.getCosmeticStyle(this.getSkinCosmeticId());
+		return this.getCosmeticStyle(this.getSkinCosmeticId(), MOBILE_SKIN_TOP_OFFSET);
 	}
 
 	getVisorStyle(): { [key: string]: string } {
