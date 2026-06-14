@@ -188,6 +188,14 @@ export class AvatarComponent implements OnInit {
 		};
 	}
 
+	private centerCosmeticStyle(style: { [key: string]: string }): { [key: string]: string } {
+		return {
+			...style,
+			left: '50%',
+			transform: 'translateX(-50%)',
+		};
+	}
+
 	getRemoteHatUrl(): string {
 		return this.getHatId() > 0 ? '' : this.getRemoteCosmeticUrl(this.getHatCosmeticId());
 	}
@@ -206,19 +214,15 @@ export class AvatarComponent implements OnInit {
 
 	getHatStyle(): { [key: string]: string } {
 		const style = this.getCosmeticStyle(this.getHatCosmeticId());
-		return Object.keys(style).some((key) => !!style[key]) ? style : { top: this.getHatY() };
+		return Object.keys(style).some((key) => !!style[key]) ? this.centerCosmeticStyle(style) : { top: this.getHatY() };
 	}
 
 	getSkinStyle(): { [key: string]: string } {
-		return {
-			...this.getCosmeticStyle(this.getSkinCosmeticId(), MOBILE_SKIN_TOP_OFFSET),
-			left: '50%',
-			transform: 'translateX(-50%)',
-		};
+		return this.centerCosmeticStyle(this.getCosmeticStyle(this.getSkinCosmeticId(), MOBILE_SKIN_TOP_OFFSET));
 	}
 
 	getVisorStyle(): { [key: string]: string } {
-		return this.getCosmeticStyle(this.getVisorId());
+		return this.centerCosmeticStyle(this.getCosmeticStyle(this.getVisorId()));
 	}
 
 	getHatY(): string {
