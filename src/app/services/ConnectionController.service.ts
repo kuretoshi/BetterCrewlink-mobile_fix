@@ -116,6 +116,17 @@ export class ConnectionController implements IConnectionController {
 		return Array.from(this.socketElements.values()).find((o) => o.client?.clientId === clientId);
 	}
 
+	private setSocketClient(socketId: string, client?: Client) {
+		if (!client) {
+			return;
+		}
+		const socketElement = this.getSocketElementByClientID(client.clientId);
+		if (socketElement && socketElement.socketId !== socketId) {
+			this.disconnectElement(socketElement);
+		}
+		this.getSocketElement(socketId).client = client;
+	}
+
 	getPlayer(clientId: number): Player {
 		// cache clientid & socketid
 		return this.currentGameState.players.find((o) => o.clientId === clientId);
@@ -368,22 +379,13 @@ export class ConnectionController implements IConnectionController {
 
 		this.socketIOClient.on('setClient', (socketId: string, client: Client) => {
 			console.log('[client.setClient]', { socketId, client });
-			const socketElement = this.getSocketElementByClientID(client.clientId);
-			if (socketElement && socketElement.socketId !== socketId) {
-				this.disconnectElement(socketElement);
-			}
-			this.getSocketElement(socketId).client = client;
+			this.setSocketClient(socketId, client);
 		});
 
 		this.socketIOClient.on('setClients', (clients: SocketClientMap) => {
 			console.log('[client.setClients]', { clients });
 			for (const socketId of Object.keys(clients)) {
-				const socketElement = this.getSocketElementByClientID(clients[socketId].clientId);
-				if (socketElement && socketElement.socketId !== socketId) {
-					this.disconnectElement(socketElement);
-				} else {
-					this.getSocketElement(socketId).client = clients[socketId];
-				}
+				this.setSocketClient(socketId, clients[socketId]);
 			}
 		});
 
@@ -395,7 +397,7 @@ export class ConnectionController implements IConnectionController {
 			}
 		});
 
-		this.socketIOClient.on('signal', ({ data, from }: { data: any; from: string }) => {
+		this.socketIOClient.on('signal', ({ data, from, client }: { data: any; from: string; client?: Client }) => {
 			if (data.hasOwnProperty('mobileHostInfo')) {
 				const mobiledata = data as mobileHostInfo;
 				this.mobileHosts.set(from, mobiledata);
@@ -417,6 +419,7 @@ export class ConnectionController implements IConnectionController {
 			if (!this.audioController.stream) {
 				return;
 			}
+			this.setSocketClient(from, client);
 			const socketElement = this.getSocketElement(from);
 			this.ensurePeerConnection(socketElement, false);
 			socketElement.peer.signal(data);
