@@ -8,6 +8,7 @@ const MOBILE_AVATAR_TOP_OFFSET = '14%';
 const MOBILE_SKIN_TOP_OFFSET = '22%';
 const MOBILE_COSMETIC_Y_OFFSET = '13%';
 const MOBILE_COSMETIC_SCALE = 1.08;
+const MOBILE_SKIN_Y_OFFSET = '0%';
 const MOBILE_SKIN_SCALE = 1.3;
 
 interface CosmeticData {
@@ -191,11 +192,15 @@ export class AvatarComponent implements OnInit {
 		};
 	}
 
-	private centerCosmeticStyle(style: { [key: string]: string }, scale = MOBILE_COSMETIC_SCALE): { [key: string]: string } {
+	private centerCosmeticStyle(
+		style: { [key: string]: string },
+		scale = MOBILE_COSMETIC_SCALE,
+		yOffset = MOBILE_COSMETIC_Y_OFFSET
+	): { [key: string]: string } {
 		return {
 			...style,
 			left: '50%',
-			transform: `translate(-50%, ${MOBILE_COSMETIC_Y_OFFSET}) scale(${scale})`,
+			transform: `translate(-50%, ${yOffset}) scale(${scale})`,
 			transformOrigin: 'top center',
 		};
 	}
@@ -222,7 +227,11 @@ export class AvatarComponent implements OnInit {
 	}
 
 	getSkinStyle(): { [key: string]: string } {
-		return this.centerCosmeticStyle(this.getCosmeticStyle(this.getSkinCosmeticId(), MOBILE_SKIN_TOP_OFFSET), MOBILE_SKIN_SCALE);
+		return this.centerCosmeticStyle(
+			this.getCosmeticStyle(this.getSkinCosmeticId(), MOBILE_SKIN_TOP_OFFSET),
+			MOBILE_SKIN_SCALE,
+			MOBILE_SKIN_Y_OFFSET
+		);
 	}
 
 	getVisorStyle(): { [key: string]: string } {
