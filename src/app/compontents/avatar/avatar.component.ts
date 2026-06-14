@@ -8,7 +8,7 @@ const MOBILE_AVATAR_TOP_OFFSET = '14%';
 const MOBILE_SKIN_TOP_OFFSET = '22%';
 const MOBILE_COSMETIC_Y_OFFSET = '13%';
 const MOBILE_COSMETIC_SCALE = 1.08;
-const MOBILE_SKIN_SCALE = 1.16;
+const MOBILE_SKIN_SCALE = 1.3;
 
 interface CosmeticData {
 	image?: string;
