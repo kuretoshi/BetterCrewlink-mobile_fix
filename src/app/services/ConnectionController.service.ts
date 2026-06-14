@@ -120,7 +120,7 @@ export class ConnectionController implements IConnectionController {
 		this.connectingStage = 0;
 		this.lastPing = Date.now();
 		this.connectionState = ConnectionState.connecting;
-		this.gamecode = gamecode;
+		this.gamecode = gamecode.trim().toUpperCase();
 		this.amongusUsername = username;
 		this.deviceID = deviceID;
 		this.mobileHosts.clear();
@@ -328,12 +328,16 @@ export class ConnectionController implements IConnectionController {
 
 	private initialize(serverUrl: string) {
 		this.socketIOClient?.disconnect();
-		console.log('[Connect] got called');
+		console.log('[Connect] got called', { serverUrl });
 		this.socketVersion = undefined;
+		this.error = undefined;
 		this.socketIOClient = connectCompatibleSocket(serverUrl);
 
-		this.socketIOClient.on('error', (error: string) => {
+		this.socketIOClient.on('error', (error: string | Error | { message?: string }) => {
 			console.log('[client.error', error);
+			this.error = typeof error === 'string' ? error : error?.message || 'Failed to connect to voice server';
+			this.connectionState = ConnectionState.error;
+			this.updateViews();
 		});
 		this.socketIOClient.on('compatible_socket_version', (version: CompatibleSocketVersion) => {
 			this.socketVersion = version;

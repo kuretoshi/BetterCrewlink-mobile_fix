@@ -20,6 +20,11 @@ const DEFAULTPLAYERSETTING: PlayerSetting = {
 	volume: 100,
 };
 
+function normalizeServerUrl(url: string): string {
+	const trimmed = (url || '').trim();
+	return trimmed.endsWith('/') ? trimmed.substring(0, trimmed.length - 1) : trimmed;
+}
+
 @Injectable({
 	providedIn: 'root',
 })
@@ -57,9 +62,11 @@ export class SettingsService {
 			case VoiceServerOption.BETTERCREWLINK:
 				return 'https://bettercrewl.ink';
 			case VoiceServerOption.CUSTOM:
-				return !this.IsMobile && this.settings.customVoiceServer.includes('//crewl.ink')
+				const customVoiceServer = normalizeServerUrl(this.settings.customVoiceServer);
+				this.settings.customVoiceServer = customVoiceServer;
+				return !this.IsMobile && customVoiceServer.includes('//crewl.ink')
 					? 'https://ubuntu1.guus.info'
-					: this.settings.customVoiceServer;
+					: customVoiceServer;
 		}
 	}
 
