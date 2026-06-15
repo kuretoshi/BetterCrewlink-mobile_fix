@@ -129,6 +129,7 @@ export class ConnectionController implements IConnectionController {
 		if (this.currentGameState && this.localPLayer) {
 			element.updatePLayer(this);
 		}
+		this.connectToExistingPeer(element);
 	}
 
 	private setSocketClientFromPlayer(socketId: string, player?: Player) {
@@ -214,6 +215,18 @@ export class ConnectionController implements IConnectionController {
 		if (!element.peer) {
 			element.peer = this.createPeerConnection(element.socketId, this.audioController.stream, initiator);
 		}
+	}
+
+	private connectToExistingPeer(element: SocketElement) {
+		if (
+			!this.audioController.stream ||
+			!this.localPLayer ||
+			!element.client ||
+			element.client.clientId === this.localPLayer.clientId
+		) {
+			return;
+		}
+		this.ensurePeerConnection(element, true);
 	}
 
 	private updateViews() {
@@ -336,6 +349,7 @@ export class ConnectionController implements IConnectionController {
 				}
 
 				value.updatePLayer(this);
+				this.connectToExistingPeer(value);
 				if (value.player) {
 					value.player.isbetter = this.mobileHosts.has(value.socketId);
 				}
