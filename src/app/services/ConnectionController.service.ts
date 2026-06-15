@@ -124,7 +124,21 @@ export class ConnectionController implements IConnectionController {
 		if (socketElement && socketElement.socketId !== socketId) {
 			this.disconnectElement(socketElement);
 		}
-		this.getSocketElement(socketId).client = client;
+		const element = this.getSocketElement(socketId);
+		element.client = client;
+		if (this.currentGameState && this.localPLayer) {
+			element.updatePLayer(this);
+		}
+	}
+
+	private setSocketClientFromPlayer(socketId: string, player?: Player) {
+		if (!player) {
+			return;
+		}
+		this.setSocketClient(socketId, {
+			playerId: player.id,
+			clientId: player.clientId,
+		});
 	}
 
 	getPlayer(clientId: number): Player {
@@ -411,6 +425,7 @@ export class ConnectionController implements IConnectionController {
 				this.lastPing = Date.now();
 				this.updateConnectingStage(ConnectingStage.waitingForHostToEnable);
 				const mobiledata = data as MobileData;
+				this.setSocketClientFromPlayer(from, mobiledata.gameState?.players?.find((player) => player.isLocal));
 				this.onLobbySettingsChange(mobiledata.lobbySettings);
 				this.onGameStateChange(mobiledata.gameState);
 				return;
@@ -420,6 +435,7 @@ export class ConnectionController implements IConnectionController {
 				return;
 			}
 			this.setSocketClient(from, client);
+			this.setSocketClientFromPlayer(from, this.currentGameState?.players?.find((player) => player.isLocal));
 			const socketElement = this.getSocketElement(from);
 			this.ensurePeerConnection(socketElement, false);
 			socketElement.peer.signal(data);
