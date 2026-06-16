@@ -224,6 +224,7 @@ export class GameHelperService implements IGameHelperService {
 			console.log('Notification action done');
 		});
 		this.cManager.events.on('player_talk', async (clientId: number, talking: boolean) => {
+			this.updateViews();
 			if (!this.IsMobile) {
 				return;
 			}
@@ -242,6 +243,7 @@ export class GameHelperService implements IGameHelperService {
 		});
 
 		this.cManager.audioController.events.on('local_talk', async (talking: boolean) => {
+			this.updateViews();
 			if (!this.IsMobile) {
 				return;
 			}
