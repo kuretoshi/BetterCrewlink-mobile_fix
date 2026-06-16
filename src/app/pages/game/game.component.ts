@@ -24,8 +24,23 @@ export class GameComponent implements OnInit {
 	}
 
 	getPlayers() {
-		return Array.from(this.gameHelper.cManager.socketElements.values())
-			.filter((o) => o.player !== undefined)
+		const socketPlayers = Array.from(this.gameHelper.cManager.socketElements.values()).filter((o) => o.player !== undefined);
+		const socketClientIds = new Set(socketPlayers.map((o) => o.player.clientId));
+		const statePlayers =
+			this.gameHelper.cManager.currentGameState?.players
+				?.filter((player) => player.clientId !== this.gameHelper.cManager.localPLayer?.clientId)
+				?.filter((player) => !socketClientIds.has(player.clientId))
+				?.map((player) => {
+					const element = new SocketElement(`player-${player.clientId}`, undefined, {
+						playerId: player.id,
+						clientId: player.clientId,
+					});
+					element.player = player;
+					element.isDead = player.isDead;
+					element.settings = this.gameHelper.cManager.settingsService.getPlayerSettings(player.nameHash);
+					return element;
+				}) || [];
+		return [...socketPlayers, ...statePlayers]
 			.sort((a, b) => a.player?.colorId -  b.player?.colorId);
 	}
 
