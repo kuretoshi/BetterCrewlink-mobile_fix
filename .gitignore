@@ -43,6 +43,11 @@ node_modules/
 /.android-sdk/
 /.android-commandlinetools.zip
 
+# Local Android release signing keys
+/android/*.jks
+/android/*.keystore
+/android/release-signing.properties
+
 # IDEs
 .idea/
 *.sublime-project
