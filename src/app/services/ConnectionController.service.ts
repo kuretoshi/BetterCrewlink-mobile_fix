@@ -229,6 +229,32 @@ export class ConnectionController implements IConnectionController {
 		this.ensurePeerConnection(element, true);
 	}
 
+	private updateSocketElementAudio(element: SocketElement) {
+		if (!this.currentGameState || !this.localPLayer) {
+			return;
+		}
+		if (element.client?.clientId === this.localPLayer.clientId) {
+			return;
+		}
+
+		element.updatePLayer(this);
+		if (element.player) {
+			element.player.isbetter = this.mobileHosts.has(element.socketId);
+		}
+		if (!element.settings && element.player) {
+			element.settings = this.settingsService.getPlayerSettings(element.player.nameHash);
+		}
+
+		if (element.audioElement?.gain) {
+			let endGain = this.audioController.updateAudioLocation(this.currentGameState, element, this.localPLayer);
+			if (element.settings && endGain > 0) {
+				endGain *= element.settings.volume / 100;
+			}
+			element.audioElement.gain.gain.value = endGain;
+			element.audible = endGain > 0;
+		}
+	}
+
 	private updateViews() {
 		this.events.emit('onChange');
 	}
@@ -252,6 +278,7 @@ export class ConnectionController implements IConnectionController {
 			});
 
 			socketElement.audioElement = audioElement;
+			this.updateSocketElementAudio(socketElement);
 			console.log('ONSTREAM, ', socketElement, audioElement);
 		});
 
@@ -344,27 +371,8 @@ export class ConnectionController implements IConnectionController {
 			}
 
 			this.socketElements.forEach((value) => {
-				if (value.client?.clientId === this.localPLayer?.clientId) {
-					return;
-				}
-
-				value.updatePLayer(this);
+				this.updateSocketElementAudio(value);
 				this.connectToExistingPeer(value);
-				if (value.player) {
-					value.player.isbetter = this.mobileHosts.has(value.socketId);
-				}
-				if (!value.settings && value.player) {
-					value.settings = this.settingsService.getPlayerSettings(value.player?.nameHash);
-				}
-
-				if (value?.audioElement?.gain) {
-					let endGain = this.audioController.updateAudioLocation(this.currentGameState, value, this.localPLayer);
-					if (value.settings && endGain > 0) {
-						endGain *= value.settings.volume / 100;
-					}
-					value.audioElement.gain.gain.value = endGain;
-					value.audible = endGain > 0;
-				}
 			});
 		} catch (e) {
 			console.error("ERROR:", e);
@@ -448,8 +456,9 @@ export class ConnectionController implements IConnectionController {
 			if (!this.audioController.stream) {
 				return;
 			}
-			this.setSocketClient(from, client);
-			this.setSocketClientFromPlayer(from, this.currentGameState?.players?.find((player) => player.isLocal));
+			if (client) {
+				this.setSocketClient(from, client);
+			}
 			const socketElement = this.getSocketElement(from);
 			this.ensurePeerConnection(socketElement, false);
 			socketElement.peer.signal(data);
