@@ -26,6 +26,8 @@
 @import '~@ionic/angular/css/flex-utils.css';
 
 :root {
+	--tanuki-header-height: 56px;
+	--tanuki-statusbar-offset: 0px;
 	--ion-item-color: #ffffff;
 	--ion-item-background: #25232a;
 	--ion-color-primary: #1d1a23;
@@ -35,6 +37,19 @@
 	--ion-color-secondary-shade: #121114;
 	--ion-color-secondary-tint: #464250;
 	--ion-color-light: #dfdfdf;
+}
+
+.plt-android {
+	--tanuki-statusbar-offset: max(var(--ion-safe-area-top, 0px), 24px);
+}
+
+.plt-android ion-header {
+	padding-top: var(--tanuki-statusbar-offset);
+	background: var(--ion-color-primary);
+}
+
+.plt-android ion-menu ion-content {
+	--padding-top: calc(20px + var(--tanuki-statusbar-offset));
 }
 .masters {
 	background-color: #25232a;
@@ -53,12 +68,12 @@
 
 
 #main-content{
-     height: calc(100% - 78px);
+     height: calc(100% - 78px - var(--tanuki-statusbar-offset));
 // overflow:visible !important;
 }
 
 #main-content .ion-page{
-	top:56px;
+	top: calc(var(--tanuki-header-height) + var(--tanuki-statusbar-offset));
 //	height: calc(100% - 53px);
 //	margin-bottom: 80px;
 }
