@@ -2,12 +2,12 @@
 	<div>
 		<ion-list lines="full" class="ion-no-margin" style="background-color: #25232a">
 			<ion-list-header lines="full" color="secondary">
-				<ion-label fixed class="fixedLabel"> Audio settings </ion-label>
+				<ion-label fixed class="fixedLabel">音声設定</ion-label>
 			</ion-list-header>
 			@if (gameHelper.speakers.length > 0) {
 				<ion-item>
 					<ion-col size="5" class="settingLabelCol">
-						<ion-label>Speaker</ion-label>
+						<ion-label>スピーカー</ion-label>
 					</ion-col>
 					<ion-col size="7" class="settingInputCol">
 						<ion-select
@@ -16,7 +16,7 @@
 							(ionChange)="onSpeakerChange()"
 							class="full-width-select"
 						>
-							<ion-select-option [value]="undefined">Default</ion-select-option>
+							<ion-select-option [value]="undefined">既定</ion-select-option>
 							@for (speaker of gameHelper.speakers; track speaker) {
 								<ion-select-option [value]="speaker"> {{ speaker.label }}</ion-select-option>
 							}
@@ -26,8 +26,7 @@
 			} @else {
 				<ion-item color="secondary">
 					<ion-label class="ion-text-wrap">
-						Output-device selection is not supported on this device; audio plays through the
-						system default.
+						この端末では出力先を選択できません。音声はシステムの既定デバイスから再生されます。
 					</ion-label>
 				</ion-item>
 			}
@@ -62,7 +61,7 @@
 			}
 			<ion-item>
 				<ion-col size="7" class="settingLabelCol">
-					<ion-label>Echo cancellation</ion-label>
+					<ion-label>エコーキャンセル</ion-label>
 				</ion-col>
 				<ion-col size="5" class="settingInputCol">
 					<ion-checkbox [(ngModel)]="getSettings().echoCancellation" (ionChange)="onSettingsChange()"></ion-checkbox>
@@ -70,7 +69,7 @@
 			</ion-item>
 			<ion-item>
 				<ion-col size="7" class="settingLabelCol">
-					<ion-label>Noise suppression</ion-label>
+					<ion-label>ノイズ抑制</ion-label>
 				</ion-col>
 				<ion-col size="5" class="settingInputCol">
 					<ion-checkbox [(ngModel)]="getSettings().noiseSuppression" (ionChange)="onSettingsChange()"></ion-checkbox>
@@ -78,7 +77,7 @@
 			</ion-item>
 			<ion-item>
 				<ion-col size="7" class="settingLabelCol">
-					<ion-label>Automatic gain control</ion-label>
+					<ion-label>自動ゲイン調整</ion-label>
 				</ion-col>
 				<ion-col size="5" class="settingInputCol">
 					<ion-checkbox [(ngModel)]="getSettings().autoGainControl" (ionChange)="onAudioSettingChange()"></ion-checkbox>
@@ -86,7 +85,7 @@
 			</ion-item>
 			<ion-item>
 				<ion-col size="7" class="settingLabelCol">
-					<ion-label>Microphone gain enabled</ion-label>
+					<ion-label>マイクゲインを有効化</ion-label>
 				</ion-col>
 				<ion-col size="5" class="settingInputCol">
 					<ion-checkbox
@@ -98,7 +97,7 @@
 			</ion-item>
 			<ion-item>
 				<ion-col size="7" class="settingLabelCol">
-					<ion-label>Microphone gain</ion-label>
+					<ion-label>マイクゲイン</ion-label>
 				</ion-col>
 				<ion-col size="5" class="settingInputCol">
 					<ion-range
@@ -112,7 +111,7 @@
 			</ion-item>
 			<ion-item>
 				<ion-col size="7" class="settingLabelCol">
-					<ion-label>Mic sensitivity enabled</ion-label>
+					<ion-label>マイク感度を有効化</ion-label>
 				</ion-col>
 				<ion-col size="5" class="settingInputCol">
 					<ion-checkbox
@@ -124,7 +123,7 @@
 			</ion-item>
 			<ion-item>
 				<ion-col size="7" class="settingLabelCol">
-					<ion-label>Mic sensitivity</ion-label>
+					<ion-label>マイク感度</ion-label>
 				</ion-col>
 				<ion-col size="5" class="settingInputCol">
 					<ion-range
@@ -139,7 +138,7 @@
 			</ion-item>
 			<ion-item>
 				<ion-col size="7" class="settingLabelCol">
-					<ion-label>Master volume</ion-label>
+					<ion-label>マスター音量</ion-label>
 				</ion-col>
 				<ion-col size="5" class="settingInputCol">
 					<ion-range [(ngModel)]="getSettings().masterVolume" (ionChange)="onSettingsChange()" min="0" max="200"></ion-range>
@@ -147,7 +146,7 @@
 			</ion-item>
 			<ion-item>
 				<ion-col size="7" class="settingLabelCol">
-					<ion-label>Crew volume as ghost</ion-label>
+					<ion-label>幽霊時のクルー音量</ion-label>
 				</ion-col>
 				<ion-col size="5" class="settingInputCol">
 					<ion-range
@@ -160,7 +159,7 @@
 			</ion-item>
 			<ion-item>
 				<ion-col size="7" class="settingLabelCol">
-					<ion-label>Ghost volume as impostor</ion-label>
+					<ion-label>インポスター時の幽霊音量</ion-label>
 				</ion-col>
 				<ion-col size="5" class="settingInputCol">
 					<ion-range
@@ -173,7 +172,7 @@
 			</ion-item>
 			<ion-item>
 				<ion-col size="7" class="settingLabelCol">
-					<ion-label>Spatial audio</ion-label>
+					<ion-label>立体音響</ion-label>
 				</ion-col>
 				<ion-col size="5" class="settingInputCol">
 					<ion-checkbox [(ngModel)]="getSettings().enableSpatialAudio" (ionChange)="onSettingsChange()"></ion-checkbox>

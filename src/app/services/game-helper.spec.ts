@@ -14,33 +14,33 @@ function ctx(overrides: { oldGameState?: AmongUsState } = {}) {
 describe('connectionStageLabel', () => {
 	it('does not throw when no previous game state is known yet (first frame)', () => {
 		expect(connectionStageLabel(ConnectingStage.waitingForYouToJoin, ctx())).toBe(
-			'Waiting for you to join with the name Guus --> UNKNOWN'
+			'Guus という名前での参加を待っています → 不明'
 		);
 	});
 
 	it('reports the previous game state once one is known', () => {
 		const oldGameState = { gameState: GameState.LOBBY } as unknown as AmongUsState;
 		expect(connectionStageLabel(ConnectingStage.waitingForYouToJoin, ctx({ oldGameState }))).toBe(
-			'Waiting for you to join with the name Guus --> LOBBY'
+			'Guus という名前での参加を待っています → ロビー'
 		);
 	});
 
 	it('falls back to UNKNOWN for an out-of-range game state', () => {
 		const oldGameState = { gameState: 99 } as unknown as AmongUsState;
 		expect(connectionStageLabel(ConnectingStage.waitingForYouToJoin, ctx({ oldGameState }))).toBe(
-			'Waiting for you to join with the name Guus --> UNKNOWN'
+			'Guus という名前での参加を待っています → 不明'
 		);
 	});
 
 	it('renders the other connecting stages', () => {
-		expect(connectionStageLabel(ConnectingStage.connectingToVoiceServer, ctx())).toBe('Connecting to voice server..');
+		expect(connectionStageLabel(ConnectingStage.connectingToVoiceServer, ctx())).toBe('ボイスサーバーへ接続しています…');
 		expect(connectionStageLabel(ConnectingStage.searchingForHost, ctx())).toBe(
-			'Searching for bettercrewlink PC players in lobby: ABCD'
+			'ロビー ABCD 内のBetterCrewlink PCプレイヤーを検索しています'
 		);
 		expect(connectionStageLabel(ConnectingStage.WaitingForGameData, ctx())).toBe(
-			'Waiting to receive gamedata from player'
+			'プレイヤーからのゲームデータを待っています'
 		);
-		expect(connectionStageLabel(ConnectingStage.FullyConnected, ctx())).toBe('Connected to the game...');
-		expect(connectionStageLabel(99 as ConnectingStage, ctx())).toBe('unkown state 99');
+		expect(connectionStageLabel(ConnectingStage.FullyConnected, ctx())).toBe('ゲームへ接続しました');
+		expect(connectionStageLabel(99 as ConnectingStage, ctx())).toBe('不明な接続状態: 99');
 	});
 });

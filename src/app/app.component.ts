@@ -13,22 +13,22 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
 	public selectedIndex = 0;
 	public appPages = [
 		{
-			title: 'game',
+			title: 'ゲーム',
 			url: '/game',
 			icon: 'home',
 		},
 		{
-			title: 'lobby settings',
+			title: 'ロビー設定',
 			url: '/lobby-settings',
 			icon: 'options',
 		},
 		{
-			title: 'audio settings',
+			title: '音声設定',
 			url: '/audio-settings',
 			icon: 'volume-high',
 		},
 		{
-			title: 'settings',
+			title: '接続設定',
 			url: '/settings',
 			icon: 'settings',
 		},

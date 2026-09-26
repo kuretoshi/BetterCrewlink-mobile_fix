@@ -13,7 +13,7 @@ interface NativeBridgeEvent extends Event {
 	action: string;
 }
 
-const GAME_STATE_NAMES = ['LOBBY', 'TASKS', 'DISCUSSION', 'MENU', 'UNKNOWN'];
+const GAME_STATE_NAMES = ['ロビー', 'タスク', '会議', 'メニュー', '不明'];
 
 /**
  * Human-readable status line for the connecting screen. Pure (and therefore unit-testable)
@@ -31,25 +31,25 @@ export function connectionStageLabel(
 ): string {
 	switch (stage) {
 		case ConnectingStage.connectingToVoiceServer:
-			return 'Connecting to voice server..';
+			return 'ボイスサーバーへ接続しています…';
 		case ConnectingStage.startingMicrophone:
-			return 'Initializing audio/microphone';
+			return '音声とマイクを初期化しています';
 		case ConnectingStage.searchingForHost:
-			return `Searching for bettercrewlink PC players in lobby: ${ctx.gamecode}`;
+			return `ロビー ${ctx.gamecode} 内のBetterCrewlink PCプレイヤーを検索しています`;
 		case ConnectingStage.waitingForHostToEnable:
-			return 'Waiting for a PC player to respond';
+			return 'PCプレイヤーからの応答を待っています';
 		case ConnectingStage.WaitingForGameData:
-			return 'Waiting to receive gamedata from player';
+			return 'プレイヤーからのゲームデータを待っています';
 		case ConnectingStage.waitingForYouToJoin: {
 			const previousState = ctx.oldGameState ? GAME_STATE_NAMES[ctx.oldGameState.gameState] : undefined;
-			return `Waiting for you to join with the name ${ctx.amongusUsername} --> ${previousState ?? 'UNKNOWN'}`;
+			return `${ctx.amongusUsername} という名前での参加を待っています → ${previousState ?? '不明'}`;
 		}
 		case ConnectingStage.parsingGameData:
-			return 'Waiting for gamedata...';
+			return 'ゲームデータを待っています…';
 		case ConnectingStage.FullyConnected:
-			return 'Connected to the game...';
+			return 'ゲームへ接続しました';
 		default:
-			return `unkown state ${stage}`;
+			return `不明な接続状態: ${stage}`;
 	}
 }
 
@@ -101,7 +101,7 @@ export class GameHelperService {
 			if (!haspermissions) {
 				console.error('permissions failed');
 				this.cManager.connectionState = ConnectionState.error;
-				this.error = 'No permissions to use microphone.';
+				this.error = 'マイクの使用が許可されていません。';
 				return;
 			}
 			// Android 14+ requires the mic to be actively capturing before a
@@ -203,7 +203,7 @@ export class GameHelperService {
 		try {
 			await this.cManager.audioController.requestPermissions();
 		} catch {
-			this.error = 'No permission to use microphone';
+			this.error = 'マイクの使用が許可されていません。';
 			return false;
 		}
 		return true;

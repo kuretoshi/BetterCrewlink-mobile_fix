@@ -59,39 +59,39 @@ export class LobbySettingsComponent implements OnInit, OnDestroy {
 		const settings = this.lobbySettings;
 		if (!settings) return [];
 		const toggles = [
-			{ label: 'Vision hearing', value: settings.visionHearing },
-			{ label: 'Walls block audio', value: settings.wallsBlockAudio },
-			{ label: 'Hear through cameras', value: settings.hearThroughCameras },
-			{ label: 'Haunting', value: settings.haunting },
-			{ label: 'Hear impostors in vents', value: settings.hearImpostorsInVents },
-			{ label: 'Impostors hear each other in vents', value: settings.impostersHearImpostersInvent },
-			{ label: 'Comms sabotage', value: settings.commsSabotage },
-			{ label: 'Ghost-only mode', value: settings.deadOnly },
-			{ label: 'Meetings-only mode', value: settings.meetingGhostOnly },
-			{ label: 'Impostor radio', value: settings.impostorRadioEnabled },
-			{ label: 'Private impostor radio', value: settings.impostorRadioPrivate },
+			{ label: '視界連動の聞こえる範囲', value: settings.visionHearing },
+			{ label: '壁による音声遮断', value: settings.wallsBlockAudio },
+			{ label: '監視カメラ越しに聞く', value: settings.hearThroughCameras },
+			{ label: 'インポスターの幽霊音声', value: settings.haunting },
+			{ label: 'ベント内のインポスターを聞く', value: settings.hearImpostorsInVents },
+			{ label: 'ベント内でインポスター同士が聞ける', value: settings.impostersHearImpostersInvent },
+			{ label: '通信妨害で音声を遮断', value: settings.commsSabotage },
+			{ label: '幽霊専用モード', value: settings.deadOnly },
+			{ label: '会議中のみ音声を有効化', value: settings.meetingGhostOnly },
+			{ label: 'インポスター無線', value: settings.impostorRadioEnabled },
+			{ label: 'インポスター無線を非公開', value: settings.impostorRadioPrivate },
 		];
 		const mod = this.gameHelper.cManager.currentGameState?.mod;
 		if (mod === 'SUPER_NEW_ROLES') {
 			toggles.push(
-				{ label: 'SNR Jumbo voice', value: settings.snrJumboVoice },
-				{ label: 'Jackal haunting', value: settings.jackalHaunting },
-				{ label: 'Jackal radio', value: settings.jackalRadioEnabled },
-				{ label: 'Jackal hears outside vents', value: settings.jackalHearOutsideVents },
-				{ label: 'Jackal talks in vents', value: settings.jackalTalkInVents },
-				{ label: 'Sidekick haunting', value: settings.sidekickHaunting },
-				{ label: 'Sidekick hears outside vents', value: settings.sidekickHearOutsideVents },
-				{ label: 'Sidekick talks in vents', value: settings.sidekickTalkInVents }
+				{ label: 'SNR ジャンボの声', value: settings.snrJumboVoice },
+				{ label: 'ジャッカルの幽霊音声', value: settings.jackalHaunting },
+				{ label: 'ジャッカル無線', value: settings.jackalRadioEnabled },
+				{ label: 'ジャッカルがベント外を聞ける', value: settings.jackalHearOutsideVents },
+				{ label: 'ジャッカルがベント内で話せる', value: settings.jackalTalkInVents },
+				{ label: 'サイドキックの幽霊音声', value: settings.sidekickHaunting },
+				{ label: 'サイドキックがベント外を聞ける', value: settings.sidekickHearOutsideVents },
+				{ label: 'サイドキックがベント内で話せる', value: settings.sidekickTalkInVents }
 			);
 		} else if (mod === 'NoS') {
 			toggles.push(
-				{ label: 'NoS Neutral Killer haunting', value: settings.nosNeutralKillerHaunting },
-				{ label: 'NoS voice positions', value: settings.nosVoicePositions }
+				{ label: 'NoS 第三陣営キラーの幽霊音声', value: settings.nosNeutralKillerHaunting },
+				{ label: 'NoS の音声位置', value: settings.nosVoicePositions }
 			);
 		} else if (mod === 'TOH4E') {
-			toggles.push({ label: 'TOH4E Neutral Killer haunting', value: settings.tohNeutralKillerHaunting });
+			toggles.push({ label: 'TOH4E 第三陣営キラーの幽霊音声', value: settings.tohNeutralKillerHaunting });
 		}
-		toggles.unshift({ label: 'Impostor radio only mode', value: settings.impostorRadioOnlyMode });
+		toggles.unshift({ label: 'インポスター無線専用モード', value: settings.impostorRadioOnlyMode });
 		return toggles;
 	}
 
@@ -103,15 +103,15 @@ export class LobbySettingsComponent implements OnInit, OnDestroy {
 		const state = this.gameHelper.cManager.currentGameState?.gameState;
 		switch (state) {
 			case GameState.LOBBY:
-				return 'Lobby';
+				return 'ロビー';
 			case GameState.TASKS:
-				return 'Tasks';
+				return 'タスク';
 			case GameState.DISCUSSION:
-				return 'Discussion';
+				return '会議';
 			case GameState.MENU:
-				return 'Menu';
+				return 'メニュー';
 			default:
-				return 'Unknown';
+				return '不明';
 		}
 	}
 }
