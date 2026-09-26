@@ -203,7 +203,7 @@ describe('VoiceController impostor radio', () => {
 		const voiceController = makeController();
 		const connectionController = (voiceController as any).connectionController as ConnectionController;
 		const me = makePlayer({ id: 1, clientId: 1, isImpostor: true, isDead: false });
-		const other = makePlayer({ id: 2, clientId: 2 });
+		const other = makePlayer({ id: 2, clientId: 2, isImpostor: true });
 		readyState(connectionController, me, [other]);
 		(connectionController as any).clients = { 'socket-2': { playerId: 2, clientId: 2 } };
 		const sendSpy = spyOn(connectionController, 'sendToPeers');
@@ -235,7 +235,7 @@ describe('VoiceController impostor radio', () => {
 		it('clears radio state once the transmitting impostor is no longer valid (dead)', () => {
 			const voiceController = makeController();
 			const connectionController = (voiceController as any).connectionController as ConnectionController;
-			const me = makePlayer({ id: 1, clientId: 1, isImpostor: false });
+			const me = makePlayer({ id: 1, clientId: 1, isImpostor: true });
 			const transmitter = makePlayer({ id: 2, clientId: 2, isImpostor: true, isDead: true });
 			(voiceController as any).impostorRadioClientId = 2;
 			(connectionController as any).clients = { 'socket-2': { playerId: 2, clientId: 2 } };
@@ -250,10 +250,11 @@ describe('VoiceController impostor radio', () => {
 		it('leaves radio state alone while the transmitting impostor is still alive and connected', () => {
 			const voiceController = makeController();
 			const connectionController = (voiceController as any).connectionController as ConnectionController;
-			const me = makePlayer({ id: 1, clientId: 1, isImpostor: false });
+			const me = makePlayer({ id: 1, clientId: 1, isImpostor: true });
 			const transmitter = makePlayer({ id: 2, clientId: 2, isImpostor: true, isDead: false });
 			(voiceController as any).impostorRadioClientId = 2;
 			(connectionController as any).clients = { 'socket-2': { playerId: 2, clientId: 2 } };
+			connectionController.lobbySettings = { ...defaultLobbySettings, impostorRadioEnabled: true };
 			connectionController.audioController.addPeer('socket-2', createSilentStream());
 
 			const state = makeState({ players: [me, transmitter] });
@@ -278,6 +279,9 @@ describe('VoiceController impostor radio', () => {
 		it('adopts the first incoming impostorRadio:true as the active transmitter', () => {
 			const voiceController = makeController();
 			const connectionController = (voiceController as any).connectionController as ConnectionController;
+			const me = makePlayer({ id: 1, clientId: 1, isImpostor: true });
+			const sender = makePlayer({ id: 2, clientId: 2, isImpostor: true });
+			readyState(connectionController, me, [sender]);
 			(connectionController as any).clients = { 'socket-2': { playerId: 2, clientId: 2 } };
 
 			(voiceController as any).onPeerData('socket-2', { impostorRadio: true });
@@ -302,6 +306,9 @@ describe('VoiceController impostor radio', () => {
 		it('clears the active transmitter when it releases', () => {
 			const voiceController = makeController();
 			const connectionController = (voiceController as any).connectionController as ConnectionController;
+			const me = makePlayer({ id: 1, clientId: 1, isImpostor: true });
+			const sender = makePlayer({ id: 2, clientId: 2, isImpostor: true });
+			readyState(connectionController, me, [sender]);
 			(connectionController as any).clients = { 'socket-2': { playerId: 2, clientId: 2 } };
 			(voiceController as any).impostorRadioClientId = 2;
 

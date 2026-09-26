@@ -5,9 +5,9 @@ import { IDeviceInfo } from './smallInterfaces';
 import { ConnectingStage, ConnectionController } from './ConnectionController.service';
 import { SettingsService } from './settings.service';
 import { calculateVoiceAudio } from '../voice/spatialAudio';
-import { PeerAudioNodes } from '../voice/types';
+import { PeerAudioNodes, RadioEchoNodes } from '../voice/types';
 import VAD from './vad';
-import { hasSnrJumbo } from '../common/SnrRole';
+import { hasSnrJumbo, isSnrJackalTeam } from '../common/SnrRole';
 import {
 	createVoiceDisguiseEffect,
 	disconnectVoiceDisguiseEffect,
@@ -271,6 +271,7 @@ export default class AudioController {
 		const reverb = context.createConvolver();
 		reverb.buffer = this.convolverBuffer;
 		const voiceEffect = createVoiceDisguiseEffect(context, this.settingsService.get().voiceEffectStrength);
+		const radioEcho = createRadioEcho(context);
 
 		source.connect(pan);
 		pan.connect(gain);
@@ -287,6 +288,8 @@ export default class AudioController {
 			reverbConnected: false,
 			voiceEffect,
 			voiceEffectConnected: false,
+			radioEcho,
+			radioEchoConnected: false,
 			source,
 		});
 	}
@@ -303,6 +306,7 @@ export default class AudioController {
 		peer.reverb?.disconnect();
 		peer.muffle?.disconnect();
 		disconnectVoiceDisguiseEffect(peer.voiceEffect);
+		disconnectRadioEcho(peer.radioEcho);
 	}
 
 	private teardownAudioElement(element: HTMLAudioElement): void {
@@ -380,6 +384,7 @@ export default class AudioController {
 
 		const wantReverb = result.reverb === null ? peer.reverbConnected : result.reverb;
 		const wantMuffle = result.muffle === null ? peer.muffleConnected : result.muffle !== false;
+		const wantRadioEcho = result.radioEcho;
 		const jumbo =
 			state.mod === 'SUPER_NEW_ROLES' &&
 			activeLobbySettings.snrJumboVoice &&
@@ -389,14 +394,28 @@ export default class AudioController {
 			? Math.min(100, (other.snrRole.jumbo.currentSize / other.snrRole.jumbo.maxSize) * 100)
 			: settings.voiceEffectStrength;
 		const disguise = Boolean(state.mushroomMixupSabotaged || state.camouflaged || state.mixupSabotaged);
+		const radioOnlyMode = activeLobbySettings.impostorRadioOnlyMode === true;
+		const onImpostorRadio =
+			other.clientId === impostorRadioClientId &&
+			me.isImpostor &&
+			other.isImpostor &&
+			(activeLobbySettings.impostorRadioEnabled || radioOnlyMode);
+		const onJackalRadio =
+			other.clientId === impostorRadioClientId &&
+			state.mod === 'SUPER_NEW_ROLES' &&
+			activeLobbySettings.jackalRadioEnabled === true &&
+			!radioOnlyMode &&
+			isSnrJackalTeam(me.snrRole) &&
+			isSnrJackalTeam(other.snrRole);
 		const wantVoiceEffect =
 			state.gameState === GameState.TASKS &&
-			(jumbo || (disguise && activeLobbySettings.voiceEffectEnabled !== false && !me.isDead)) &&
+			(jumbo ||
+				(disguise && activeLobbySettings.voiceEffectEnabled !== false && !me.isDead && !onImpostorRadio && !onJackalRadio)) &&
 			voiceEffectStrength > 0 &&
 			!other.isDead &&
 			!wantMuffle;
 		updateVoiceDisguiseEffect(peer.voiceEffect, voiceEffectStrength, jumbo ? 'down' : 'up');
-		rebuildEffectChain(peer, destination, wantReverb, wantMuffle, wantVoiceEffect);
+		rebuildEffectChain(peer, destination, wantReverb, wantMuffle, wantVoiceEffect, wantRadioEcho);
 
 		if (result.panPosition) {
 			const time = pan.context.currentTime;
@@ -465,12 +484,14 @@ function rebuildEffectChain(
 	destination: AudioNode,
 	wantReverb: boolean,
 	wantMuffle: boolean,
-	wantVoiceEffect: boolean
+	wantVoiceEffect: boolean,
+	wantRadioEcho: boolean
 ): void {
 	if (
 		peer.reverbConnected === wantReverb &&
 		peer.muffleConnected === wantMuffle &&
-		peer.voiceEffectConnected === wantVoiceEffect
+		peer.voiceEffectConnected === wantVoiceEffect &&
+		peer.radioEchoConnected === wantRadioEcho
 	) return;
 
 	for (const node of [peer.gain, peer.muffle, peer.reverb]) {
@@ -485,6 +506,11 @@ function rebuildEffectChain(
 	} catch {
 		/* not connected */
 	}
+	try {
+		peer.radioEcho.output.disconnect();
+	} catch {
+		/* not connected */
+	}
 
 	const chain: AudioNode[] = [peer.gain];
 	if (wantMuffle) chain.push(peer.muffle);
@@ -494,25 +520,62 @@ function rebuildEffectChain(
 		for (let index = 0; index < chain.length - 1; index++) {
 			chain[index].connect(chain[index + 1]);
 		}
-		const tail = chain[chain.length - 1];
+		let tail = chain[chain.length - 1];
 		if (wantVoiceEffect) {
 			tail.connect(peer.voiceEffect.input);
-			peer.voiceEffect.output.connect(destination);
+			tail = peer.voiceEffect.output;
+		}
+		if (wantRadioEcho) {
+			tail.connect(peer.radioEcho.input);
+			peer.radioEcho.output.connect(destination);
 		} else {
 			tail.connect(destination);
 		}
 		peer.reverbConnected = wantReverb;
 		peer.muffleConnected = wantMuffle;
 		peer.voiceEffectConnected = wantVoiceEffect;
+		peer.radioEchoConnected = wantRadioEcho;
 	} catch (error) {
 		console.warn('Failed to rebuild audio effect chain', error);
 		peer.reverbConnected = false;
 		peer.muffleConnected = false;
 		peer.voiceEffectConnected = false;
+		peer.radioEchoConnected = false;
 		try {
 			peer.gain.connect(destination);
 		} catch {
 			/* destination already gone */
+		}
+	}
+}
+
+function createRadioEcho(context: AudioContext): RadioEchoNodes {
+	const input = context.createGain();
+	const output = context.createGain();
+	const dry = context.createGain();
+	const wet = context.createGain();
+	const delay = context.createDelay(1);
+	const feedback = context.createGain();
+	dry.gain.value = 0.92;
+	wet.gain.value = 0.2;
+	delay.delayTime.value = 0.09;
+	feedback.gain.value = 0.12;
+	input.connect(dry);
+	dry.connect(output);
+	input.connect(delay);
+	delay.connect(wet);
+	wet.connect(output);
+	delay.connect(feedback);
+	feedback.connect(delay);
+	return { input, output, dry, wet, delay, feedback };
+}
+
+function disconnectRadioEcho(nodes: RadioEchoNodes): void {
+	for (const node of [nodes.input, nodes.output, nodes.dry, nodes.wet, nodes.delay, nodes.feedback]) {
+		try {
+			node.disconnect();
+		} catch {
+			/* already disconnected */
 		}
 	}
 }

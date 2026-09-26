@@ -212,6 +212,7 @@ describe('calculateVoiceAudio', () => {
 			});
 			expect(result.gain).toBe(1);
 			expect(result.muffle).toEqual({ type: 'highpass', frequency: 1000, q: 10 });
+			expect(result.radioEcho).toBeTrue();
 		});
 
 		it('mutes the transmission for living crew when impostorRadioPrivate is enabled', () => {
@@ -232,6 +233,30 @@ describe('calculateVoiceAudio', () => {
 				impostorRadioClientId: 2,
 			});
 			expect(result.gain).toBe(0);
+		});
+
+		it('routes SNR Jackal teammates over radio regardless of distance', () => {
+			const jackal = { role: { value: 1, name: 'Jackal' }, modifier: null, ghostRole: null };
+			const sidekick = { role: { value: 2, name: 'Sidekick' }, modifier: null, ghostRole: null };
+			const result = run({
+				state: makeState({ mod: 'SUPER_NEW_ROLES' }),
+				me: makePlayer({ id: 1, clientId: 1, isLocal: true, snrRole: jackal }),
+				other: makePlayer({ id: 2, clientId: 2, x: 999, y: 999, snrRole: sidekick }),
+				activeLobbySettings: makeLobbySettings({ jackalRadioEnabled: true }),
+				impostorRadioClientId: 2,
+			});
+			expect(result.gain).toBe(1);
+			expect(result.radioEcho).toBeTrue();
+		});
+
+		it('mutes proximity voice in radio-only mode but lets an impostor transmission through', () => {
+			const settings = makeLobbySettings({ impostorRadioOnlyMode: true });
+			const me = makePlayer({ id: 1, clientId: 1, isLocal: true, isImpostor: true });
+			const other = makePlayer({ id: 2, clientId: 2, x: 1, isImpostor: true });
+			expect(run({ me, other, activeLobbySettings: settings }).gain).toBe(0);
+			const transmitting = run({ me, other, activeLobbySettings: settings, impostorRadioClientId: 2 });
+			expect(transmitting.gain).toBe(1);
+			expect(transmitting.radioEcho).toBeTrue();
 		});
 	});
 

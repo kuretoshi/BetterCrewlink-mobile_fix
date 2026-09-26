@@ -29,6 +29,7 @@ export interface VoiceAudioResult {
 	panMaxDistance: number | null;
 	muffle: MuffleSetting | false | null;
 	reverb: boolean | null;
+	radioEcho: boolean;
 }
 
 function distance(panPos: [number, number]): number {
@@ -50,6 +51,7 @@ export function calculateVoiceAudio(input: VoiceAudioInput): VoiceAudioResult {
 		panMaxDistance: null,
 		muffle: null,
 		reverb: null,
+		radioEcho: false,
 	};
 
 	if (other.disconnected || other.isDummy) {
@@ -90,11 +92,17 @@ export function calculateVoiceAudio(input: VoiceAudioInput): VoiceAudioResult {
 				nosKillerGhosts ||
 				snrNeutralKillerGhosts ||
 				(me.isImpostor && activeLobbySettings.haunting);
-	const onImpostorRadio =
-		activeLobbySettings.impostorRadioEnabled &&
-		other.isImpostor &&
-		impostorRadioClientId !== -1 &&
-		other.clientId === impostorRadioClientId;
+	const radioOnlyMode = activeLobbySettings.impostorRadioOnlyMode === true;
+	const radioEnabled = activeLobbySettings.impostorRadioEnabled || radioOnlyMode;
+	const onRadio = impostorRadioClientId !== -1 && other.clientId === impostorRadioClientId;
+	const receivingImpostorRadio = onRadio && !me.isDead && me.isImpostor && other.isImpostor && radioEnabled;
+	const receivingJackalRadio =
+		onRadio &&
+		!me.isDead &&
+		meJackalTeam &&
+		otherJackalTeam &&
+		activeLobbySettings.jackalRadioEnabled === true &&
+		!radioOnlyMode;
 
 	switch (state.gameState) {
 		case GameState.MENU:
@@ -107,7 +115,7 @@ export function calculateVoiceAudio(input: VoiceAudioInput): VoiceAudioResult {
 		case GameState.TASKS:
 			endGain = 1;
 
-			if (activeLobbySettings.meetingGhostOnly) {
+			if (activeLobbySettings.meetingGhostOnly || radioOnlyMode) {
 				endGain = 0;
 			}
 			if (!me.isDead && activeLobbySettings.commsSabotage && state.comsSabotaged && !me.isImpostor) {
@@ -123,17 +131,20 @@ export function calculateVoiceAudio(input: VoiceAudioInput): VoiceAudioResult {
 				endGain = 0;
 			}
 			wallCheckEnabled = activeLobbySettings.wallsBlockAudio && !me.isDead;
-			if (onImpostorRadio && me.isImpostor) {
+			if (receivingImpostorRadio || receivingJackalRadio) {
+				endGain = 1;
 				skipDistanceCheck = true;
 				muffleEnabled = true;
+				result.radioEcho = true;
 				result.muffle = { type: 'highpass', frequency: 1000, q: 10 };
-			} else if (onImpostorRadio && !me.isDead && activeLobbySettings.impostorRadioPrivate) {
+			} else if (onRadio && other.isImpostor && !me.isDead && activeLobbySettings.impostorRadioPrivate) {
 				endGain = 0;
 			}
 
 			if (!me.isDead && other.isDead && canHearGhosts) {
 				result.reverb = true;
 				wallCheckEnabled = false;
+				if (radioOnlyMode) endGain = 1;
 				endGain *= settings.ghostVolumeAsImpostor / 100;
 			} else if (other.isDead && !me.isDead) {
 				endGain = 0;
@@ -151,6 +162,14 @@ export function calculateVoiceAudio(input: VoiceAudioInput): VoiceAudioResult {
 			panPos = [0, 0];
 			endGain = 1;
 			if (!me.isDead && other.isDead) {
+				endGain = 0;
+			}
+			if (receivingImpostorRadio || receivingJackalRadio) {
+				endGain = 1;
+				muffleEnabled = true;
+				result.radioEcho = true;
+				result.muffle = { type: 'highpass', frequency: 1000, q: 10 };
+			} else if (radioOnlyMode && !me.isDead) {
 				endGain = 0;
 			}
 			break;

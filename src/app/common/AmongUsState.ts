@@ -2,7 +2,7 @@ import { CameraLocation, MapType } from './AmongusMap';
 import type { ILobbySettings } from './ISettings';
 import { ModsType } from './Mods';
 import type { SnrLiveRole } from './SnrRole';
-import type { NosPlayerData } from './NosSnapshot';
+import type { NosPlayerData, NosRadioData } from './NosSnapshot';
 import type { TohRole } from './TohRole';
 
 // --- verbatim from bettercrewlink (desktop) v3.2.1 src/common/AmongUsState.ts,
@@ -114,12 +114,15 @@ export interface AmongUsState {
 	camouflaged?: boolean;
 	mixupSabotaged?: boolean;
 	nosLocalMicPosition?: { x: number; y: number };
+	nosRadios?: NosRadioData[];
 }
 
 export interface Player {
 	appearanceName?: string;
 	roleName?: string;
 	snrRole?: SnrLiveRole;
+	snrHat2Id?: string;
+	snrVisor2Id?: string;
 	nosPlayer?: NosPlayerData;
 	tohRole?: TohRole;
 	isThirdParty?: boolean;

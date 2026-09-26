@@ -8,7 +8,15 @@ export interface NosPlayerData {
 	isImpostorlike: boolean;
 	speakerPositionX: number;
 	speakerPositionY: number;
+	bodyRateX?: number;
+	bodyRateY?: number;
 	colorR: number;
 	colorG: number;
 	colorB: number;
+}
+
+export interface NosRadioData {
+	kind: number;
+	hearableMask: number;
+	name: string;
 }

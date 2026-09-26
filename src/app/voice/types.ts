@@ -14,6 +14,17 @@ export interface PeerAudioNodes {
 	muffleConnected: boolean;
 	voiceEffect: VoiceDisguiseEffect;
 	voiceEffectConnected: boolean;
+	radioEcho: RadioEchoNodes;
+	radioEchoConnected: boolean;
+}
+
+export interface RadioEchoNodes {
+	input: GainNode;
+	output: GainNode;
+	dry: GainNode;
+	wet: GainNode;
+	delay: DelayNode;
+	feedback: GainNode;
 }
 
 export const defaultLobbySettings: ILobbySettings = {
@@ -23,6 +34,7 @@ export const defaultLobbySettings: ILobbySettings = {
 	jackalHaunting: false,
 	jackalHearOutsideVents: false,
 	jackalTalkInVents: false,
+	jackalRadioEnabled: false,
 	sidekickHaunting: false,
 	sidekickHearOutsideVents: false,
 	sidekickTalkInVents: false,
@@ -32,6 +44,7 @@ export const defaultLobbySettings: ILobbySettings = {
 	hearImpostorsInVents: false,
 	impostersHearImpostersInvent: false,
 	impostorRadioEnabled: false,
+	impostorRadioOnlyMode: false,
 	impostorRadioPrivate: false,
 	commsSabotage: false,
 	voiceEffectEnabled: true,

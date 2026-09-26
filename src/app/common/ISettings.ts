@@ -12,6 +12,7 @@ export interface ILobbySettings {
 	jackalHaunting: boolean;
 	jackalHearOutsideVents: boolean;
 	jackalTalkInVents: boolean;
+	jackalRadioEnabled: boolean;
 	sidekickHaunting: boolean;
 	sidekickHearOutsideVents: boolean;
 	sidekickTalkInVents: boolean;
@@ -21,6 +22,7 @@ export interface ILobbySettings {
 	hearImpostorsInVents: boolean;
 	impostersHearImpostersInvent: boolean;
 	impostorRadioEnabled: boolean;
+	impostorRadioOnlyMode: boolean;
 	impostorRadioPrivate: boolean;
 	commsSabotage: boolean;
 	voiceEffectEnabled: boolean;

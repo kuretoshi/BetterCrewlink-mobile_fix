@@ -7,6 +7,7 @@ import { MobileHostService } from './mobile-host.service';
 import { SettingsService } from './settings.service';
 import { isToh4eHostName } from '../common/Mods';
 import { isTohRole, TohRole } from '../common/TohRole';
+import { isSnrJackalTeam } from '../common/SnrRole';
 
 const radioOnAudio = new Audio('assets/sounds/radio_on.wav');
 radioOnAudio.volume = 0.02;
@@ -412,10 +413,9 @@ export class VoiceController {
 			this.impostorRadioPressed &&
 			state?.gameState === GameState.TASKS &&
 			myPlayer !== undefined &&
-			myPlayer.isImpostor &&
+			this.canUseRadio(state, myPlayer) &&
 			!myPlayer.isDead &&
-			(this.impostorRadioClientId === -1 || this.impostorRadioClientId === myPlayer.clientId) &&
-			connectionController.lobbySettings.impostorRadioEnabled;
+			(this.impostorRadioClientId === -1 || this.impostorRadioClientId === myPlayer.clientId);
 
 		if (granted === this.radioTransmitting) return;
 		this.radioTransmitting = granted;
@@ -428,7 +428,14 @@ export class VoiceController {
 
 		const playerSocketIds = connectionController.playerSocketIds;
 		const targets = (state?.players ?? [])
-			.filter((player) => player.clientId !== myPlayer?.clientId && !player.bugged)
+			.filter(
+				(player) =>
+					myPlayer !== undefined &&
+					player.clientId !== myPlayer.clientId &&
+					!player.isDead &&
+					!player.bugged &&
+					this.areRadioPartners(state!, myPlayer, player)
+			)
 			.map((player) => playerSocketIds[player.clientId])
 			.filter((peerId): peerId is string => Boolean(peerId));
 		connectionController.sendToPeers(targets, JSON.stringify({ impostorRadio: granted }));
@@ -441,7 +448,10 @@ export class VoiceController {
 			this.impostorRadioClientId = -1;
 			return;
 		}
-		if (this.impostorRadioClientId === myPlayer.clientId) return;
+		if (this.impostorRadioClientId === myPlayer.clientId) {
+			if (!this.canUseRadio(state, myPlayer) || myPlayer.isDead) this.applyImpostorRadio(false);
+			return;
+		}
 
 		const peerId = this.connectionController.playerSocketIds[this.impostorRadioClientId];
 		const stillActive =
@@ -451,7 +461,7 @@ export class VoiceController {
 				(player) =>
 					player.clientId !== myPlayer.clientId &&
 					player.clientId === this.impostorRadioClientId &&
-					player.isImpostor &&
+					this.areRadioPartners(state, myPlayer, player) &&
 					!player.isDead &&
 					!player.disconnected &&
 					!player.bugged
@@ -517,7 +527,9 @@ export class VoiceController {
 		}
 		if (Object.prototype.hasOwnProperty.call(data, 'impostorRadio')) {
 			const clientId = this.connectionController.getClient(socketId)?.clientId;
-			if (clientId === undefined) return;
+			const myPlayer = this.connectionController.localPLayer;
+			const sender = state?.players.find((player) => player.clientId === clientId);
+			if (!state || clientId === undefined || !myPlayer || !sender || !this.areRadioPartners(state, myPlayer, sender)) return;
 			if (this.impostorRadioClientId === -1 && data.impostorRadio) {
 				this.impostorRadioClientId = clientId;
 			} else if (this.impostorRadioClientId === clientId && !data.impostorRadio) {
@@ -534,5 +546,26 @@ export class VoiceController {
 			if (!state || senderClientId === undefined || senderClientId !== state.hostId) return;
 			this.onLobbySettingsChange(data as unknown as ILobbySettings);
 		}
+	}
+
+	private isJackalRadioPlayer(state: AmongUsState, player: Player): boolean {
+		return state.mod === 'SUPER_NEW_ROLES' && isSnrJackalTeam(player.snrRole);
+	}
+
+	private canUseRadio(state: AmongUsState, player: Player): boolean {
+		const settings = this.connectionController.lobbySettings;
+		if (this.isJackalRadioPlayer(state, player)) {
+			return settings.jackalRadioEnabled === true && settings.impostorRadioOnlyMode !== true;
+		}
+		return player.isImpostor && (settings.impostorRadioEnabled || settings.impostorRadioOnlyMode === true);
+	}
+
+	private areRadioTeammates(state: AmongUsState, first: Player, second: Player): boolean {
+		if (this.isJackalRadioPlayer(state, first)) return this.isJackalRadioPlayer(state, second);
+		return first.isImpostor && second.isImpostor && !this.isJackalRadioPlayer(state, second);
+	}
+
+	private areRadioPartners(state: AmongUsState, first: Player, second: Player): boolean {
+		return this.areRadioTeammates(state, first, second) && this.canUseRadio(state, first);
 	}
 }

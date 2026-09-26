@@ -76,6 +76,7 @@ export class LobbySettingsComponent implements OnInit, OnDestroy {
 			toggles.push(
 				{ label: 'SNR Jumbo voice', value: settings.snrJumboVoice },
 				{ label: 'Jackal haunting', value: settings.jackalHaunting },
+				{ label: 'Jackal radio', value: settings.jackalRadioEnabled },
 				{ label: 'Jackal hears outside vents', value: settings.jackalHearOutsideVents },
 				{ label: 'Jackal talks in vents', value: settings.jackalTalkInVents },
 				{ label: 'Sidekick haunting', value: settings.sidekickHaunting },
@@ -90,6 +91,7 @@ export class LobbySettingsComponent implements OnInit, OnDestroy {
 		} else if (mod === 'TOH4E') {
 			toggles.push({ label: 'TOH4E Neutral Killer haunting', value: settings.tohNeutralKillerHaunting });
 		}
+		toggles.unshift({ label: 'Impostor radio only mode', value: settings.impostorRadioOnlyMode });
 		return toggles;
 	}
 
