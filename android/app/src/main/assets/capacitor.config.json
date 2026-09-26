@@ -1,5 +1,5 @@
 {
-	"appId": "io.bettercrewlink.app",
+	"appId": "io.bettercrewlink.tanuki",
 	"appName": "タヌキのベタクルモバイル",
 	"bundledWebRuntime": false,
 	"npmClient": "npm",
