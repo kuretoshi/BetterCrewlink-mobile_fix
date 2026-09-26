@@ -6,6 +6,8 @@ import { PlayerConnectionState, PlayerSetting } from '../../services/smallInterf
 import { SettingsService } from '../../services/settings.service';
 import { CosmeticRender, CosmeticsService, CosmeticType } from '../../services/cosmetics.service';
 import { playerSettingsKey } from '../../services/voice-controller.service';
+import { MOBILE_PLAYERCOLORS } from '../../common/playerColors';
+import { findNosColorIndex } from '../../common/NosSnapshot';
 
 @Component({
 	selector: 'app-avatar',
@@ -58,9 +60,27 @@ export class AvatarComponent implements OnDestroy {
 	 * Desktop generates these from the game's colour table; mobile bundles pre-rendered ones.
 	 */
 	getBodyImage(): string {
-		const colorId = Number(this.player.colorId);
+		const colorId = this.getDisplayColorId();
 		const alive = colorId >= 0 && colorId <= 17 ? colorId : 0;
 		return `assets/avatar/players/${alive}-${this.isDead ? 'dead' : 'alive'}.png`;
+	}
+
+	/** Mirrors desktop: NoS RGB wins, then an active disguise outfit, then the base colour. */
+	getDisplayColorId(): number {
+		if (this.mod === 'NoS') {
+			const nosColor = findNosColorIndex(this.player?.nosPlayer, MOBILE_PLAYERCOLORS);
+			if (nosColor >= 0) return nosColor;
+		}
+		if (
+			this.player?.currentOutfit !== undefined &&
+			this.player.currentOutfit > 0 &&
+			this.player.currentOutfit <= 10 &&
+			Number.isInteger(this.player.appearanceColorId) &&
+			(this.player.appearanceColorId as number) >= 0
+		) {
+			return this.player.appearanceColorId as number;
+		}
+		return Number(this.player?.colorId);
 	}
 
 	/** Last-resort: hide the body instead of showing a broken-image glyph (e.g. a colorId that isn't a number). */
@@ -89,7 +109,7 @@ export class AvatarComponent implements OnDestroy {
 		if (this.isDead || !this.player) {
 			return undefined;
 		}
-		return this.cosmetics.getCosmeticRender(Number(this.player.colorId), type, id, this.mod ?? 'NONE');
+		return this.cosmetics.getCosmeticRender(this.getDisplayColorId(), type, id, this.mod ?? 'NONE');
 	}
 
 	openVolume(state = !this.volumeOpen) {

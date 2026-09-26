@@ -120,5 +120,27 @@ describe('AvatarComponent', () => {
 			component.isDead = true;
 			expect(component.getBodyImage()).toBe('assets/avatar/players/3-dead.png');
 		});
+
+		it('uses the NoS published RGB instead of the base color', () => {
+			const { component, cosmetics } = makeComponent(
+				makePlayer({
+					colorId: 0,
+					nosPlayer: {
+						playerId: 1, name: 'NoS', isKiller: false, isImpostor: false, isCrewmate: true,
+						isNeutral: false, isImpostorlike: false, speakerPositionX: 0, speakerPositionY: 0,
+						colorR: 0x13 / 255, colorG: 0x2e / 255, colorB: 0xd1 / 255,
+					},
+				})
+			);
+			component.mod = 'NoS';
+			expect(component.getBodyImage()).toBe('assets/avatar/players/1-alive.png');
+			component.getHat();
+			expect(cosmetics.getCosmeticRender).toHaveBeenCalledWith(1, CosmeticType.hat, 'hat_pizza', 'NoS');
+		});
+
+		it('uses the active appearance color during a disguise', () => {
+			const { component } = makeComponent(makePlayer({ colorId: 2, currentOutfit: 1, appearanceColorId: 5 }));
+			expect(component.getBodyImage()).toBe('assets/avatar/players/5-alive.png');
+		});
 	});
 });

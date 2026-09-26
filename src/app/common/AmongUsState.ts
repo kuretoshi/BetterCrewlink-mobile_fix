@@ -119,6 +119,9 @@ export interface AmongUsState {
 
 export interface Player {
 	appearanceName?: string;
+	currentOutfit?: number;
+	appearanceColorId?: number;
+	nosLobbyColor?: string;
 	roleName?: string;
 	snrRole?: SnrLiveRole;
 	snrHat2Id?: string;
