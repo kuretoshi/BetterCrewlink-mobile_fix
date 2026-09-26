@@ -7,6 +7,7 @@ import { SettingsService } from './settings.service';
 import { calculateVoiceAudio } from '../voice/spatialAudio';
 import { PeerAudioNodes } from '../voice/types';
 import VAD from './vad';
+import { hasSnrJumbo } from '../common/SnrRole';
 import {
 	createVoiceDisguiseEffect,
 	disconnectVoiceDisguiseEffect,
@@ -379,15 +380,22 @@ export default class AudioController {
 
 		const wantReverb = result.reverb === null ? peer.reverbConnected : result.reverb;
 		const wantMuffle = result.muffle === null ? peer.muffleConnected : result.muffle !== false;
-		const voiceEffectStrength = settings.voiceEffectStrength;
+		const jumbo =
+			state.mod === 'SUPER_NEW_ROLES' &&
+			activeLobbySettings.snrJumboVoice &&
+			hasSnrJumbo(other.snrRole) &&
+			Boolean(other.snrRole?.jumbo?.maxSize && other.snrRole.jumbo.currentSize > 0);
+		const voiceEffectStrength = jumbo
+			? Math.min(100, (other.snrRole.jumbo.currentSize / other.snrRole.jumbo.maxSize) * 100)
+			: settings.voiceEffectStrength;
+		const disguise = Boolean(state.mushroomMixupSabotaged || state.camouflaged || state.mixupSabotaged);
 		const wantVoiceEffect =
 			state.gameState === GameState.TASKS &&
-			Boolean(state.mushroomMixupSabotaged || state.camouflaged || state.mixupSabotaged) &&
+			(jumbo || (disguise && activeLobbySettings.voiceEffectEnabled !== false && !me.isDead)) &&
 			voiceEffectStrength > 0 &&
-			!me.isDead &&
 			!other.isDead &&
 			!wantMuffle;
-		updateVoiceDisguiseEffect(peer.voiceEffect, voiceEffectStrength);
+		updateVoiceDisguiseEffect(peer.voiceEffect, voiceEffectStrength, jumbo ? 'down' : 'up');
 		rebuildEffectChain(peer, destination, wantReverb, wantMuffle, wantVoiceEffect);
 
 		if (result.panPosition) {

@@ -2,6 +2,7 @@ import { AmongUsState, GameState, Player } from '../common/AmongUsState';
 import { ISettings, ILobbySettings } from '../common/ISettings';
 import { AmongUsMaps, CameraLocation } from '../common/AmongusMap';
 import { poseCollide } from '../common/ColliderMap';
+import { isSnrJackal, isSnrNeutralKiller, isSnrSidekick } from '../common/SnrRole';
 
 export interface MuffleSetting {
 	type: BiquadFilterType;
@@ -35,7 +36,13 @@ function distance(panPos: [number, number]): number {
 }
 
 export function calculateVoiceAudio(input: VoiceAudioInput): VoiceAudioResult {
-	const { state, settings, activeLobbySettings, me, other, maxDistance, impostorRadioClientId } = input;
+	const { state, settings, activeLobbySettings, maxDistance, impostorRadioClientId } = input;
+	const useNosPositions = state.mod === 'NoS' && activeLobbySettings.nosVoicePositions === true;
+	const me = useNosPositions && state.nosLocalMicPosition ? { ...input.me, ...state.nosLocalMicPosition } : input.me;
+	const other =
+		useNosPositions && input.other.nosPlayer
+			? { ...input.other, x: input.other.nosPlayer.speakerPositionX, y: input.other.nosPlayer.speakerPositionY }
+			: input.other;
 
 	const result: VoiceAudioResult = {
 		gain: 0,
@@ -55,6 +62,34 @@ export function calculateVoiceAudio(input: VoiceAudioInput): VoiceAudioResult {
 	let wallCheckEnabled = false;
 	let skipDistanceCheck = false;
 	let muffleEnabled = false;
+	const meJackal = state.mod === 'SUPER_NEW_ROLES' && isSnrJackal(me.snrRole);
+	const otherJackal = state.mod === 'SUPER_NEW_ROLES' && isSnrJackal(other.snrRole);
+	const meSidekick = state.mod === 'SUPER_NEW_ROLES' && isSnrSidekick(me.snrRole);
+	const otherSidekick = state.mod === 'SUPER_NEW_ROLES' && isSnrSidekick(other.snrRole);
+	const meJackalTeam = meJackal || meSidekick;
+	const otherJackalTeam = otherJackal || otherSidekick;
+	const snrVentConversation =
+		meJackalTeam &&
+		otherJackalTeam &&
+		(meSidekick || otherSidekick ? activeLobbySettings.sidekickTalkInVents : activeLobbySettings.jackalTalkInVents);
+	const snrNeutralKillerGhosts =
+		state.mod === 'SUPER_NEW_ROLES' && activeLobbySettings.jackalHaunting && isSnrNeutralKiller(me.snrRole);
+	const nosKillerGhosts =
+		state.mod === 'NoS' &&
+		activeLobbySettings.nosNeutralKillerHaunting &&
+		me.nosPlayer?.isNeutral === true &&
+		me.nosPlayer.isKiller === true &&
+		me.nosPlayer.isImpostor === false;
+	const canHearGhosts = meJackal
+		? snrNeutralKillerGhosts
+		: meSidekick
+			? activeLobbySettings.sidekickHaunting
+			: (state.mod === 'TOH4E' &&
+					activeLobbySettings.tohNeutralKillerHaunting === true &&
+					me.tohRole?.isKiller === true) ||
+				nosKillerGhosts ||
+				snrNeutralKillerGhosts ||
+				(me.isImpostor && activeLobbySettings.haunting);
 	const onImpostorRadio =
 		activeLobbySettings.impostorRadioEnabled &&
 		other.isImpostor &&
@@ -81,7 +116,9 @@ export function calculateVoiceAudio(input: VoiceAudioInput): VoiceAudioResult {
 
 			if (
 				other.inVent &&
-				!(activeLobbySettings.hearImpostorsInVents || (activeLobbySettings.impostersHearImpostersInvent && me.inVent))
+				!((meJackalTeam || otherJackalTeam) && me.inVent
+					? snrVentConversation
+					: activeLobbySettings.hearImpostorsInVents || (activeLobbySettings.impostersHearImpostersInvent && me.inVent))
 			) {
 				endGain = 0;
 			}
@@ -94,13 +131,20 @@ export function calculateVoiceAudio(input: VoiceAudioInput): VoiceAudioResult {
 				endGain = 0;
 			}
 
-			if (!me.isDead && other.isDead && me.isImpostor && activeLobbySettings.haunting) {
+			if (!me.isDead && other.isDead && canHearGhosts) {
 				result.reverb = true;
 				wallCheckEnabled = false;
-				endGain = settings.ghostVolumeAsImpostor / 100;
+				endGain *= settings.ghostVolumeAsImpostor / 100;
 			} else if (other.isDead && !me.isDead) {
 				endGain = 0;
 			}
+			if (
+				!me.isDead &&
+				meJackalTeam &&
+				me.inVent &&
+				!other.inVent &&
+				!(meJackal ? activeLobbySettings.jackalHearOutsideVents : activeLobbySettings.sidekickHearOutsideVents)
+			) endGain = 0;
 			break;
 
 		case GameState.DISCUSSION:
@@ -121,7 +165,7 @@ export function calculateVoiceAudio(input: VoiceAudioInput): VoiceAudioResult {
 		result.panMaxDistance = maxDistance;
 	}
 
-	if (!other.isDead || state.gameState !== GameState.TASKS || !me.isImpostor || me.isDead) {
+	if (!other.isDead || state.gameState !== GameState.TASKS || !canHearGhosts || me.isDead) {
 		result.reverb = false;
 	}
 

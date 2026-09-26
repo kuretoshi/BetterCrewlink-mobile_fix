@@ -235,6 +235,53 @@ describe('calculateVoiceAudio', () => {
 		});
 	});
 
+	describe('mod role routing', () => {
+		it('allows SNR Jackal teammates to talk together in vents when enabled', () => {
+			const jackal = { role: { value: 1, name: 'Jackal' }, modifier: null, ghostRole: null };
+			const sidekick = { role: { value: 2, name: 'Sidekick' }, modifier: null, ghostRole: null };
+			const result = run({
+				state: makeState({ mod: 'SUPER_NEW_ROLES' }),
+				me: makePlayer({ id: 1, clientId: 1, isLocal: true, inVent: true, snrRole: jackal }),
+				other: makePlayer({ id: 2, clientId: 2, x: 1, inVent: true, snrRole: sidekick }),
+				activeLobbySettings: makeLobbySettings({ sidekickTalkInVents: true }),
+			});
+			expect(result.gain).toBeGreaterThan(0);
+		});
+
+		it('uses NoS speaker positions when the host enables them', () => {
+			const result = run({
+				state: makeState({ mod: 'NoS', nosLocalMicPosition: { x: 0, y: 0 } }),
+				other: makePlayer({
+					id: 2,
+					clientId: 2,
+					x: 1,
+					nosPlayer: {
+						playerId: 2, name: 'NoS', isKiller: false, isImpostor: false, isCrewmate: true,
+						isNeutral: false, isImpostorlike: false, speakerPositionX: 100, speakerPositionY: 100,
+						colorR: 1, colorG: 0, colorB: 0,
+					},
+				}),
+				activeLobbySettings: makeLobbySettings({ nosVoicePositions: true }),
+			});
+			expect(result.gain).toBe(0);
+		});
+
+		it('lets a TOH4E killer hear ghosts when role haunting is enabled', () => {
+			const result = run({
+				state: makeState({ mod: 'TOH4E' }),
+				me: makePlayer({
+					id: 1, clientId: 1, isLocal: true,
+					tohRole: { roleId: 10, roleName: 'Jackal', isNeutralKiller: true, isKiller: true },
+				}),
+				other: makePlayer({ id: 2, clientId: 2, x: 1, isDead: true }),
+				activeLobbySettings: makeLobbySettings({ tohNeutralKillerHaunting: true }),
+				settings: makeSettings({ ghostVolumeAsImpostor: 40 }),
+			});
+			expect(result.gain).toBeCloseTo(0.4);
+			expect(result.reverb).toBeTrue();
+		});
+	});
+
 	describe('walls block audio', () => {
 		// Real geometry against MIRA_HQ door 0 (`doorMaps[MIRA_HQ][0] = 'M 44.942 37.086 H 47.27'`,
 		// a horizontal segment in SVG space). poseCollide's transform is

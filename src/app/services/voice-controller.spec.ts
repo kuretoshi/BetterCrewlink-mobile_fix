@@ -126,6 +126,33 @@ describe('VoiceController impostor radio', () => {
 		connectionController.currentGameState = makeState({ players: [me, ...others] });
 	}
 
+	it('accepts TOH4E roster and private role only from the game host', () => {
+		const voiceController = makeController();
+		const connectionController = (voiceController as any).connectionController as ConnectionController;
+		const host = makePlayer({ id: 1, clientId: 10, name: 'Host Town of Host for E' });
+		const me = makePlayer({ id: 2, clientId: 20, name: 'HiddenName' });
+		const state = makeState({ lobbyCode: 'TOH123', hostId: 10, players: [host, me] });
+		connectionController.currentGameState = state;
+		connectionController.localPLayer = me;
+		connectionController.amongusUsername = 'RealName';
+		(connectionController as any).clients = { hostSocket: { playerId: 1, clientId: 10 } };
+		(voiceController as any).getEffectiveGameState(state);
+
+		(voiceController as any).onPeerData('hostSocket', {
+			type: 'toh4e-roster', lobbyCode: 'TOH123', players: [{ clientId: 20, name: 'RealName' }],
+		});
+		(voiceController as any).onPeerData('hostSocket', {
+			type: 'toh4e-role', lobbyCode: 'TOH123', targetClientId: 20, targetPlayerId: 2,
+			role: { roleId: 5, roleName: 'Jackal', isNeutralKiller: true, isKiller: true },
+		});
+		const effective = (voiceController as any).getEffectiveGameState(state) as AmongUsState;
+		const effectiveMe = effective.players.find((player) => player.clientId === 20);
+
+		expect(effective.mod).toBe('TOH4E');
+		expect(effectiveMe?.name).toBe('RealName');
+		expect(effectiveMe?.tohRole?.roleName).toBe('Jackal');
+	});
+
 	it('grants transmission for a living impostor during TASKS when radio is enabled', () => {
 		const voiceController = makeController();
 		const connectionController = (voiceController as any).connectionController as ConnectionController;

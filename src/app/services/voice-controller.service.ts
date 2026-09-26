@@ -5,6 +5,8 @@ import { PlayerConnectionState, PlayerSetting } from './smallInterfaces';
 import { ConnectingStage, ConnectionController, ConnectionState } from './ConnectionController.service';
 import { MobileHostService } from './mobile-host.service';
 import { SettingsService } from './settings.service';
+import { isToh4eHostName } from '../common/Mods';
+import { isTohRole, TohRole } from '../common/TohRole';
 
 const radioOnAudio = new Audio('assets/sounds/radio_on.wav');
 radioOnAudio.volume = 0.02;
@@ -69,6 +71,11 @@ export class VoiceController {
 	private impostorRadioClientId = -1;
 	private impostorRadioPressed = false;
 	private radioTransmitting = false;
+	private toh4eLobby = false;
+	private tohRoleOverride: TohRole | null = null;
+	private tohRoleReceivedAt = 0;
+	private tohGameStartNames: numberStringMap = {};
+	private tohSession = '';
 
 	constructor(
 		private connectionController: ConnectionController,
@@ -78,7 +85,7 @@ export class VoiceController {
 		this.connectionController.events.on('hostUpdate', (state: AmongUsState, lobbySettings: ILobbySettings | undefined) => {
 			try {
 				this.onLobbySettingsChange(lobbySettings);
-				this.onGameState(state);
+				this.onGameState(this.getEffectiveGameState(state));
 			} catch (e) {
 				console.error('ERROR:', e);
 				this.connectionController.error = e.message;
@@ -112,7 +119,52 @@ export class VoiceController {
 		this.impostorRadioClientId = -1;
 		this.impostorRadioPressed = false;
 		this.radioTransmitting = false;
+		this.toh4eLobby = false;
+		this.tohRoleOverride = null;
+		this.tohRoleReceivedAt = 0;
+		this.tohGameStartNames = {};
+		this.tohSession = '';
 		this.connectionController.audioController.setRadioTransmitting(false);
+	}
+
+	/** Applies the TOH4E host's private role/name messages to the public host state. */
+	private getEffectiveGameState(state: AmongUsState): AmongUsState {
+		const session = `${state.lobbyCode}|${state.hostId}`;
+		if (session !== this.tohSession || state.gameState === GameState.MENU || state.gameState === GameState.UNKNOWN) {
+			this.tohSession = session;
+			this.toh4eLobby = false;
+			this.tohRoleOverride = null;
+			this.tohRoleReceivedAt = 0;
+			this.tohGameStartNames = {};
+		}
+
+		const host = state.players?.find((player) => player.clientId === state.hostId);
+		if (state.mod === 'TOH4E' || isToh4eHostName(host?.name) || isToh4eHostName(host?.appearanceName)) {
+			this.toh4eLobby = true;
+		}
+		if (!this.toh4eLobby) return state;
+		if (state.gameState === GameState.LOBBY || Date.now() - this.tohRoleReceivedAt > 5000) {
+			this.tohRoleOverride = null;
+		}
+
+		const localName = normalizeUsername(this.connectionController.amongusUsername);
+		return {
+			...state,
+			mod: 'TOH4E',
+			players: state.players.map((player) => {
+				const fixedName = this.tohGameStartNames[player.clientId];
+				const namedPlayer = fixedName ? { ...player, name: fixedName, appearanceName: fixedName } : player;
+				return normalizeUsername(namedPlayer.name) === localName
+					? {
+							...namedPlayer,
+							tohRole: this.tohRoleOverride ?? namedPlayer.tohRole,
+							roleName: this.tohRoleOverride?.roleName
+								? `TOH4E: ${this.tohRoleOverride.roleName}`
+								: namedPlayer.roleName,
+						}
+					: namedPlayer;
+			}),
+		};
 	}
 
 	private onLobbySettingsChange(settings: ILobbySettings | undefined): void {
@@ -411,6 +463,58 @@ export class VoiceController {
 	}
 
 	private onPeerData(socketId: string, data: Record<string, unknown>): void {
+		const state = this.connectionController.currentGameState;
+		const senderClientId = this.connectionController.getClient(socketId)?.clientId;
+		const fromHost = Boolean(state && senderClientId !== undefined && senderClientId === state.hostId);
+		if (data.type === 'toh4e-lobby' || data.type === 'toh4e-roster' || data.type === 'toh4e-role') {
+			if (
+				!state ||
+				!fromHost ||
+				data.lobbyCode !== state.lobbyCode ||
+				state.gameState === GameState.MENU ||
+				state.gameState === GameState.UNKNOWN
+			) return;
+		}
+		if (data.type === 'toh4e-lobby' && typeof data.enabled === 'boolean') {
+			this.toh4eLobby = data.enabled;
+			if (!data.enabled) {
+				this.tohRoleOverride = null;
+				this.tohRoleReceivedAt = 0;
+				this.tohGameStartNames = {};
+			}
+			return;
+		}
+		if (data.type === 'toh4e-roster' && Array.isArray(data.players)) {
+			if (data.players.length > 20) return;
+			const names: numberStringMap = {};
+			for (const value of data.players) {
+				if (!value || typeof value !== 'object') return;
+				const player = value as { clientId?: unknown; name?: unknown };
+				if (!Number.isInteger(player.clientId) || typeof player.name !== 'string' || player.name.length > 100) return;
+				names[player.clientId as number] = player.name;
+			}
+			this.tohGameStartNames = names;
+			this.toh4eLobby = true;
+			return;
+		}
+		if (data.type === 'toh4e-role' && state) {
+			const configuredName = normalizeUsername(this.connectionController.amongusUsername);
+			const me = this.connectionController.localPLayer ?? state.players.find((player) => {
+				const originalName = this.tohGameStartNames[player.clientId] ?? player.name;
+				return normalizeUsername(originalName) === configuredName;
+			});
+			if (
+				!me ||
+				data.targetClientId !== me.clientId ||
+				data.targetPlayerId !== me.id ||
+				(state.gameState !== GameState.TASKS && state.gameState !== GameState.DISCUSSION) ||
+				(data.role !== null && !isTohRole(data.role))
+			) return;
+			this.tohRoleOverride = isTohRole(data.role) ? data.role : null;
+			this.tohRoleReceivedAt = Date.now();
+			this.toh4eLobby = true;
+			return;
+		}
 		if (Object.prototype.hasOwnProperty.call(data, 'impostorRadio')) {
 			const clientId = this.connectionController.getClient(socketId)?.clientId;
 			if (clientId === undefined) return;
@@ -427,8 +531,6 @@ export class VoiceController {
 			// Mobile Host's gameState broadcast, but any connected desktop peer that's the actual
 			// Among Us game host also pushes its lobby settings over the data channel 1s after
 			// connecting (desktop-to-desktop parity behavior) - only trust it from that host.
-			const state = this.connectionController.currentGameState;
-			const senderClientId = this.connectionController.getClient(socketId)?.clientId;
 			if (!state || senderClientId === undefined || senderClientId !== state.hostId) return;
 			this.onLobbySettingsChange(data as unknown as ILobbySettings);
 		}

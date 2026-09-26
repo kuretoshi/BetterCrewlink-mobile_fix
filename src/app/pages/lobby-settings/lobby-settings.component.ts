@@ -58,7 +58,7 @@ export class LobbySettingsComponent implements OnInit, OnDestroy {
 	toggles(): LobbyToggle[] {
 		const settings = this.lobbySettings;
 		if (!settings) return [];
-		return [
+		const toggles = [
 			{ label: 'Vision hearing', value: settings.visionHearing },
 			{ label: 'Walls block audio', value: settings.wallsBlockAudio },
 			{ label: 'Hear through cameras', value: settings.hearThroughCameras },
@@ -71,6 +71,26 @@ export class LobbySettingsComponent implements OnInit, OnDestroy {
 			{ label: 'Impostor radio', value: settings.impostorRadioEnabled },
 			{ label: 'Private impostor radio', value: settings.impostorRadioPrivate },
 		];
+		const mod = this.gameHelper.cManager.currentGameState?.mod;
+		if (mod === 'SUPER_NEW_ROLES') {
+			toggles.push(
+				{ label: 'SNR Jumbo voice', value: settings.snrJumboVoice },
+				{ label: 'Jackal haunting', value: settings.jackalHaunting },
+				{ label: 'Jackal hears outside vents', value: settings.jackalHearOutsideVents },
+				{ label: 'Jackal talks in vents', value: settings.jackalTalkInVents },
+				{ label: 'Sidekick haunting', value: settings.sidekickHaunting },
+				{ label: 'Sidekick hears outside vents', value: settings.sidekickHearOutsideVents },
+				{ label: 'Sidekick talks in vents', value: settings.sidekickTalkInVents }
+			);
+		} else if (mod === 'NoS') {
+			toggles.push(
+				{ label: 'NoS Neutral Killer haunting', value: settings.nosNeutralKillerHaunting },
+				{ label: 'NoS voice positions', value: settings.nosVoicePositions }
+			);
+		} else if (mod === 'TOH4E') {
+			toggles.push({ label: 'TOH4E Neutral Killer haunting', value: settings.tohNeutralKillerHaunting });
+		}
+		return toggles;
 	}
 
 	maxDistance(): number | undefined {

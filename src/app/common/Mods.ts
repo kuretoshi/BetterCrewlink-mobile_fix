@@ -1,10 +1,13 @@
 // prettier-ignore
 export type ModsType =
 	| 'NONE'
+	| 'SUPER_NEW_ROLES'
 	| 'TOWN_OF_US_MIRA'
 	| 'TOWN_OF_US'
 	| 'THE_OTHER_ROLES'
 	| 'LAS_MONJAS'
+	| 'NoS'
+	| 'TOH4E'
 	| 'OTHER';
 
 export interface AmongusMod {
@@ -19,6 +22,8 @@ export const modList: AmongusMod[] = [
 		id: 'NONE',
 		label: 'None',
 	},
+	{ id: 'TOH4E', label: 'TOH4E / TOH4E_EM', dllStartsWith: 'TownOfHost_ForE' },
+	{ id: 'SUPER_NEW_ROLES', label: 'SuperNewRoles', dllStartsWith: 'SuperNewRoles' },
 	{
 		id: 'TOWN_OF_US_MIRA',
 		label: 'Town of Us: Mira',
@@ -44,8 +49,15 @@ export const modList: AmongusMod[] = [
 		label: 'Las Monjas',
 		dllStartsWith: 'LasMonjas',
 	},
+	{ id: 'NoS', label: 'Nebula on the Ship', dllStartsWith: 'Nebula' },
 	{
 		id: 'OTHER',
 		label: 'Other',
 	},
 ];
+
+export function isToh4eHostName(name: string | undefined): boolean {
+	return /town\s+of\s+host\s+for\s+e\b/i.test(
+		(name ?? '').replace(/<[^>]*>/g, '').replace(/[\u200B-\u200D\uFEFF]/g, '')
+	);
+}

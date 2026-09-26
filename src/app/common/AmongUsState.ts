@@ -1,6 +1,9 @@
 import { CameraLocation, MapType } from './AmongusMap';
 import type { ILobbySettings } from './ISettings';
 import { ModsType } from './Mods';
+import type { SnrLiveRole } from './SnrRole';
+import type { NosPlayerData } from './NosSnapshot';
+import type { TohRole } from './TohRole';
 
 // --- verbatim from bettercrewlink (desktop) v3.2.1 src/common/AmongUsState.ts,
 // with one documented mobile-only addition on `Player` (`isbetter`, set locally when
@@ -110,6 +113,16 @@ export interface AmongUsState {
 	mushroomMixupSabotaged?: boolean;
 	camouflaged?: boolean;
 	mixupSabotaged?: boolean;
+	nosLocalMicPosition?: { x: number; y: number };
+}
+
+export interface Player {
+	appearanceName?: string;
+	roleName?: string;
+	snrRole?: SnrLiveRole;
+	nosPlayer?: NosPlayerData;
+	tohRole?: TohRole;
+	isThirdParty?: boolean;
 }
 
 /** Mobile-only: the payload a desktop Mobile Host broadcasts to the `<lobbyCode>_mobile` room. */
