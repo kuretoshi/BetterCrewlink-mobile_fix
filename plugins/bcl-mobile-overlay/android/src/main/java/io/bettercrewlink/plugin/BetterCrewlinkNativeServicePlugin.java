@@ -57,9 +57,10 @@ public class BetterCrewlinkNativeServicePlugin extends Plugin {
         OverlayService.updateMuteIcons(micMuted, audioMuted);
         if ((!overlayShown) && overlayEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (!Settings.canDrawOverlays(this.getContext())) {
+                bridge.triggerWindowJSEvent("overlay_permission_missing", "{}");
                 Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                         Uri.parse("package:" + this.getContext().getPackageName()));
-                startActivityForResult(call, intent, 0);
+                getActivity().startActivity(intent);
             } else {
                 Context context = this.getContext();
                 context.startService(new Intent(context, OverlayService.class));
@@ -74,9 +75,8 @@ public class BetterCrewlinkNativeServicePlugin extends Plugin {
 
     @PluginMethod()
     public void showTalking(PluginCall call) {
-        int color = call.getInt("color");
-        Boolean talking = call.getBoolean("talking");
-        Context context = this.getContext();
+        int color = call.getInt("color", -1);
+        Boolean talking = call.getBoolean("talking", false);
         OverlayService.setVisible(color, talking);
     }
 
@@ -148,9 +148,7 @@ public class BetterCrewlinkNativeServicePlugin extends Plugin {
         BetterCrewlinkNativeService service = getSystemService(this.getContext(), BetterCrewlinkNativeService.class);
         PendingIntent refreshAction = createAction(BetterCrewlinkNativeService.REFRESH);
         String body = "<b>Guus(red)</b> talking <br><b>player2(lime)</b> talking";
-        SpannableString spannableString = new SpannableString(
-                Build.VERSION.SDK_INT < Build.VERSION_CODES.N ? Html.fromHtml(body)
-                        : Html.fromHtml(body, Html.FROM_HTML_MODE_LEGACY));
+        SpannableString spannableString = new SpannableString(Html.fromHtml(body, Html.FROM_HTML_MODE_LEGACY));
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this.getContext(),
                 "bettercrewlink-background-id")

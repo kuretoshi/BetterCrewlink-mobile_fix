@@ -10,24 +10,22 @@
  */
 
 /* Core CSS required for Ionic components to work properly */
-@import '~@ionic/angular/css/core.css';
+@import '@ionic/angular/css/core.css';
 
 /* Basic CSS for apps built with Ionic */
-@import '~@ionic/angular/css/normalize.css';
-@import '~@ionic/angular/css/structure.css';
-@import '~@ionic/angular/css/typography.css';
-@import '~@ionic/angular/css/display.css';
+@import '@ionic/angular/css/normalize.css';
+@import '@ionic/angular/css/structure.css';
+@import '@ionic/angular/css/typography.css';
+@import '@ionic/angular/css/display.css';
 
 /* Optional CSS utils that can be commented out */
-@import '~@ionic/angular/css/padding.css';
-@import '~@ionic/angular/css/float-elements.css';
-@import '~@ionic/angular/css/text-alignment.css';
-@import '~@ionic/angular/css/text-transformation.css';
-@import '~@ionic/angular/css/flex-utils.css';
+@import '@ionic/angular/css/padding.css';
+@import '@ionic/angular/css/float-elements.css';
+@import '@ionic/angular/css/text-alignment.css';
+@import '@ionic/angular/css/text-transformation.css';
+@import '@ionic/angular/css/flex-utils.css';
 
 :root {
-	--tanuki-header-height: 56px;
-	--tanuki-statusbar-offset: 0px;
 	--ion-item-color: #ffffff;
 	--ion-item-background: #25232a;
 	--ion-color-primary: #1d1a23;
@@ -38,42 +36,30 @@
 	--ion-color-secondary-tint: #464250;
 	--ion-color-light: #dfdfdf;
 }
-
-.plt-android {
-	--tanuki-statusbar-offset: max(var(--ion-safe-area-top, 0px), 24px);
-}
-
-.plt-android ion-header {
-	padding-top: var(--tanuki-statusbar-offset);
-	background: var(--ion-color-primary);
-}
-
-.plt-android ion-menu ion-content {
-	--padding-top: calc(20px + var(--tanuki-statusbar-offset));
-}
 .masters {
 	background-color: #25232a;
 }
 
 .alert-wrapper {
-	 width: 100% !important;
+	width: 100% !important;
 	max-width: 20vw !important;
 }
 
-.ion-page > ion-content
-{
-   //top: 56px;//your headers height
-
+.ion-page > ion-content {
+	//top: 56px;//your headers height
 }
 
-
-#main-content{
-     height: calc(100% - 78px - var(--tanuki-statusbar-offset));
-// overflow:visible !important;
+#main-content {
+	height: calc(100% - 78px);
+	// overflow:visible !important;
 }
 
-#main-content .ion-page{
-	top: calc(var(--tanuki-header-height) + var(--tanuki-statusbar-offset));
-//	height: calc(100% - 53px);
-//	margin-bottom: 80px;
+#main-content .ion-page {
+	// --app-header-height is measured directly off the real <ion-header> element
+	// (AppComponent, via ResizeObserver) rather than assumed, since the header's
+	// actual rendered height varies by device/OS insets/font scale and a
+	// hardcoded pixel guess kept drifting out of sync with it.
+	top: var(--app-header-height, 56px);
+	//	height: calc(100% - 53px);
+	//	margin-bottom: 80px;
 }

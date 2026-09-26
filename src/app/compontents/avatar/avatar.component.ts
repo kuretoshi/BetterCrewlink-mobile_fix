@@ -1,256 +1,98 @@
-import { Component, Input, OnInit } from '@angular/core';
-import { Player } from '../../services/AmongUsState';
-import { SocketElement, PlayerSetting } from '../../services/smallInterfaces';
+import { Component, Input, ChangeDetectionStrategy, ChangeDetectorRef, OnDestroy } from '@angular/core';
+import { Subscription } from 'rxjs';
+import { Player } from '../../common/AmongUsState';
+import { ModsType } from '../../common/Mods';
+import { PlayerConnectionState, PlayerSetting } from '../../services/smallInterfaces';
 import { SettingsService } from '../../services/settings.service';
-
-const HAT_COLLECTION_URL = 'https://cdn.jsdelivr.net/gh/OhMyGuus/BetterCrewLink-Hats@master/';
-const MOBILE_AVATAR_TOP_OFFSET = '14%';
-const MOBILE_SKIN_TOP_OFFSET = '22%';
-const MOBILE_COSMETIC_Y_OFFSET = '13%';
-const MOBILE_COSMETIC_SCALE = 1.08;
-const MOBILE_SKIN_Y_OFFSET = '-5%';
-const MOBILE_SKIN_SCALE = 1.3;
-
-interface CosmeticData {
-	image?: string;
-	back_image?: string;
-	top?: string;
-	width?: string;
-	left?: string;
-	multi_color?: boolean;
-	mod?: string;
-}
-
-interface CosmeticCollection {
-	[mod: string]: {
-		defaultWidth: string;
-		defaultTop: string;
-		defaultLeft: string;
-		hats: {
-			[id: string]: CosmeticData;
-		};
-	};
-}
-
-let cosmeticCollection: CosmeticCollection = {};
-let cosmeticRequest: Promise<void> | undefined;
-let cosmeticsInitialized = false;
-
-const hatOffsets: { [key in number]: number | undefined } = {
-	7: -50,
-	21: -50,
-	28: -50,
-	35: -50,
-	77: -50,
-	90: -50,
-	94: -15,
-	103: -50,
-};
-
-const coloredHats: number[] = [77, 90];
-
-function initializeCosmetics() {
-	if (cosmeticsInitialized || cosmeticRequest) {
-		return;
-	}
-
-	cosmeticRequest = fetch(`${HAT_COLLECTION_URL}/hats.json`)
-		.then((response) => response.json())
-		.then((data: CosmeticCollection) => {
-			cosmeticCollection = data;
-			cosmeticsInitialized = true;
-		})
-		.catch((error) => {
-			console.log('Failed to load cosmetics', error);
-			cosmeticRequest = undefined;
-		});
-}
+import { CosmeticRender, CosmeticsService, CosmeticType } from '../../services/cosmetics.service';
+import { playerSettingsKey } from '../../services/voice-controller.service';
 
 @Component({
 	selector: 'app-avatar',
 	templateUrl: './avatar.component.html',
 	styleUrls: ['./avatar.component.scss'],
+	changeDetection: ChangeDetectionStrategy.OnPush,
+	standalone: false,
 })
-export class AvatarComponent implements OnInit {
-	backLayerHats =new Set([39, 4, 6, 15, 29, 42, 75, 85, 102, 105, 106, 104, 103]);
+export class AvatarComponent implements OnDestroy {
 	@Input() player: Player;
 	@Input() talking: boolean;
-	@Input() isDead: boolean = false;
+	@Input() isDead = false;
 	@Input() settings: PlayerSetting = undefined;
+	/** Desktop-parity presence badge: Wi-Fi off when disconnected, link off when there's no voice. */
+	@Input() connectionState: PlayerConnectionState = 'connected';
+	/** The lobby's mod, so mod-specific hats/skins/visors resolve like they do on desktop. */
+	@Input() mod: ModsType = 'NONE';
 	volumeOpen: boolean;
 	readonly MAXVOLUME = 500;
-	constructor(private settingsService: SettingsService) {}
+	private readonly versionSubscription: Subscription;
+
+	constructor(
+		private settingsService: SettingsService,
+		private cosmetics: CosmeticsService,
+		private changeDetectorRef: ChangeDetectorRef
+	) {
+		// hats.json (and any recoloured sprite) arrives asynchronously, after this component was
+		// first checked; re-check on each version bump so OnPush avatars pick the cosmetics up.
+		this.versionSubscription = this.cosmetics.version$.subscribe(() => this.changeDetectorRef.markForCheck());
+		this.cosmetics.initializeHats();
+	}
+
+	ngOnDestroy(): void {
+		this.versionSubscription.unsubscribe();
+	}
 
 	clickable() {
 		return this.settings !== undefined;
 	}
 
-	private hasDisplayOutfit(): boolean {
-		return this.player?.currentOutfit > 0 && this.player?.currentOutfit <= 10;
-	}
-
-	private normalizeCosmeticId(value: number | string | undefined, emptyValues: string[] = []): string {
-		if (value === undefined || value === null) {
-			return '';
-		}
-		const normalized = `${value}`;
-		if (emptyValues.includes(normalized)) {
-			return '';
-		}
-		return normalized;
-	}
-
-	private toAssetId(value: number | string | undefined, emptyValues: string[] = []): number {
-		const normalized = this.normalizeCosmeticId(value, emptyValues);
-		if (!normalized) {
-			return 0;
-		}
-		const directNumber = Number(normalized);
-		if (Number.isFinite(directNumber)) {
-			return directNumber;
-		}
-		const trailingNumber = normalized.match(/(\d+)$/);
-		return trailingNumber ? Number(trailingNumber[1]) : 0;
-	}
-
-	getDisplayName(): string {
-		return this.hasDisplayOutfit() && this.player.appearanceName ? this.player.appearanceName : this.player.name;
-	}
-
-	getColorId(): number {
-		return this.hasDisplayOutfit() && this.player.appearanceColorId >= 0
-			? this.player.appearanceColorId
-			: this.player.colorId;
-	}
-
-	getHatId(): number {
-		return this.toAssetId(this.hasDisplayOutfit() ? this.player.appearanceHatId : this.player.hatId, ['hat_NoHat']);
-	}
-
-	getSkinId(): number {
-		return this.toAssetId(this.hasDisplayOutfit() ? this.player.appearanceSkinId : this.player.skinId, ['skin_None']);
-	}
-
-	getVisorId(): string {
-		return this.normalizeCosmeticId(this.hasDisplayOutfit() ? this.player.appearanceVisorId : this.player.visorId, [
-			'visor_EmptyVisor',
-		]);
-	}
-
-	private getHatCosmeticId(): string {
-		return this.normalizeCosmeticId(this.hasDisplayOutfit() ? this.player.appearanceHatId : this.player.hatId, [
-			'hat_NoHat',
-		]);
-	}
-
-	private getSkinCosmeticId(): string {
-		return this.normalizeCosmeticId(this.hasDisplayOutfit() ? this.player.appearanceSkinId : this.player.skinId, [
-			'skin_None',
-		]);
-	}
-
-	private getCosmetic(id: string): CosmeticData | undefined {
-		if (!id) {
-			return undefined;
-		}
-		if (!cosmeticsInitialized) {
-			initializeCosmetics();
-			return undefined;
-		}
-
-		for (const mod of ['NONE']) {
-			const modCosmetics = cosmeticCollection[mod];
-			const cosmetic = modCosmetics?.hats[id];
-			if (cosmetic) {
-				return {
-					...cosmetic,
-					top: cosmetic.top ?? modCosmetics.defaultTop,
-					width: cosmetic.width ?? modCosmetics.defaultWidth,
-					left: cosmetic.left ?? modCosmetics.defaultLeft,
-					mod,
-				};
-			}
-		}
+	/** Same two badges (and colors) as desktop Avatar.tsx; `connected` renders no badge. */
+	connectionIcon(): string | undefined {
+		if (this.connectionState === 'disconnected') return 'assets/icons/wifi-off.svg';
+		if (this.connectionState === 'novoice') return 'assets/icons/link-off.svg';
 		return undefined;
 	}
 
-	private getRemoteCosmeticUrl(id: string, back = false): string {
-		const cosmetic = this.getCosmetic(id);
-		const image = back ? cosmetic?.back_image : cosmetic?.image;
-		if (!cosmetic || !image || cosmetic.multi_color) {
-			return '';
+	/**
+	 * Body sprite, with a fallback for out-of-range colors so the avatar never renders broken.
+	 * Desktop generates these from the game's colour table; mobile bundles pre-rendered ones.
+	 */
+	getBodyImage(): string {
+		const colorId = Number(this.player.colorId);
+		const alive = colorId >= 0 && colorId <= 17 ? colorId : 0;
+		return `assets/avatar/players/${alive}-${this.isDead ? 'dead' : 'alive'}.png`;
+	}
+
+	/** Last-resort: hide the body instead of showing a broken-image glyph (e.g. a colorId that isn't a number). */
+	onBodyImageError(event: Event): void {
+		(event.currentTarget as HTMLImageElement).style.display = 'none';
+	}
+
+	getHat(): CosmeticRender | undefined {
+		return this.resolveCosmetic(CosmeticType.hat, this.player?.hatId);
+	}
+
+	getHatBack(): CosmeticRender | undefined {
+		return this.resolveCosmetic(CosmeticType.hatBack, this.player?.hatId);
+	}
+
+	getVisor(): CosmeticRender | undefined {
+		return this.resolveCosmetic(CosmeticType.visor, this.player?.visorId);
+	}
+
+	getSkin(): CosmeticRender | undefined {
+		return this.resolveCosmetic(CosmeticType.skin, this.player?.skinId);
+	}
+
+	/** Dead players lose their cosmetics, exactly like desktop's `display: isAlive ? ...`. */
+	private resolveCosmetic(type: CosmeticType, id: string | undefined): CosmeticRender | undefined {
+		if (this.isDead || !this.player) {
+			return undefined;
 		}
-		return `${HAT_COLLECTION_URL}${cosmetic.mod}/${image}`;
-	}
-
-	private getCosmeticStyle(id: string, topOffset = MOBILE_AVATAR_TOP_OFFSET): { [key: string]: string } {
-		const cosmetic = this.getCosmetic(id);
-		return {
-			width: cosmetic?.width || '',
-			top: cosmetic?.top ? `calc(${topOffset} + ${cosmetic.top})` : '',
-			left: cosmetic?.left || '',
-		};
-	}
-
-	private centerCosmeticStyle(
-		style: { [key: string]: string },
-		scale = MOBILE_COSMETIC_SCALE,
-		yOffset = MOBILE_COSMETIC_Y_OFFSET
-	): { [key: string]: string } {
-		return {
-			...style,
-			left: '50%',
-			transform: `translate(-50%, ${yOffset}) scale(${scale})`,
-			transformOrigin: 'top center',
-		};
-	}
-
-	getRemoteHatUrl(): string {
-		return this.getHatId() > 0 ? '' : this.getRemoteCosmeticUrl(this.getHatCosmeticId());
-	}
-
-	getRemoteBackHatUrl(): string {
-		return this.getHatId() > 0 ? '' : this.getRemoteCosmeticUrl(this.getHatCosmeticId(), true);
-	}
-
-	getRemoteSkinUrl(): string {
-		return this.getSkinId() > 0 ? '' : this.getRemoteCosmeticUrl(this.getSkinCosmeticId());
-	}
-
-	getRemoteVisorUrl(): string {
-		return this.getRemoteCosmeticUrl(this.getVisorId());
-	}
-
-	getHatStyle(): { [key: string]: string } {
-		const style = this.getCosmeticStyle(this.getHatCosmeticId());
-		return Object.keys(style).some((key) => !!style[key]) ? this.centerCosmeticStyle(style) : { top: this.getHatY() };
-	}
-
-	getSkinStyle(): { [key: string]: string } {
-		return this.centerCosmeticStyle(
-			this.getCosmeticStyle(this.getSkinCosmeticId(), MOBILE_SKIN_TOP_OFFSET),
-			MOBILE_SKIN_SCALE,
-			MOBILE_SKIN_Y_OFFSET
-		);
-	}
-
-	getVisorStyle(): { [key: string]: string } {
-		return this.centerCosmeticStyle(this.getCosmeticStyle(this.getVisorId()));
-	}
-
-	getHatY(): string {
-		return `${(hatOffsets[this.getHatId()] || -33) + 36}%`;
-	}
-
-	getHatImage(): string {
-		const hatId = this.getHatId();
-		return coloredHats.includes(hatId)
-			? `${hatId}-${this.getColorId()}`
-			: `${hatId}`;
+		return this.cosmetics.getCosmeticRender(Number(this.player.colorId), type, id, this.mod ?? 'NONE');
 	}
 
 	openVolume(state = !this.volumeOpen) {
-		console.log(this.settings);
 		if (!this.settings) {
 			return;
 		}
@@ -258,15 +100,14 @@ export class AvatarComponent implements OnInit {
 	}
 
 	onVolumeChange() {
-		console.log("Volume: ",this.player.nameHash, this.settings )
-
 		if (this.settings) {
-			console.log("Volume: ",this.player.nameHash, this.settings )
-			this.settingsService.savePlayerSetting(this.player.nameHash, this.settings);
+			this.settingsService.savePlayerSetting(playerSettingsKey(this.player), this.settings);
 		}
 	}
 
-	ngOnInit() {
-		initializeCosmetics();
+	onMuteToggle() {
+		if (!this.settings) return;
+		this.settings.isMuted = !this.settings.isMuted;
+		this.settingsService.savePlayerSetting(playerSettingsKey(this.player), this.settings);
 	}
 }

@@ -5,9 +5,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.res.Resources;
 import android.graphics.PixelFormat;
+import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.provider.Settings;
+import android.util.Log;
 import android.view.GestureDetector;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -46,7 +49,7 @@ public class OverlayService extends Service {
     }
 
     public static void setVisible(int color, boolean visible) {
-        if (color >= 0 && color <= 12) {
+        if (color >= 0 && color <= 17) {
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
@@ -109,13 +112,35 @@ public class OverlayService extends Service {
     }
 
     public void pressOverlayButton(OVERLAY_BUTTON button) {
+        if (BetterCrewlinkNativeServicePlugin.bridgeP == null) {
+            return;
+        }
         BetterCrewlinkNativeServicePlugin.bridgeP.triggerWindowJSEvent("press_overlay", "{ 'action': '" + button + "' }");
+    }
+
+    private void notifyOverlayPermissionMissing() {
+        if (BetterCrewlinkNativeServicePlugin.bridgeP == null) {
+            return;
+        }
+        BetterCrewlinkNativeServicePlugin.bridgeP.triggerWindowJSEvent("overlay_permission_missing", "{}");
     }
 
 
     @Override
     public void onCreate() {
         super.onCreate();
+
+        // The plugin checks this before starting the service, but the OS can also recreate a
+        // Service on its own (e.g. after the process was killed) without going through that
+        // check, and the permission can be revoked in Settings while the service is alive. Both
+        // leave onCreate() adding a window without the permission, which throws BadTokenException
+        // and crashes the whole process instead of just failing to show the overlay.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
+            Log.w("OverlayService", "Missing draw-over-other-apps permission; not showing overlay");
+            notifyOverlayPermissionMissing();
+            stopSelf();
+            return;
+        }
 
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
         iconsContainerView = LayoutInflater.from(this).inflate(R.layout.overlay_layout, null);
@@ -124,7 +149,12 @@ public class OverlayService extends Service {
         audioImageView = addImage(audio_muted ? R.drawable.audio_off : R.drawable.audio_on, false);
 
 
-        for (int i = 0; i < 12; i++) {
+        // Among Us has 18 player colors (ids 0-17): the original 12 plus Maroon, Rose,
+        // Banana, Gray, Tan and Coral added later. A talking player whose color falls
+        // outside this range never gets an icon, so their overlay indicator silently
+        // never lights up - matches src/app/compontents/avatar/avatar.component.ts's
+        // own colorId >= 0 && colorId <= 17 range.
+        for (int i = 0; i < 18; i++) {
             ImageView view = addImage(this.getResources().getIdentifier("playericon_" + i, "drawable", this.getPackageName()), true);
             view.setVisibility(View.GONE);
         }
@@ -143,8 +173,15 @@ public class OverlayService extends Service {
         params.y = 100;
 
         AddTouchEventListner(context, iconsContainerView, params);
-        windowManager.addView(iconsContainerView, params);
-
+        try {
+            windowManager.addView(iconsContainerView, params);
+        } catch (WindowManager.BadTokenException e) {
+            // Permission can still be revoked between the check above and this call.
+            Log.w("OverlayService", "Failed to add overlay window", e);
+            notifyOverlayPermissionMissing();
+            iconsContainerView = null;
+            stopSelf();
+        }
     }
 
 

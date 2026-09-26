@@ -1,57 +1,77 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
-import Peer from 'simple-peer';
-import { GameHelperService } from 'src/app/services/game-helper.service';
-import { IDeviceInfo } from 'src/app/services/smallInterfaces';
-import { SocketElement } from '../../services/smallInterfaces';
-import { Player } from '../../services/AmongUsState';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy, HostListener } from '@angular/core';
+import { GameHelperService } from '../../services/game-helper.service';
+import { IDeviceInfo } from '../../services/smallInterfaces';
+import { GameState } from '../../common/AmongUsState';
+import { ModsType } from '../../common/Mods';
 
 @Component({
 	selector: 'app-game',
 	templateUrl: './game.component.html',
 	styleUrls: ['./game.component.scss'],
+	changeDetection: ChangeDetectionStrategy.OnPush,
+	standalone: false,
 })
-export class GameComponent implements OnInit {
-	client: SocketIOClient.Socket;
-	peerConnections: Array<Peer> = [];
-	constructor(public gameHelper: GameHelperService, private changeDetectorRef: ChangeDetectorRef) {}
+export class GameComponent implements OnInit, OnDestroy {
+	private onChangeListener = () => this.changeDetectorRef.detectChanges();
+
+	constructor(
+		public gameHelper: GameHelperService,
+		private changeDetectorRef: ChangeDetectorRef
+	) {}
 
 	compareFn(e1: IDeviceInfo, e2: IDeviceInfo): boolean {
 		return e1 && e2 ? e1.id === e2.id : false;
 	}
 
-	getValues(map) {
-		return Array.from(map.values());
-	}
-
 	getPlayers() {
-		const socketPlayers = Array.from(this.gameHelper.cManager.socketElements.values()).filter((o) => o.player !== undefined);
-		const socketClientIds = new Set(socketPlayers.map((o) => o.player.clientId));
-		const statePlayers =
-			this.gameHelper.cManager.currentGameState?.players
-				?.filter((player) => player.clientId !== this.gameHelper.cManager.localPLayer?.clientId)
-				?.filter((player) => !socketClientIds.has(player.clientId))
-				?.map((player) => {
-					const element = new SocketElement(`player-${player.clientId}`, undefined, {
-						playerId: player.id,
-						clientId: player.clientId,
-					});
-					element.player = player;
-					element.isDead = player.isDead;
-					element.settings = this.gameHelper.cManager.settingsService.getPlayerSettings(player.nameHash);
-					return element;
-				}) || [];
-		return [...socketPlayers, ...statePlayers]
-			.sort((a, b) => a.player?.colorId -  b.player?.colorId);
+		return this.gameHelper.voiceController.getRenderablePlayers();
 	}
 
-	getValues2(map): SocketElement[] {
-		return Array.from(map.values());
+	/** The lobby's mod, forwarded to each avatar so mod-specific cosmetics resolve. */
+	getMod(): ModsType {
+		return this.gameHelper.cManager.currentGameState?.mod ?? 'NONE';
+	}
+
+	canUseImpostorRadio(): boolean {
+		const state = this.gameHelper.cManager.currentGameState;
+		const me = this.gameHelper.cManager.localPLayer;
+		return Boolean(
+			this.gameHelper.cManager.lobbySettings.impostorRadioEnabled &&
+				state?.gameState === GameState.TASKS &&
+				me?.isImpostor &&
+				!me.isDead
+		);
+	}
+
+	startRadio(): void {
+		this.gameHelper.voiceController.applyImpostorRadio(true);
+	}
+
+	stopRadio(): void {
+		this.gameHelper.voiceController.applyImpostorRadio(false);
+	}
+
+	// Mirrors desktop's releaseHeldKeys(): a held transmit button must not stay "pressed" forever
+	// if the app loses focus (backgrounded, notification shade, app switch, incoming call) while held.
+	@HostListener('window:blur')
+	onWindowBlur(): void {
+		this.stopRadio();
+	}
+
+	@HostListener('document:visibilitychange')
+	onVisibilityChange(): void {
+		if (document.hidden) {
+			this.stopRadio();
+		}
 	}
 
 	ngOnInit() {
 		console.log('ngOninit');
-		this.gameHelper.events.on('onChange', () => {
-			this.changeDetectorRef.detectChanges();
-		});
+		this.gameHelper.events.on('onChange', this.onChangeListener);
+	}
+
+	ngOnDestroy() {
+		this.gameHelper.events.off('onChange', this.onChangeListener);
+		this.stopRadio();
 	}
 }

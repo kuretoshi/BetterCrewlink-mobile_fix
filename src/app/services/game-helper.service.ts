@@ -1,24 +1,67 @@
-import { ChangeDetectorRef, Injectable } from '@angular/core';
-import { ISettings, IDeviceInfo, VoiceServerOption } from './smallInterfaces';
+import { Injectable } from '@angular/core';
+import { IDeviceInfo } from './smallInterfaces';
 import { AndroidPermissions } from '@awesome-cordova-plugins/android-permissions/ngx';import { Platform } from '@ionic/angular';
 import { ConnectingStage, ConnectionController, ConnectionState } from './ConnectionController.service';
+import { AmongUsState } from '../common/AmongUsState';
+import { VoiceController } from './voice-controller.service';
 import { EventEmitter as EventEmitterO } from 'events';
 import { BackgroundMode } from '@awesome-cordova-plugins/background-mode/ngx';
-import { element } from 'protractor';
 import { SettingsService } from './settings.service';
 import { BetterCrewlinkNativeService } from 'bcl-mobile-overlay';
 
+interface NativeBridgeEvent extends Event {
+	action: string;
+}
 
-export declare interface IGameHelperService {
+const GAME_STATE_NAMES = ['LOBBY', 'TASKS', 'DISCUSSION', 'MENU', 'UNKNOWN'];
+
+/**
+ * Human-readable status line for the connecting screen. Pure (and therefore unit-testable)
+ * because the view calls it on every change-detection pass while connecting.
+ *
+ * `oldGameState` is undefined until the second game-state frame arrives, so reading
+ * `oldGameState.gameState` unguarded threw a TypeError here. Because the render is triggered
+ * synchronously from inside VoiceController's `hostUpdate` handler, that view-layer throw
+ * unwound into its catch and marked the whole connection as errored - a missing guard in a
+ * status string took down a working connection.
+ */
+export function connectionStageLabel(
+	stage: ConnectingStage,
+	ctx: { gamecode?: string; amongusUsername?: string; oldGameState?: AmongUsState }
+): string {
+	switch (stage) {
+		case ConnectingStage.connectingToVoiceServer:
+			return 'Connecting to voice server..';
+		case ConnectingStage.startingMicrophone:
+			return 'Initializing audio/microphone';
+		case ConnectingStage.searchingForHost:
+			return `Searching for bettercrewlink PC players in lobby: ${ctx.gamecode}`;
+		case ConnectingStage.waitingForHostToEnable:
+			return 'Waiting for a PC player to respond';
+		case ConnectingStage.WaitingForGameData:
+			return 'Waiting to receive gamedata from player';
+		case ConnectingStage.waitingForYouToJoin: {
+			const previousState = ctx.oldGameState ? GAME_STATE_NAMES[ctx.oldGameState.gameState] : undefined;
+			return `Waiting for you to join with the name ${ctx.amongusUsername} --> ${previousState ?? 'UNKNOWN'}`;
+		}
+		case ConnectingStage.parsingGameData:
+			return 'Waiting for gamedata...';
+		case ConnectingStage.FullyConnected:
+			return 'Connected to the game...';
+		default:
+			return `unkown state ${stage}`;
+	}
 }
 
 @Injectable({
 	providedIn: 'root',
 })
-export class GameHelperService implements IGameHelperService {
+export class GameHelperService {
 	microphones: IDeviceInfo[] = [];
-	IsMobile: boolean = false;
+	speakers: IDeviceInfo[] = [];
+	IsMobile = false;
 	error: string;
+	overlayPermissionMissing = false;
 	events: EventEmitterO = new EventEmitterO();
 	audioMuted = () => this.cManager.audioController.audioMuted ?? false;
 	microphoneMuted = () =>
@@ -28,6 +71,7 @@ export class GameHelperService implements IGameHelperService {
 		private androidPermissions: AndroidPermissions,
 		public platform: Platform,
 		public cManager: ConnectionController,
+		public voiceController: VoiceController,
 		private backgroundMode: BackgroundMode,
 		private settings: SettingsService
 	) {
@@ -51,14 +95,29 @@ export class GameHelperService implements IGameHelperService {
 
 	connect() {
 		this.disconnect(false);
+		this.error = undefined;
 
-		this.requestPermissions().then((haspermissions) => {
+		this.requestPermissions().then(async (haspermissions) => {
 			if (!haspermissions) {
 				console.error('permissions failed');
 				this.cManager.connectionState = ConnectionState.error;
-				this.error = 'マイクの使用が許可されていません。';
+				this.error = 'No permissions to use microphone.';
 				return;
 			}
+			// Android 14+ requires the mic to be actively capturing before a
+			// "microphone" type foreground service can be started, otherwise
+			// backgroundMode.enable() crashes with a SecurityException.
+			this.cManager.deviceID = this.settings.get().selectedMicrophone.deviceId;
+			await this.cManager.audioController.startAudio();
+			// cordova-plugin-background-mode's default notification icon is a
+			// drawable/mipmap literally named "icon", which this app never had.
+			// startForeground() then posts a notification with resource id 0 -
+			// ActivityManager logs "Attempted to start a foreground service ...
+			// with a broken notification (no icon...)" and does not grant the
+			// service real foreground protection, so the OS (especially
+			// battery-aggressive OEM skins) freezes the process - and the mic -
+			// shortly after the user switches to another app.
+			this.backgroundMode.setDefaults({ icon: 'ic_launcher' });
 			this.backgroundMode.enable();
 			this.cManager.connect(
 				this.settings.getVoiceServer(),
@@ -82,6 +141,7 @@ export class GameHelperService implements IGameHelperService {
 			}
 		}
 		this.cManager.disconnect(true);
+		this.voiceController.reset();
 	}
 
 	muteMicrophone() {
@@ -108,7 +168,14 @@ export class GameHelperService implements IGameHelperService {
 	}
 
 	getError(): string {
-		return this.error;
+		// ConnectionController.error carries game-state/orchestration failures (e.g. from
+		// VoiceController's onGameState); this.error carries permission/microphone failures set
+		// directly here. Both land on the same error screen, so both must be readable from it.
+		return this.cManager.error ?? this.error;
+	}
+
+	dismissOverlayWarning() {
+		this.overlayPermissionMissing = false;
 	}
 
 	async requestPermissions(): Promise<boolean> {
@@ -120,14 +187,14 @@ export class GameHelperService implements IGameHelperService {
 			];
 
 			try {
-				const reqPermissionRespons = await this.androidPermissions.requestPermissions(PERMISSIONS_NEEDED);
+				await this.androidPermissions.requestPermissions(PERMISSIONS_NEEDED);
 				for (const permission of PERMISSIONS_NEEDED) {
 					const permissionResponse = await this.androidPermissions.checkPermission(permission);
 					if (!permissionResponse.hasPermission) {
 						return true;
 					}
 				}
-			} catch (exception) {
+			} catch {
 				//	this.error = 'Bluetooth audio permission denied';
 				return true;
 			}
@@ -135,37 +202,15 @@ export class GameHelperService implements IGameHelperService {
 
 		try {
 			await this.cManager.audioController.requestPermissions();
-		} catch (exception) {
-			this.error = 'マイクの使用が許可されていません';
+		} catch {
+			this.error = 'No permission to use microphone';
 			return false;
 		}
 		return true;
 	}
 
-	getConnectionStage() {
-		const test = ['LOBBY', 'TASKS', 'DISCUSSION', 'MENU', 'UNKNOWN'];
-		switch (this.cManager.connectingStage) {
-			case ConnectingStage.connectingToVoiceServer:
-				return 'ボイスサーバーに接続しています...';
-			case ConnectingStage.startingMicrophone:
-				return 'オーディオとマイクを初期化しています';
-			case ConnectingStage.searchingForHost:
-				return `ロビー ${this.cManager.gamecode} で BetterCrewlink PC ユーザーを探しています`;
-			case ConnectingStage.waitingForHostToEnable:
-				return 'PCユーザーからの応答を待っています';
-			case ConnectingStage.WaitingForGameData:
-				return 'プレイヤーからゲームデータを受信するのを待っています';
-			case ConnectingStage.waitingForYouToJoin:
-				return `${this.cManager.amongusUsername} という名前で参加するのを待っています --> ${
-					test[this.cManager.oldGameState.gameState.toString()]
-				}`;
-			case ConnectingStage.parsingGameData:
-				return 'ゲームデータを待っています...';
-			case ConnectingStage.FullyConnected:
-				return 'ゲームに接続しました...';
-			default:
-				return `不明な状態 ${this.cManager.connectingStage}`;
-		}
+	getConnectionStage(): string {
+		return connectionStageLabel(this.cManager.connectingStage, this.cManager);
 	}
 
 	updateViews() {
@@ -175,29 +220,38 @@ export class GameHelperService implements IGameHelperService {
 	load() {
 		console.log('load??');
 
-		this.cManager.events.on('onchange', () => {
+		this.cManager.events.on('onChange', () => {
 			this.updateViews();
 		});
 
-		this.cManager.audioController.getDevices(this.IsMobile).then((devices) => {
-			this.microphones = devices;
-			if (!this.microphones.some((o) => o.id === this.settings.get().selectedMicrophone?.id)) {
-				this.settings.get().selectedMicrophone = devices.filter((o) => o.kind === 'audioinput')[0] ?? {
-					id: 0,
-					label: 'default',
-					deviceId: 'default',
-					kind: 'audioinput',
-				};
-			} else {
-				this.settings.get().selectedMicrophone = this.microphones.find(
-					(o) => o.id === this.settings.get().selectedMicrophone.id
-				);
-			}
+		// Stored settings (including the previously selected microphone) must be in place before
+		// devices are enumerated and a default is picked - otherwise the fresh device list's
+		// positional id would be matched against (and overwrite) the persisted selection, or the
+		// hardcoded default would win before the stored value ever arrived.
+		void this.settings.load().then(() => {
+			this.cManager.audioController.getDevices().then((devices) => {
+				this.microphones = devices.filter((o) => o.kind === 'audioinput');
+				this.speakers = devices.filter((o) => o.kind === 'audiooutput');
+				const storedMicrophone = this.settings.get().selectedMicrophone;
+				if (!this.microphones.some((o) => o.id === storedMicrophone?.id)) {
+					this.settings.get().selectedMicrophone = this.microphones[0] ?? {
+						id: 0,
+						label: 'default',
+						deviceId: 'default',
+						kind: 'audioinput',
+					};
+				} else {
+					this.settings.get().selectedMicrophone = this.microphones.find(
+						(o) => o.id === storedMicrophone.id
+					);
+				}
+				this.updateViews();
+			});
 		});
 
 		// this.connect();
 
-		window.addEventListener('bettercrewlink_notification', (info: any) => {
+		window.addEventListener('bettercrewlink_notification', (info: NativeBridgeEvent) => {
 			console.log('[EVENT] bettercrewlink_notification: ', JSON.stringify(info));
 			switch (info.action) {
 				case 'REFRESH': {
@@ -224,16 +278,15 @@ export class GameHelperService implements IGameHelperService {
 			console.log('Notification action done');
 		});
 		this.cManager.events.on('player_talk', async (clientId: number, talking: boolean) => {
-			this.updateViews();
 			if (!this.IsMobile) {
 				return;
 			}
 			setTimeout(
 				() => {
-					const sElement = this.cManager.getSocketElementByClientID(clientId);
-					if (sElement && sElement.player && sElement.talking === talking) {
+					const player = this.cManager.getPlayer(clientId);
+					if (player && this.voiceController.isTalking(clientId) === talking) {
 						BetterCrewlinkNativeService.showTalking({
-							color: sElement.player?.colorId,
+							color: player.colorId,
 							talking,
 						});
 					}
@@ -243,7 +296,6 @@ export class GameHelperService implements IGameHelperService {
 		});
 
 		this.cManager.audioController.events.on('local_talk', async (talking: boolean) => {
-			this.updateViews();
 			if (!this.IsMobile) {
 				return;
 			}
@@ -260,7 +312,7 @@ export class GameHelperService implements IGameHelperService {
 			);
 		});
 
-		window.addEventListener('press_overlay', (info: any) => {
+		window.addEventListener('press_overlay', (info: NativeBridgeEvent) => {
 			console.log('[EVENT] press_overlay: ', JSON.stringify(info));
 			if (info.action === 'MICROPHONE') {
 				this.muteMicrophone();
@@ -268,6 +320,17 @@ export class GameHelperService implements IGameHelperService {
 				this.muteAudio();
 			} else if (info.action === 'REFRESH') {
 				this.reconnect();
+			}
+		});
+
+		window.addEventListener('overlay_permission_missing', () => {
+			console.log('[EVENT] overlay_permission_missing');
+			// The OS can restart the service (e.g. after the process was killed) independently of
+			// whether the user still wants the overlay, so only warn when they've actually asked
+			// for it - otherwise this fires for people who turned the overlay off on purpose.
+			if (this.settings.get().overlayEnabled) {
+				this.overlayPermissionMissing = true;
+				this.updateViews();
 			}
 		});
 		// LocalNotifications.on('yes').subscribe((notification) => {

@@ -1,87 +1,118 @@
 <div class="avatarBase">
-	<div *ngIf="this.volumeOpen" class="volumeslider" (mouseout)="openVolume(false)">
-		<div class="volumeslider-1">
-			<ion-range
-				class="volumeSliderThingy"
-				[(ngModel)]="settings.volume"
-				(ionChange)="onVolumeChange()"
-				color="light"
-				max="{{ MAXVOLUME }}"
-				min="0"
-				step="1"
-				pin="1"
-			>
-				<ion-icon slot="start" size="small" name="volume-high-outline"></ion-icon>
-			</ion-range>
+	@if (this.volumeOpen) {
+		<div class="volumeslider" tabindex="0" (mouseleave)="openVolume(false)" (blur)="openVolume(false)">
+			<div class="volumeslider-1">
+				<ion-range
+					class="volumeSliderThingy"
+					[(ngModel)]="settings.volume"
+					(ionChange)="onVolumeChange()"
+					color="light"
+					max="{{ MAXVOLUME }}"
+					min="0"
+					step="1"
+					pin="1"
+				>
+					<ion-icon slot="start" size="small" name="volume-high-outline"></ion-icon>
+				</ion-range>
+				<ion-button
+					size="small"
+					fill="clear"
+					[color]="settings.isMuted ? 'danger' : 'light'"
+					(click)="onMuteToggle()"
+					(pointerdown)="$event.stopPropagation()"
+				>
+					<ion-icon
+						slot="icon-only"
+						[name]="settings.isMuted ? 'volume-mute-outline' : 'volume-medium-outline'"
+					></ion-icon>
+				</ion-button>
+			</div>
 		</div>
-	</div>
-	<div class="avatar" [class.talking]="talking" (click)="openVolume()">
+	}
+	<div
+		class="avatar"
+		[class.talking]="talking"
+		tabindex="0"
+		role="button"
+		(click)="openVolume()"
+		(keyup.enter)="openVolume()"
+	>
 		<div class="avatar avatar-2">
 			<img
-				src="assets/avatar/players/{{ getColorId() }}-{{ isDead ? 'dead' : 'alive' }}.png"
+				[src]="getBodyImage()"
 				class="base no-drag-img"
 				style="display: none"
 				onload="this.style.display=''"
+				(error)="onBodyImageError($event)"
+				alt="{{ player.name }}"
 			/>
-			<img
-				*ngIf="!isDead && getSkinId() > 0"
-				src="assets/avatar/skins/{{ getSkinId() }}.png"
-				class="skin no-drag-img"
-				style="display: none"
-				onload="this.style.display=''"
-				onerror="this.style.display='none'"
-			/>
-			<img
-				*ngIf="!isDead && getRemoteSkinUrl()"
-				[src]="getRemoteSkinUrl()"
-				[ngStyle]="getSkinStyle()"
-				class="skin remote-cosmetic no-drag-img"
-				style="display: none"
-				onload="this.style.display=''"
-				onerror="this.style.display='none'"
-			/>
-			<img
-				*ngIf="!isDead && getRemoteBackHatUrl()"
-				[src]="getRemoteBackHatUrl()"
-				[ngStyle]="getHatStyle()"
-				class="hat remote-cosmetic backlayerd-hat no-drag-img"
-				style="display: none"
-				onload="this.style.display=''"
-				onerror="this.style.display='none'"
-			/>
-
-			<!-- {overflow && <img src={coloredHats[`${hat}${color}`] || hats[hat]} ref={hatImg} className={classes.hat} />} -->
+			@if (getSkin(); as skin) {
+				<img
+					[src]="skin.src"
+					class="cosmetic no-drag-img"
+					[style.top]="skin.top"
+					[style.left]="skin.left"
+					[style.width]="skin.width"
+					[style.z-index]="skin.zIndex"
+					style="display: none"
+					onload="this.style.display=''"
+					onerror="this.style.display='none'"
+					alt=""
+				/>
+			}
 		</div>
-		<img
-			*ngIf="!isDead && getHatId() > 0"
-			src="assets/avatar/hats/{{ getHatImage() }}.png"
-			[style.top]="getHatY()"
-			[class]="backLayerHats.has(getHatId()) ? 'backlayerd-hat' : ''"
-			class="hat no-drag-img"
-			style="display: none"
-			onload="this.style.display=''"
-			onerror="this.style.display='none'"
-		/>
-		<img
-			*ngIf="!isDead && getRemoteHatUrl()"
-			[src]="getRemoteHatUrl()"
-			[ngStyle]="getHatStyle()"
-			class="hat remote-cosmetic no-drag-img"
-			style="display: none"
-			onload="this.style.display=''"
-			onerror="this.style.display='none'"
-		/>
-		<img
-			*ngIf="!isDead && getRemoteVisorUrl()"
-			[src]="getRemoteVisorUrl()"
-			[ngStyle]="getVisorStyle()"
-			class="visor remote-cosmetic no-drag-img"
-			style="display: none"
-			onload="this.style.display=''"
-			onerror="this.style.display='none'"
-		/>
+
+		<!-- Hat layers and visor sit outside the clipped body circle (desktop's non-overflow
+		     layout) so tall hats and ears can extend past the avatar's edge. -->
+		@if (getHatBack(); as hatBack) {
+			<img
+				[src]="hatBack.src"
+				class="cosmetic no-drag-img"
+				[style.top]="hatBack.top"
+				[style.left]="hatBack.left"
+				[style.width]="hatBack.width"
+				[style.z-index]="hatBack.zIndex"
+				style="display: none"
+				onload="this.style.display=''"
+				onerror="this.style.display='none'"
+				alt=""
+			/>
+		}
+		@if (getHat(); as hat) {
+			<img
+				[src]="hat.src"
+				class="cosmetic no-drag-img"
+				[style.top]="hat.top"
+				[style.left]="hat.left"
+				[style.width]="hat.width"
+				[style.z-index]="hat.zIndex"
+				style="display: none"
+				onload="this.style.display=''"
+				onerror="this.style.display='none'"
+				alt=""
+			/>
+		}
+		@if (getVisor(); as visor) {
+			<img
+				[src]="visor.src"
+				class="cosmetic no-drag-img"
+				[style.top]="visor.top"
+				[style.left]="visor.left"
+				[style.width]="visor.width"
+				[style.z-index]="visor.zIndex"
+				style="display: none"
+				onload="this.style.display=''"
+				onerror="this.style.display='none'"
+				alt=""
+			/>
+		}
+		@if (connectionIcon(); as icon) {
+			<div class="connectionBadge noselect" [class.novoice]="connectionState === 'novoice'">
+				<img [src]="icon" class="no-drag-img" alt="" />
+			</div>
+		}
 	</div>
 	<p class="playername_container">
-		<span class="playername noselect">{{ getDisplayName() }}</span>
+		<span class="playername noselect">{{ player.name }}</span>
 	</p>
 </div>

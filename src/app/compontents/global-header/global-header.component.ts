@@ -1,13 +1,13 @@
-import { Component, OnInit } from '@angular/core';
-import { GameHelperService } from 'src/app/services/game-helper.service';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
+import { GameHelperService } from '../../services/game-helper.service';
 
 @Component({
 	selector: 'app-header',
 	templateUrl: './global-header.component.html',
 	styleUrls: ['./global-header.component.scss'],
+	changeDetection: ChangeDetectionStrategy.OnPush,
+	standalone: false,
 })
-export class GlobalHeaderComponent implements OnInit {
+export class GlobalHeaderComponent {
 	constructor(public gameHelper: GameHelperService) {}
-	ngOnInit(): void {
-	}
 }

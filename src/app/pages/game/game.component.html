@@ -1,100 +1,137 @@
 <ion-content color="secondary">
 	<ion-grid>
-		<ng-container [ngSwitch]="gameHelper.cManager.connectionState">
-			<ng-container *ngSwitchDefault>
+		@switch (gameHelper.cManager.connectionState) {
+			@default {
 				<ion-row class="ion-justify-content-center">
-					<p style="text-align: center"><b>設定ページで Crewlink の接続設定をしてください</b></p>
+					<p style="text-align: center"><b>Please go to the settings page to setup BetterCrewlink</b></p>
 				</ion-row>
 				<ion-row class="ion-justify-content-center">
-					<ion-button [routerLink]="['/settings']">設定</ion-button>
-					<ion-button (click)="gameHelper.connect()">再接続</ion-button>
+					<ion-button [routerLink]="['/settings']">Settings</ion-button>
+					<ion-button (click)="gameHelper.connect()">Reconnect</ion-button>
 				</ion-row>
-			</ng-container>
-			<ng-container id="connectPg" *ngSwitchCase="1">
-				<ion-row class="ion-justify-content-center">
-					<ion-spinner paused="false" id="spinnyBoi" color="light"></ion-spinner>
-				</ion-row>
-				<p style="text-align: center"><b>{{gameHelper.getConnectionStage()}}</b></p>
-				<p style="text-align: center">
-					**ロビー内に Crewlink の「Mobile Host」を有効にしたPCユーザーがいることを確認してください**
-				</p>
-				<ion-row class="ion-justify-content-center">
-					<ion-button (click)="gameHelper.connect()">再読み込み</ion-button>
-					<ion-button [routerLink]="['/settings']">設定</ion-button>
-					<ion-button (click)="gameHelper.disconnect()">切断</ion-button>
-				</ion-row>
-			</ng-container>
-
-			<ng-container id="connectPg" *ngSwitchCase="3">
-				<h2 style="text-align: center; color: red">エラー</h2>
-				<p style="text-align: center;">{{ gameHelper.getError() }}</p>
-				<ion-row class="ion-justify-content-center">
-					<ion-button (click)="gameHelper.connect()">再読み込み</ion-button>
-					<ion-button [routerLink]="['/settings']">設定</ion-button>
-				</ion-row>
-			</ng-container>
-			<ng-container id="connectedPg" *ngSwitchCase="2">
-				<ion-grid style="height: 80%">
-					<ion-row class="playerGrid localPLayerRow">
-						<ion-col size="4">
-							<app-avatar
-								[isDead]="gameHelper.cManager.localPLayer.isDead"
-								[player]="gameHelper.cManager.localPLayer"
-								[talking]="gameHelper.localTalking()"
-							></app-avatar>
-						</ion-col>
-						<ion-col size="4">
-							<div class="nameCode-Container">
-								<span class="nameCode-username">{{ gameHelper.cManager?.localPLayer?.name }} </span
-								><span class="nameCode-code" style="background: rgb(62, 67, 70)">{{
-									gameHelper.cManager.currentGameCode
-								}}</span>
-							</div>
-						</ion-col>
-						<ion-col size="2">
-							<div class="nameCode-Container">
-								<ion-button fill="clear" (click)="gameHelper.muteMicrophone()">
-									<ion-icon
-										[style.color]="gameHelper.microphoneMuted() ? 'red' : 'white'"
-										[name]="gameHelper.microphoneMuted() ? 'mic-off-circle-outline' : 'mic-circle-outline'"
-										name="close-circle"
-										style="zoom: 2"
-									></ion-icon>
-								</ion-button>
-								<ion-button fill="clear" (click)="gameHelper.muteAudio()">
-									<ion-icon
-										[style.color]="gameHelper.audioMuted() ? 'red' : 'white'"
-										[name]="gameHelper.audioMuted() ? 'volume-mute-outline' : 'volume-high-outline'"
-										name="close-circle"
-										style="zoom: 2"
-									></ion-icon>
-								</ion-button>
-							</div>
-						</ion-col>
+			}
+			@case (1) {
+				<ng-container id="connectPg">
+					<ion-row class="ion-justify-content-center">
+						<ion-spinner paused="false" id="spinnyBoi" color="light"></ion-spinner>
 					</ion-row>
-					<ion-row class="playerGrid playersGrid">
-						<ng-container *ngFor="let item of getPlayers()">
-							<ion-col *ngIf="item.player" size="4" class="testColumn">
+					<p style="text-align: center">
+						<b>{{ gameHelper.getConnectionStage() }}</b>
+					</p>
+					<p style="text-align: center">
+						<b
+							>Please make sure at least one PC player is in the lobby, with "Mobile Host" enabled on
+							BetterCrewlink</b
+						>
+					</p>
+					<ion-row class="ion-justify-content-center">
+						<ion-button (click)="gameHelper.connect()">refresh</ion-button>
+						<ion-button [routerLink]="['/settings']">Settings</ion-button>
+						<ion-button (click)="gameHelper.disconnect()">Disconnect</ion-button>
+					</ion-row>
+				</ng-container>
+			}
+			@case (3) {
+				<ng-container id="connectPg">
+					<h2 style="text-align: center; color: red">Error</h2>
+					<p style="text-align: center">{{ gameHelper.getError() }}</p>
+					<ion-row class="ion-justify-content-center">
+						<ion-button (click)="gameHelper.connect()">refresh</ion-button>
+						<ion-button [routerLink]="['/settings']">Settings</ion-button>
+					</ion-row>
+				</ng-container>
+			}
+			@case (2) {
+				<ng-container id="connectedPg">
+					<ion-grid style="height: 80%">
+						<ion-row class="playerGrid localPLayerRow">
+							<ion-col size="4">
 								<app-avatar
-									settings="item.socketId"
-									*ngIf="item.player"
-									[settings]="item.settings"
-									[isDead]="item.isDead"
-									[player]="item.player"
-									[talking]="item.talking && item.audible"
-								></app-avatar
-							></ion-col>
-						</ng-container>
-					</ion-row>
-				</ion-grid>
-			</ng-container>
-		</ng-container>
+									[isDead]="gameHelper.cManager.localPLayer.isDead"
+									[player]="gameHelper.cManager.localPLayer"
+									[talking]="gameHelper.localTalking()"
+									[mod]="getMod()"
+								></app-avatar>
+							</ion-col>
+							<ion-col size="4">
+								<div class="nameCode-Container">
+									<span class="nameCode-username">{{ gameHelper.cManager?.localPLayer?.name }} </span
+									><span class="nameCode-code" style="background: rgb(62, 67, 70)">{{
+										gameHelper.cManager.currentGameCode
+									}}</span>
+								</div>
+							</ion-col>
+							<ion-col size="2">
+								<div class="nameCode-Container">
+									<ion-button fill="clear" (click)="gameHelper.muteMicrophone()">
+										<ion-icon
+											[style.color]="gameHelper.microphoneMuted() ? 'red' : 'white'"
+											[name]="gameHelper.microphoneMuted() ? 'mic-off-circle-outline' : 'mic-circle-outline'"
+											name="close-circle"
+											style="zoom: 2"
+										></ion-icon>
+									</ion-button>
+									<ion-button fill="clear" (click)="gameHelper.muteAudio()">
+										<ion-icon
+											[style.color]="gameHelper.audioMuted() ? 'red' : 'white'"
+											[name]="gameHelper.audioMuted() ? 'volume-mute-outline' : 'volume-high-outline'"
+											name="close-circle"
+											style="zoom: 2"
+										></ion-icon>
+									</ion-button>
+								</div>
+							</ion-col>
+						</ion-row>
+						@if (gameHelper.overlayPermissionMissing) {
+							<ion-row class="playerGrid overlayWarning">
+								<p>
+									Floating controls are disabled because "Display over other apps" isn't granted.
+									Enable it in your phone's app settings to use them outside BetterCrewlink.
+								</p>
+								<ion-button size="small" fill="clear" (click)="gameHelper.dismissOverlayWarning()">Dismiss</ion-button>
+							</ion-row>
+						}
+						<ion-row class="playerGrid ion-justify-content-start connectionButtons">
+							<ion-button size="small" fill="outline" color="light" (click)="gameHelper.connect()">
+								<ion-icon slot="start" name="refresh-outline"></ion-icon>
+								Refresh
+							</ion-button>
+							<ion-button size="small" fill="outline" color="danger" (click)="gameHelper.disconnect()">
+								<ion-icon slot="start" name="close-circle-outline"></ion-icon>
+								Disconnect
+							</ion-button>
+						</ion-row>
+						@if (canUseImpostorRadio()) {
+							<ion-row class="ion-justify-content-center">
+								<ion-button
+									color="danger"
+									(pointerdown)="startRadio()"
+									(pointerup)="stopRadio()"
+									(pointercancel)="stopRadio()"
+									(pointerleave)="stopRadio()"
+								>
+									<ion-icon slot="start" name="radio-outline"></ion-icon>
+									Hold to use impostor radio
+								</ion-button>
+							</ion-row>
+						}
+						<ion-row class="playerGrid playersGrid">
+							@for (item of getPlayers(); track item.player.clientId) {
+								<ion-col size="4" class="testColumn">
+									<app-avatar
+										[settings]="item.settings"
+										[isDead]="item.isDead"
+										[player]="item.player"
+										[connectionState]="item.connectionState"
+										[talking]="item.talking && item.audible"
+										[mod]="getMod()"
+									></app-avatar>
+								</ion-col>
+							}
+						</ion-row>
+					</ion-grid>
+				</ng-container>
+			}
+		}
 	</ion-grid>
 </ion-content>
-
-<div class="testButtons" *ngIf="gameHelper.cManager.connectionState == 2">
-	<ion-row>
-		<ion-button (click)="gameHelper.connect()">再読み込み</ion-button>
-		<ion-button (click)="gameHelper.disconnect()">切断</ion-button>
-	</ion-row>
-</div>
