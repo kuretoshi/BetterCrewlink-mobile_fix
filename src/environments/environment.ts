@@ -6,7 +6,7 @@ export const environment = {
 	production: false,
 	// Single source of truth for the app version (also reported in the gameinfo payload).
 	// Keep in sync with android/app/build.gradle's versionName when bumping.
-	appVersion: '3.1',
+	appVersion: '3.2',
 };
 
 /*

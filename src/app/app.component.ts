@@ -35,7 +35,8 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
 	];
 
 	@ViewChild('appHeaderEl', { read: ElementRef }) private appHeaderEl: ElementRef<HTMLElement>;
-	private headerResizeObserver: ResizeObserver;
+	@ViewChild('appFooterEl', { read: ElementRef }) private appFooterEl: ElementRef<HTMLElement>;
+	private layoutResizeObserver: ResizeObserver;
 
 	constructor(private settingsService: SettingsService) {}
 
@@ -45,23 +46,25 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
 	}
 
 	ngAfterViewInit() {
-		// The header's real rendered height (including any safe-area padding Ionic
-		// adds for edge-to-edge status bars) can't be reliably hardcoded - it varies
-		// by device, OS insets, and font scale. Measure it directly instead so
-		// #main-content .ion-page's offset (see global.scss) always matches reality.
+		// Ionic adds device-specific safe-area padding to the header and footer.
+		// Keep the routed page between their rendered edges so its last setting
+		// remains reachable by scrolling on phones with large bottom insets.
 		const headerElement = this.appHeaderEl?.nativeElement;
-		if (!headerElement) {
+		const footerElement = this.appFooterEl?.nativeElement;
+		if (!headerElement || !footerElement) {
 			return;
 		}
-		const updateHeaderHeight = () => {
+		const updateLayoutHeights = () => {
 			document.documentElement.style.setProperty('--app-header-height', `${headerElement.offsetHeight}px`);
+			document.documentElement.style.setProperty('--app-footer-height', `${footerElement.offsetHeight}px`);
 		};
-		updateHeaderHeight();
-		this.headerResizeObserver = new ResizeObserver(updateHeaderHeight);
-		this.headerResizeObserver.observe(headerElement);
+		updateLayoutHeights();
+		this.layoutResizeObserver = new ResizeObserver(updateLayoutHeights);
+		this.layoutResizeObserver.observe(headerElement);
+		this.layoutResizeObserver.observe(footerElement);
 	}
 
 	ngOnDestroy() {
-		this.headerResizeObserver?.disconnect();
+		this.layoutResizeObserver?.disconnect();
 	}
 }
