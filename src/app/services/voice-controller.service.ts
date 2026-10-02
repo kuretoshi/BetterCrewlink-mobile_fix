@@ -8,6 +8,7 @@ import { SettingsService } from './settings.service';
 import { isToh4eHostName } from '../common/Mods';
 import { isTohRole, TohRole } from '../common/TohRole';
 import { isSnrJackalTeam } from '../common/SnrRole';
+import { canHearNosJackalRadio, isNosRadioData, NOS_JACKAL_RADIO_KIND, NosRadioData } from '../common/NosSnapshot';
 
 const radioOnAudio = new Audio('assets/sounds/radio_on.wav');
 radioOnAudio.volume = 0.02;
@@ -41,7 +42,10 @@ export function normalizeUsername(name: string): string {
 		.toLowerCase();
 }
 
-export function matchLocalPlayer(players: Player[], username: string): { player: Player | undefined; ambiguous: boolean } {
+export function matchLocalPlayer(
+	players: Player[],
+	username: string
+): { player: Player | undefined; ambiguous: boolean } {
 	const target = normalizeUsername(username);
 	const matches = players.filter((candidate) => normalizeUsername(candidate.name) === target);
 	return { player: matches[0], ambiguous: matches.length > 1 };
@@ -70,8 +74,16 @@ export function playerSettingsKey(player: Player): number {
 export class VoiceController {
 	private playerStates = new Map<number, VoicePlayerState>();
 	private impostorRadioClientId = -1;
+	private impostorRadioClientIds: number[] = [];
 	private impostorRadioPressed = false;
 	private radioTransmitting = false;
+	private radioStatusVersion = Date.now();
+	private radioStatusVersions: Record<number, number> = {};
+	private lastRadioStatusSentAt = 0;
+	private nosRadiosByPlayer: Record<number, { clientId: number; radios: NosRadioData[]; receivedAt: number }> = {};
+	private nosRadioSession = '';
+	private nosRadioSentSignature = '';
+	private nosRadioSentAt = 0;
 	private toh4eLobby = false;
 	private tohRoleOverride: TohRole | null = null;
 	private tohRoleReceivedAt = 0;
@@ -83,16 +95,19 @@ export class VoiceController {
 		private mobileHostService: MobileHostService,
 		private settingsService: SettingsService
 	) {
-		this.connectionController.events.on('hostUpdate', (state: AmongUsState, lobbySettings: ILobbySettings | undefined) => {
-			try {
-				this.onLobbySettingsChange(lobbySettings);
-				this.onGameState(this.getEffectiveGameState(state));
-			} catch (e) {
-				console.error('ERROR:', e);
-				this.connectionController.error = e.message;
-				this.connectionController.connectionState = ConnectionState.error;
+		this.connectionController.events.on(
+			'hostUpdate',
+			(state: AmongUsState, lobbySettings: ILobbySettings | undefined) => {
+				try {
+					this.onLobbySettingsChange(lobbySettings);
+					this.onGameState(this.getEffectiveGameState(state));
+				} catch (e) {
+					console.error('ERROR:', e);
+					this.connectionController.error = e.message;
+					this.connectionController.connectionState = ConnectionState.error;
+				}
 			}
-		});
+		);
 		this.connectionController.events.on('peerData', (socketId: string, data: Record<string, unknown>) => {
 			this.onPeerData(socketId, data);
 		});
@@ -118,6 +133,7 @@ export class VoiceController {
 	public reset(): void {
 		this.playerStates.clear();
 		this.impostorRadioClientId = -1;
+		this.impostorRadioClientIds = [];
 		this.impostorRadioPressed = false;
 		this.radioTransmitting = false;
 		this.toh4eLobby = false;
@@ -125,6 +141,8 @@ export class VoiceController {
 		this.tohRoleReceivedAt = 0;
 		this.tohGameStartNames = {};
 		this.tohSession = '';
+		this.radioStatusVersions = {};
+		this.nosRadiosByPlayer = {};
 		this.connectionController.audioController.setRadioTransmitting(false);
 	}
 
@@ -234,6 +252,12 @@ export class VoiceController {
 		}
 
 		connectionController.localPLayer = newLocalPlayer;
+		connectionController.audioController.setJammed(
+			state.mod === 'NoS' &&
+				connectionController.lobbySettings.nosFixerJammingVoiceBlock !== false &&
+				newLocalPlayer.nosPlayer?.isJammed === true
+		);
+		this.syncNosRadioReports(state, newLocalPlayer);
 
 		if (
 			connectionController.connectionState === ConnectionState.connecting ||
@@ -324,7 +348,9 @@ export class VoiceController {
 				lobbySettings,
 				myPlayer,
 				player,
-				this.impostorRadioClientId
+				this.impostorRadioClientId,
+				this.impostorRadioClientIds,
+				this.canNosJackalRadioReach(state, player, myPlayer)
 			);
 			if (endGain === null) {
 				endGain = 0;
@@ -401,81 +427,128 @@ export class VoiceController {
 
 	/** Call with `true` on press, `false` on release (including forced release on blur/disconnect). */
 	public applyImpostorRadio(pressing: boolean): void {
+		if (this.impostorRadioPressed !== pressing)
+			this.radioStatusVersion = Math.max(Date.now(), this.radioStatusVersion + 1);
 		this.impostorRadioPressed = pressing;
 		this.updateImpostorRadioTransmission();
 	}
 
-	private updateImpostorRadioTransmission(): void {
+	private updateImpostorRadioTransmission(forceSend = false): void {
 		const connectionController = this.connectionController;
 		const state = connectionController.currentGameState;
 		const myPlayer = connectionController.localPLayer;
 		const granted =
 			this.impostorRadioPressed &&
-			state?.gameState === GameState.TASKS &&
+			(state?.gameState === GameState.TASKS || state?.gameState === GameState.DISCUSSION) &&
 			myPlayer !== undefined &&
 			this.canUseRadio(state, myPlayer) &&
-			!myPlayer.isDead &&
-			(this.impostorRadioClientId === -1 || this.impostorRadioClientId === myPlayer.clientId);
+			!myPlayer.isDead;
 
-		if (granted === this.radioTransmitting) return;
+		if (granted === this.radioTransmitting && !forceSend) return;
+		const changed = granted !== this.radioTransmitting;
 		this.radioTransmitting = granted;
 		connectionController.audioController.setRadioTransmitting(granted);
-		this.impostorRadioClientId = granted && myPlayer ? myPlayer.clientId : -1;
+		if (myPlayer) this.setRadioClientActive(myPlayer.clientId, granted);
 
-		void (granted ? radioOnAudio : radioOffAudio).play().catch(() => {
-			/* autoplay blocked */
-		});
+		if (changed)
+			void (granted ? radioOnAudio : radioOffAudio).play().catch(() => {
+				/* autoplay blocked */
+			});
 
 		const playerSocketIds = connectionController.playerSocketIds;
 		const targets = (state?.players ?? [])
 			.filter(
 				(player) =>
-					myPlayer !== undefined &&
-					player.clientId !== myPlayer.clientId &&
-					!player.isDead &&
-					!player.bugged &&
-					this.areRadioPartners(state!, myPlayer, player)
+					myPlayer !== undefined && player.clientId !== myPlayer.clientId && !player.bugged && !player.disconnected
 			)
 			.map((player) => playerSocketIds[player.clientId])
 			.filter((peerId): peerId is string => Boolean(peerId));
-		connectionController.sendToPeers(targets, JSON.stringify({ impostorRadio: granted }));
+		connectionController.sendToPeers(
+			targets,
+			JSON.stringify({ impostorRadio: granted, impostorRadioVersion: this.radioStatusVersion })
+		);
+		this.lastRadioStatusSentAt = Date.now();
 	}
 
 	private cleanupImpostorRadio(state: AmongUsState, myPlayer: Player | undefined): void {
-		if (this.impostorRadioClientId === -1) return;
-
-		if (!state.players || !myPlayer || state.gameState !== GameState.TASKS) {
-			this.impostorRadioClientId = -1;
-			return;
-		}
-		if (this.impostorRadioClientId === myPlayer.clientId) {
-			if (!this.canUseRadio(state, myPlayer) || myPlayer.isDead) this.applyImpostorRadio(false);
-			return;
-		}
-
-		const peerId = this.connectionController.playerSocketIds[this.impostorRadioClientId];
-		const stillActive =
-			Boolean(peerId) &&
-			this.connectionController.audioController.hasPeer(peerId) &&
-			state.players.some(
-				(player) =>
-					player.clientId !== myPlayer.clientId &&
-					player.clientId === this.impostorRadioClientId &&
-					this.areRadioPartners(state, myPlayer, player) &&
-					!player.isDead &&
-					!player.disconnected &&
-					!player.bugged
+		if (!state.players || !myPlayer) return;
+		if (!this.impostorRadioClientIds.length && this.impostorRadioClientId >= 0)
+			this.impostorRadioClientIds = [this.impostorRadioClientId];
+		if (this.impostorRadioPressed && (myPlayer.isDead || !this.canUseRadio(state, myPlayer)))
+			this.applyImpostorRadio(false);
+		else if (this.impostorRadioPressed && Date.now() - this.lastRadioStatusSentAt >= 1000)
+			this.updateImpostorRadioTransmission(true);
+		const valid = this.impostorRadioClientIds.filter((clientId) => {
+			if (clientId === myPlayer.clientId) return this.impostorRadioPressed && this.canUseRadio(state, myPlayer);
+			const player = state.players.find((candidate) => candidate.clientId === clientId);
+			return Boolean(
+				player && this.canUseRadio(state, player) && !player.isDead && !player.disconnected && !player.bugged
 			);
+		});
+		this.impostorRadioClientIds = valid;
+		this.impostorRadioClientId = valid[0] ?? -1;
+	}
 
-		if (!stillActive) {
-			this.impostorRadioClientId = -1;
+	private syncNosRadioReports(state: AmongUsState, myPlayer: Player): void {
+		const active =
+			state.mod === 'NoS' && (state.gameState === GameState.TASKS || state.gameState === GameState.DISCUSSION);
+		const session = active ? `${state.lobbyCode}|${myPlayer.clientId}` : '';
+		if (session !== this.nosRadioSession) {
+			this.nosRadioSession = session;
+			this.nosRadioSentSignature = '';
+			this.nosRadioSentAt = 0;
+			this.nosRadiosByPlayer = {};
 		}
+		if (!active || !state.nosRadios) return;
+		const now = Date.now();
+		for (const [playerId, report] of Object.entries(this.nosRadiosByPlayer)) {
+			if (
+				now - report.receivedAt > 10000 ||
+				!state.players.some((player) => player.id === Number(playerId) && player.clientId === report.clientId)
+			)
+				delete this.nosRadiosByPlayer[Number(playerId)];
+		}
+		const signature = JSON.stringify(state.nosRadios);
+		if (signature === this.nosRadioSentSignature && now - this.nosRadioSentAt < 3000) return;
+		const targets = state.players
+			.filter((player) => player.clientId !== myPlayer.clientId && !player.disconnected)
+			.map((player) => this.connectionController.playerSocketIds[player.clientId])
+			.filter((peerId): peerId is string => Boolean(peerId));
+		this.connectionController.sendToPeers(
+			targets,
+			JSON.stringify({
+				type: 'nos-radio-data',
+				lobbyCode: state.lobbyCode,
+				playerId: myPlayer.id,
+				radios: state.nosRadios,
+			})
+		);
+		this.nosRadioSentSignature = signature;
+		this.nosRadioSentAt = now;
 	}
 
 	private onPeerData(socketId: string, data: Record<string, unknown>): void {
 		const state = this.connectionController.currentGameState;
 		const senderClientId = this.connectionController.getClient(socketId)?.clientId;
 		const fromHost = Boolean(state && senderClientId !== undefined && senderClientId === state.hostId);
+		if (data.type === 'nos-radio-data') {
+			const sender = state?.players.find((player) => player.clientId === senderClientId);
+			if (
+				!state ||
+				state.mod !== 'NoS' ||
+				(state.gameState !== GameState.TASKS && state.gameState !== GameState.DISCUSSION) ||
+				data.lobbyCode !== state.lobbyCode ||
+				!sender ||
+				sender.disconnected ||
+				data.playerId !== sender.id ||
+				!Array.isArray(data.radios) ||
+				data.radios.length > 8 ||
+				!data.radios.every(isNosRadioData)
+			)
+				return;
+			this.nosRadiosByPlayer[sender.id] = { clientId: sender.clientId, radios: data.radios, receivedAt: Date.now() };
+			return;
+		}
 		if (data.type === 'toh4e-lobby' || data.type === 'toh4e-roster' || data.type === 'toh4e-role') {
 			if (
 				!state ||
@@ -483,7 +556,8 @@ export class VoiceController {
 				data.lobbyCode !== state.lobbyCode ||
 				state.gameState === GameState.MENU ||
 				state.gameState === GameState.UNKNOWN
-			) return;
+			)
+				return;
 		}
 		if (data.type === 'toh4e-lobby' && typeof data.enabled === 'boolean') {
 			this.toh4eLobby = data.enabled;
@@ -509,17 +583,20 @@ export class VoiceController {
 		}
 		if (data.type === 'toh4e-role' && state) {
 			const configuredName = normalizeUsername(this.connectionController.amongusUsername);
-			const me = this.connectionController.localPLayer ?? state.players.find((player) => {
-				const originalName = this.tohGameStartNames[player.clientId] ?? player.name;
-				return normalizeUsername(originalName) === configuredName;
-			});
+			const me =
+				this.connectionController.localPLayer ??
+				state.players.find((player) => {
+					const originalName = this.tohGameStartNames[player.clientId] ?? player.name;
+					return normalizeUsername(originalName) === configuredName;
+				});
 			if (
 				!me ||
 				data.targetClientId !== me.clientId ||
 				data.targetPlayerId !== me.id ||
 				(state.gameState !== GameState.TASKS && state.gameState !== GameState.DISCUSSION) ||
 				(data.role !== null && !isTohRole(data.role))
-			) return;
+			)
+				return;
 			this.tohRoleOverride = isTohRole(data.role) ? data.role : null;
 			this.tohRoleReceivedAt = Date.now();
 			this.toh4eLobby = true;
@@ -529,12 +606,24 @@ export class VoiceController {
 			const clientId = this.connectionController.getClient(socketId)?.clientId;
 			const myPlayer = this.connectionController.localPLayer;
 			const sender = state?.players.find((player) => player.clientId === clientId);
-			if (!state || clientId === undefined || !myPlayer || !sender || !this.areRadioPartners(state, myPlayer, sender)) return;
-			if (this.impostorRadioClientId === -1 && data.impostorRadio) {
-				this.impostorRadioClientId = clientId;
-			} else if (this.impostorRadioClientId === clientId && !data.impostorRadio) {
-				this.impostorRadioClientId = -1;
-			}
+			const version = data.impostorRadioVersion;
+			if (
+				!state ||
+				clientId === undefined ||
+				!myPlayer ||
+				!sender ||
+				typeof data.impostorRadio !== 'boolean' ||
+				(typeof version === 'number'
+					? !Number.isSafeInteger(version) || version < (this.radioStatusVersions[clientId] ?? 0)
+					: this.radioStatusVersions[clientId] !== undefined) ||
+				(data.impostorRadio &&
+					((state.gameState !== GameState.TASKS && state.gameState !== GameState.DISCUSSION) ||
+						sender.isDead ||
+						!this.canUseRadio(state, sender)))
+			)
+				return;
+			if (typeof version === 'number') this.radioStatusVersions[clientId] = version;
+			this.setRadioClientActive(clientId, data.impostorRadio);
 			return;
 		}
 
@@ -552,8 +641,33 @@ export class VoiceController {
 		return state.mod === 'SUPER_NEW_ROLES' && isSnrJackalTeam(player.snrRole);
 	}
 
+	private setRadioClientActive(clientId: number, active: boolean): void {
+		const ids = new Set(this.impostorRadioClientIds);
+		if (active) ids.add(clientId);
+		else ids.delete(clientId);
+		this.impostorRadioClientIds = [...ids];
+		this.impostorRadioClientId = this.impostorRadioClientIds[0] ?? -1;
+	}
+
+	private getNosRadios(state: AmongUsState, player: Player): readonly NosRadioData[] | undefined {
+		if (state.mod !== 'NoS') return undefined;
+		if (player.clientId === this.connectionController.localPLayer?.clientId) return state.nosRadios;
+		const report = this.nosRadiosByPlayer[player.id];
+		return report?.clientId === player.clientId ? report.radios : undefined;
+	}
+
+	private canNosJackalRadioReach(state: AmongUsState, sender: Player, listener: Player): boolean {
+		return canHearNosJackalRadio(this.getNosRadios(state, sender), listener.id);
+	}
+
+	private hasNosJackalRadio(state: AmongUsState, player: Player): boolean {
+		return this.getNosRadios(state, player)?.some((radio) => radio.kind === NOS_JACKAL_RADIO_KIND) ?? false;
+	}
+
 	private canUseRadio(state: AmongUsState, player: Player): boolean {
 		const settings = this.connectionController.lobbySettings;
+		if (state.mod === 'NoS' && this.hasNosJackalRadio(state, player))
+			return settings.jackalRadioEnabled === true && settings.impostorRadioOnlyMode !== true;
 		if (this.isJackalRadioPlayer(state, player)) {
 			return settings.jackalRadioEnabled === true && settings.impostorRadioOnlyMode !== true;
 		}
@@ -561,6 +675,8 @@ export class VoiceController {
 	}
 
 	private areRadioTeammates(state: AmongUsState, first: Player, second: Player): boolean {
+		if (state.mod === 'NoS' && this.hasNosJackalRadio(state, first))
+			return this.canNosJackalRadioReach(state, first, second);
 		if (this.isJackalRadioPlayer(state, first)) return this.isJackalRadioPlayer(state, second);
 		return first.isImpostor && second.isImpostor && !this.isJackalRadioPlayer(state, second);
 	}

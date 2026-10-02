@@ -40,12 +40,13 @@ export const defaultLobbySettings: ILobbySettings = {
 	sidekickTalkInVents: false,
 	nosNeutralKillerHaunting: false,
 	nosVoicePositions: false,
+	nosSizeVoiceEffect: true,
+	nosFixerJammingVoiceBlock: true,
 	tohNeutralKillerHaunting: false,
 	hearImpostorsInVents: false,
 	impostersHearImpostersInvent: false,
 	impostorRadioEnabled: false,
 	impostorRadioOnlyMode: false,
-	impostorRadioPrivate: false,
 	commsSabotage: false,
 	voiceEffectEnabled: true,
 	deadOnly: false,
@@ -55,7 +56,7 @@ export const defaultLobbySettings: ILobbySettings = {
 	visionHearing: false,
 	publicLobby_on: false,
 	publicLobby_title: '',
-	publicLobby_language: 'en',
+	publicLobby_language: 'ja',
 };
 
 export interface ClientPeerConfig {

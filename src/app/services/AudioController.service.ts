@@ -1,5 +1,5 @@
 import { EventEmitter as EventEmitterO } from 'events';
-import { AmongUsState, GameState, Player } from '../common/AmongUsState';
+import { AmongUsState, Player } from '../common/AmongUsState';
 import { ILobbySettings, ISettings } from '../common/ISettings';
 import { IDeviceInfo } from './smallInterfaces';
 import { ConnectingStage, ConnectionController } from './ConnectionController.service';
@@ -7,12 +7,8 @@ import { SettingsService } from './settings.service';
 import { calculateVoiceAudio } from '../voice/spatialAudio';
 import { PeerAudioNodes, RadioEchoNodes } from '../voice/types';
 import VAD from './vad';
-import { hasSnrJumbo, isSnrJackalTeam } from '../common/SnrRole';
-import {
-	createVoiceDisguiseEffect,
-	disconnectVoiceDisguiseEffect,
-	updateVoiceDisguiseEffect,
-} from './voiceEffect';
+import { selectVoiceEffect } from '../voice/voiceEffectRules';
+import { createVoiceDisguiseEffect, disconnectVoiceDisguiseEffect, updateVoiceDisguiseEffect } from './voiceEffect';
 
 const REVERB_URL = 'assets/sounds/reverb.ogx';
 
@@ -31,6 +27,7 @@ export default class AudioController {
 	localTalking: boolean;
 	/** True while the local player is holding down impostor radio; overrides mic mute, matching desktop. */
 	radioTransmitting = false;
+	private jammed = false;
 	public events: EventEmitterO = new EventEmitterO();
 
 	// Single shared context + master bus for everything this controller plays, mirroring
@@ -92,6 +89,7 @@ export default class AudioController {
 
 		const audioListener = VAD(context, inputSource, undefined, {
 			onVoiceStart: () => {
+				if (this.jammed) return;
 				if (this.microphoneGain) {
 					const current = this.settingsService.get();
 					if (current.micSensitivityEnabled && !current.autoGainControl) {
@@ -160,10 +158,20 @@ export default class AudioController {
 		this.applyTrackEnabled();
 	}
 
+	setJammed(jammed: boolean): void {
+		this.jammed = jammed;
+		if (jammed && this.localTalking) {
+			this.localTalking = false;
+			this.events.emit('local_talk', false);
+			this.connectionController?.socketIOClient?.emit('VAD', false);
+		}
+		this.applyTrackEnabled();
+	}
+
 	private applyTrackEnabled(): void {
 		const track = this.stream?.getAudioTracks()[0];
 		if (!track) return;
-		track.enabled = this.radioTransmitting || (!this.microphoneMuted && !this.audioMuted);
+		track.enabled = !this.jammed && (this.radioTransmitting || (!this.microphoneMuted && !this.audioMuted));
 	}
 
 	private ensureOutputBus() {
@@ -349,7 +357,9 @@ export default class AudioController {
 		activeLobbySettings: ILobbySettings,
 		me: Player,
 		other: Player,
-		impostorRadioClientId: number
+		impostorRadioClientId: number,
+		impostorRadioClientIds?: readonly number[],
+		nosJackalRadioHearable?: boolean
 	): number | null {
 		const peer = this.peers.get(peerId);
 		const destination = this.masterGain;
@@ -370,6 +380,8 @@ export default class AudioController {
 			other,
 			maxDistance: this.maxDistance,
 			impostorRadioClientId,
+			impostorRadioClientIds,
+			nosJackalRadioHearable,
 		});
 
 		if (result.panMaxDistance !== null) {
@@ -385,36 +397,27 @@ export default class AudioController {
 		const wantReverb = result.reverb === null ? peer.reverbConnected : result.reverb;
 		const wantMuffle = result.muffle === null ? peer.muffleConnected : result.muffle !== false;
 		const wantRadioEcho = result.radioEcho;
-		const jumbo =
-			state.mod === 'SUPER_NEW_ROLES' &&
-			activeLobbySettings.snrJumboVoice &&
-			hasSnrJumbo(other.snrRole) &&
-			Boolean(other.snrRole?.jumbo?.maxSize && other.snrRole.jumbo.currentSize > 0);
-		const voiceEffectStrength = jumbo
-			? Math.min(100, (other.snrRole.jumbo.currentSize / other.snrRole.jumbo.maxSize) * 100)
-			: settings.voiceEffectStrength;
-		const disguise = Boolean(state.mushroomMixupSabotaged || state.camouflaged || state.mixupSabotaged);
-		const radioOnlyMode = activeLobbySettings.impostorRadioOnlyMode === true;
-		const onImpostorRadio =
-			other.clientId === impostorRadioClientId &&
-			me.isImpostor &&
-			other.isImpostor &&
-			(activeLobbySettings.impostorRadioEnabled || radioOnlyMode);
-		const onJackalRadio =
-			other.clientId === impostorRadioClientId &&
-			state.mod === 'SUPER_NEW_ROLES' &&
-			activeLobbySettings.jackalRadioEnabled === true &&
-			!radioOnlyMode &&
-			isSnrJackalTeam(me.snrRole) &&
-			isSnrJackalTeam(other.snrRole);
-		const wantVoiceEffect =
-			state.gameState === GameState.TASKS &&
-			(jumbo ||
-				(disguise && activeLobbySettings.voiceEffectEnabled !== false && !me.isDead && !onImpostorRadio && !onJackalRadio)) &&
-			voiceEffectStrength > 0 &&
-			!other.isDead &&
-			!wantMuffle;
-		updateVoiceDisguiseEffect(peer.voiceEffect, voiceEffectStrength, jumbo ? 'down' : 'up');
+		const effect = selectVoiceEffect(
+			state,
+			settings,
+			activeLobbySettings,
+			me,
+			other,
+			impostorRadioClientId,
+			impostorRadioClientIds
+		);
+		const wantVoiceEffect = effect !== null && !wantMuffle;
+		if (effect)
+			updateVoiceDisguiseEffect(
+				peer.voiceEffect,
+				effect.strength,
+				effect.direction,
+				effect.formantScale,
+				effect.jumbo,
+				effect.squash,
+				effect.toneRate,
+				effect.directPitch
+			);
 		rebuildEffectChain(peer, destination, wantReverb, wantMuffle, wantVoiceEffect, wantRadioEcho);
 
 		if (result.panPosition) {
@@ -492,7 +495,8 @@ function rebuildEffectChain(
 		peer.muffleConnected === wantMuffle &&
 		peer.voiceEffectConnected === wantVoiceEffect &&
 		peer.radioEchoConnected === wantRadioEcho
-	) return;
+	)
+		return;
 
 	for (const node of [peer.gain, peer.muffle, peer.reverb]) {
 		try {

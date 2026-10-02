@@ -214,7 +214,9 @@ describe('VoiceController impostor radio', () => {
 
 		expect(connectionController.audioController.radioTransmitting).toBeFalse();
 		expect((voiceController as any).impostorRadioClientId).toBe(-1);
-		expect(sendSpy).toHaveBeenCalledWith(['socket-2'], JSON.stringify({ impostorRadio: false }));
+		const [targets, payload] = sendSpy.calls.mostRecent().args;
+		expect(targets).toEqual(['socket-2']);
+		expect(JSON.parse(payload)).toEqual({ impostorRadio: false, impostorRadioVersion: jasmine.any(Number) });
 	});
 
 	it('excludes bugged players from radio broadcast targets', () => {
@@ -228,7 +230,9 @@ describe('VoiceController impostor radio', () => {
 
 		voiceController.applyImpostorRadio(true);
 
-		expect(sendSpy).toHaveBeenCalledWith([], JSON.stringify({ impostorRadio: true }));
+		const [targets, payload] = sendSpy.calls.mostRecent().args;
+		expect(targets).toEqual([]);
+		expect(JSON.parse(payload)).toEqual({ impostorRadio: true, impostorRadioVersion: jasmine.any(Number) });
 	});
 
 	describe('cleanupImpostorRadio', () => {

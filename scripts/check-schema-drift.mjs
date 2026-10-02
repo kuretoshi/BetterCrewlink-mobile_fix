@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const MOBILE_ROOT = resolve(__dirname, '..');
 const DESKTOP_REPO = process.env.BCL_DESKTOP_REPO ?? resolve(MOBILE_ROOT, '../bettercrewlink');
-const DESKTOP_TAG = process.env.BCL_DESKTOP_TAG ?? 'v3.2.1';
+const DESKTOP_TAG = process.env.BCL_DESKTOP_TAG ?? 'v3.2.7';
 
 if (!existsSync(resolve(DESKTOP_REPO, '.git'))) {
 	console.log(
@@ -59,11 +59,25 @@ function extractBlock(source, header) {
 /** Top-level `name:` / `name?:` keys of an interface body or object-literal body. */
 function fieldNames(blockText) {
 	const names = [];
+	let depth = 0;
 	for (const line of blockText.split('\n')) {
-		const match = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*\??\s*:/.exec(line);
+		const match = depth === 0 ? /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*\??\s*:/.exec(line) : null;
 		if (match) names.push(match[1]);
+		depth += [...line].filter((char) => char === '{').length;
+		depth -= [...line].filter((char) => char === '}').length;
 	}
 	return names;
+}
+
+function mergedInterfaceFields(source, name) {
+	const fields = [];
+	const pattern = new RegExp(`export interface ${name}\\s*\\{`, 'g');
+	let match;
+	while ((match = pattern.exec(source))) {
+		for (const field of fieldNames(extractBlock(source.slice(match.index), /^export interface/)))
+			if (!fields.includes(field)) fields.push(field);
+	}
+	return fields;
 }
 
 /** Top-level `Name,` / `Name = value,` members of an enum body. */
@@ -133,17 +147,18 @@ function checkObjectDeepEqual(label, desktopBlockText, mobileBlockText) {
 {
 	const desktopSrc = desktopFile('src/common/AmongUsState.ts');
 	const mobileSrc = mobileFile('src/app/common/AmongUsState.ts');
-	checkFieldsExact(
+	checkFieldsSuperset(
 		'AmongUsState',
-		fieldNames(extractBlock(desktopSrc, /export interface AmongUsState/)),
-		fieldNames(extractBlock(mobileSrc, /export interface AmongUsState/))
+		mergedInterfaceFields(desktopSrc, 'AmongUsState'),
+		mergedInterfaceFields(mobileSrc, 'AmongUsState'),
+		['mushroomMixupSabotaged']
 	);
 
 	// --- Player (mobile may add its own `isbetter` flag; nothing else) ---
 	checkFieldsSuperset(
 		'Player',
-		fieldNames(extractBlock(desktopSrc, /export interface Player/)),
-		fieldNames(extractBlock(mobileSrc, /export interface Player \{/)),
+		mergedInterfaceFields(desktopSrc, 'Player'),
+		mergedInterfaceFields(mobileSrc, 'Player'),
 		['isbetter']
 	);
 
@@ -185,10 +200,11 @@ function checkObjectDeepEqual(label, desktopBlockText, mobileBlockText) {
 // --- voice/types.ts: defaultLobbySettings + ICE configs ported verbatim ---
 {
 	const desktopSrc = desktopFile('src/renderer/voice/types.ts');
+	const desktopDefaultsSrc = desktopFile('src/common/defaultLobbySettings.ts');
 	const mobileSrc = mobileFile('src/app/voice/types.ts');
 	checkObjectDeepEqual(
 		'defaultLobbySettings',
-		extractBlock(desktopSrc, /export const defaultLobbySettings/),
+		extractBlock(desktopDefaultsSrc, /export const defaultLobbySettings/),
 		extractBlock(mobileSrc, /export const defaultLobbySettings/)
 	);
 	checkObjectDeepEqual(

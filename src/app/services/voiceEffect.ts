@@ -28,11 +28,12 @@ export type PitchShiftDirection = 'up' | 'down';
 
 const clampStrength = (strength: number) => Math.min(100, Math.max(0, Number.isFinite(strength) ? strength : 0));
 
-function configureVoiceEffectFilter(filter: BiquadFilterNode, strength: number) {
+function configureVoiceEffectFilter(filter: BiquadFilterNode, strength: number, formantScale = 1) {
 	const normalizedStrength = clampStrength(strength) / 100;
+	const scale = Math.min(1.7, Math.max(0.55, Number.isFinite(formantScale) ? formantScale : 1));
 
 	filter.type = 'bandpass';
-	filter.frequency.value = 1200 - normalizedStrength * 350;
+	filter.frequency.value = (1200 - normalizedStrength * 350) * scale;
 	filter.Q.value = 1 + normalizedStrength * 8;
 }
 
@@ -160,11 +161,38 @@ export function createVoiceDisguiseEffect(context: AudioContext, strength: numbe
 export function updateVoiceDisguiseEffect(
 	effect: VoiceDisguiseEffect,
 	strength: number,
-	direction: PitchShiftDirection = 'up'
+	direction: PitchShiftDirection = 'up',
+	formantScale = 1,
+	jumbo = false,
+	squash = 0,
+	toneRate = 1,
+	directPitch = false
 ) {
 	const normalizedStrength = clampStrength(strength) / 100;
-
-	configureVoiceEffectFilter(effect.filter, strength);
+	const safeToneRate = Number.isFinite(toneRate) && toneRate > 0 ? toneRate : 1;
+	const sizeScale = Math.min(1.7, Math.max(0.55, 1 / safeToneRate));
+	configureVoiceEffectFilter(effect.filter, strength, formantScale * sizeScale);
+	if (squash > 0) {
+		const progress = Math.min(1, Math.max(0, squash));
+		effect.filter.type = 'lowpass';
+		effect.filter.frequency.value = 6000 - progress * 5200;
+		effect.filter.Q.value = Math.SQRT1_2;
+		effect.dryGain.gain.value = 1 - progress;
+		effect.wetGain.gain.value = progress * 0.45;
+		effect.output.gain.value = 1 - progress * 0.75;
+		effect.pitchUpWetGain.gain.value = 1;
+		effect.pitchDownWetGain.gain.value = 0;
+		return;
+	}
+	effect.output.gain.value = 1;
+	if (jumbo) {
+		for (const source of [effect.delayDownModA, effect.delayDownModB, effect.fadeDownModA, effect.fadeDownModB])
+			source.playbackRate.value = Math.max(0.05, normalizedStrength * 0.6);
+	}
+	if (directPitch) {
+		for (const source of [effect.delayModA, effect.delayModB, effect.fadeModA, effect.fadeModB])
+			source.playbackRate.value = Math.max(0.05, normalizedStrength);
+	}
 	effect.dryGain.gain.value = 1 - normalizedStrength * 0.95;
 	effect.wetGain.gain.value = normalizedStrength * 1.45;
 	effect.pitchUpWetGain.gain.value = direction === 'up' ? 1 : 0;

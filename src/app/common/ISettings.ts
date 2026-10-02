@@ -18,12 +18,13 @@ export interface ILobbySettings {
 	sidekickTalkInVents: boolean;
 	nosNeutralKillerHaunting: boolean;
 	nosVoicePositions: boolean;
+	nosSizeVoiceEffect: boolean;
+	nosFixerJammingVoiceBlock: boolean;
 	tohNeutralKillerHaunting: boolean;
 	hearImpostorsInVents: boolean;
 	impostersHearImpostersInvent: boolean;
 	impostorRadioEnabled: boolean;
 	impostorRadioOnlyMode: boolean;
-	impostorRadioPrivate: boolean;
 	commsSabotage: boolean;
 	voiceEffectEnabled: boolean;
 	deadOnly: boolean;

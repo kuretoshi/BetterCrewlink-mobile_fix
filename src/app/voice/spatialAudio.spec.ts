@@ -215,14 +215,14 @@ describe('calculateVoiceAudio', () => {
 			expect(result.radioEcho).toBeTrue();
 		});
 
-		it('mutes the transmission for living crew when impostorRadioPrivate is enabled', () => {
+		it('keeps ordinary proximity audio for living crew during an impostor transmission', () => {
 			const result = run({
 				other: makePlayer({ id: 2, clientId: 2, x: 1, y: 0, isImpostor: true }),
 				me: makePlayer({ id: 1, clientId: 1, isLocal: true, isImpostor: false, isDead: false }),
-				activeLobbySettings: makeLobbySettings({ impostorRadioEnabled: true, impostorRadioPrivate: true }),
+				activeLobbySettings: makeLobbySettings({ impostorRadioEnabled: true }),
 				impostorRadioClientId: 2,
 			});
-			expect(result.gain).toBe(0);
+			expect(result.gain).toBeGreaterThan(0);
 		});
 
 		it('does not grant radio range when impostorRadioEnabled is off', () => {

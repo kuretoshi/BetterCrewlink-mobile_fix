@@ -100,6 +100,7 @@ export interface VoiceState {
 	socketClients: SocketClientMap;
 	audioConnected: AudioConnected;
 	impostorRadioClientId: number;
+	impostorRadioClientIds?: number[];
 	localTalking: boolean;
 	localIsAlive: boolean;
 	muted: boolean;
@@ -113,14 +114,22 @@ export interface AmongUsState {
 	mushroomMixupSabotaged?: boolean;
 	camouflaged?: boolean;
 	mixupSabotaged?: boolean;
+	airshipMeetingByOutfit?: boolean;
 	nosLocalMicPosition?: { x: number; y: number };
 	nosRadios?: NosRadioData[];
+	debug?: Record<string, unknown>;
 }
 
 export interface Player {
 	appearanceName?: string;
 	currentOutfit?: number;
 	appearanceColorId?: number;
+	appearanceHatId?: string;
+	appearanceSkinId?: string;
+	appearanceVisorId?: string;
+	appearanceId?: string;
+	rolePtr?: number;
+	roleTeam?: number;
 	nosLobbyColor?: string;
 	roleName?: string;
 	snrRole?: SnrLiveRole;
@@ -129,6 +138,8 @@ export interface Player {
 	nosPlayer?: NosPlayerData;
 	tohRole?: TohRole;
 	isThirdParty?: boolean;
+	sizeScale?: number;
+	specialRole?: 'JUMBO' | 'MINI' | 'UNKNOWN';
 }
 
 /** Mobile-only: the payload a desktop Mobile Host broadcasts to the `<lobbyCode>_mobile` room. */

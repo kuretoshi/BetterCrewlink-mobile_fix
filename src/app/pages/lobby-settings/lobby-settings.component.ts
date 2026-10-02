@@ -69,7 +69,6 @@ export class LobbySettingsComponent implements OnInit, OnDestroy {
 			{ label: '幽霊専用モード', value: settings.deadOnly },
 			{ label: '会議中のみ音声を有効化', value: settings.meetingGhostOnly },
 			{ label: 'インポスター無線', value: settings.impostorRadioEnabled },
-			{ label: 'インポスター無線を非公開', value: settings.impostorRadioPrivate },
 		];
 		const mod = this.gameHelper.cManager.currentGameState?.mod;
 		if (mod === 'SUPER_NEW_ROLES') {
@@ -86,7 +85,9 @@ export class LobbySettingsComponent implements OnInit, OnDestroy {
 		} else if (mod === 'NoS') {
 			toggles.push(
 				{ label: 'NoS 第三陣営キラーの幽霊音声', value: settings.nosNeutralKillerHaunting },
-				{ label: 'NoS の音声位置', value: settings.nosVoicePositions }
+				{ label: 'NoS の音声位置', value: settings.nosVoicePositions },
+				{ label: 'NoS サイズ連動ボイスエフェクト', value: settings.nosSizeVoiceEffect },
+				{ label: 'NoS Fixer妨害中の音声遮断', value: settings.nosFixerJammingVoiceBlock }
 			);
 		} else if (mod === 'TOH4E') {
 			toggles.push({ label: 'TOH4E 第三陣営キラーの幽霊音声', value: settings.tohNeutralKillerHaunting });
