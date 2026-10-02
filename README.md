@@ -32,6 +32,12 @@
 
 Android では APK ファイルを端末にインストールします。環境によっては、ブラウザやファイルマネージャーからのアプリインストールを許可する必要があります。
 
+### Discordへのリリース通知（管理者向け）
+
+Discordの通知先チャンネルでWebhookを作成し、このリポジトリの **Settings → Secrets and variables → Actions → New repository secret** に `DISCORD_RELEASE_WEBHOOK_URL` という名前でURLを登録してください。Webhook URLはリポジトリのファイルに書き込まないでください。
+
+設定後にGitHub Releaseを公開すると、GitHub Actionsの `Notify Discord on release` がリリース名・バージョン・リンクを通知します。通常リリースとプレリリースの両方が対象で、既に公開済みのリリースには遡って通知しません。Secretが未設定の場合はワークフローが失敗し、通知されません。
+
 ## Web版
 
 インストールせずにブラウザから利用する場合は、以下の URL にアクセスしてください。

@@ -1,0 +1,67 @@
+name: Notify Discord on release
+
+on:
+  release:
+    types: [published]
+
+permissions: {}
+
+jobs:
+  notify-discord:
+    name: Post release to Discord
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Send release notification
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_RELEASE_WEBHOOK_URL }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+
+          webhook_url = os.environ.get("DISCORD_WEBHOOK_URL")
+          if not webhook_url:
+              sys.exit("Set the DISCORD_RELEASE_WEBHOOK_URL repository secret before publishing a release.")
+
+          with open(os.environ["GITHUB_EVENT_PATH"], encoding="utf-8") as event_file:
+              release = json.load(event_file)["release"]
+
+          tag = release["tag_name"]
+          title = release.get("name") or tag
+          payload = {
+              "content": "📢 タヌキのベタクルモバイルの新しいリリースを公開しました！",
+              "embeds": [{
+                  "title": title[:256],
+                  "url": release["html_url"],
+                  "description": f"バージョン: {tag}"[:4096],
+              }],
+              "allowed_mentions": {"parse": []},
+          }
+
+          parsed = urllib.parse.urlsplit(webhook_url)
+          query = urllib.parse.parse_qsl(parsed.query, keep_blank_values=True)
+          query.append(("wait", "true"))
+          url = urllib.parse.urlunsplit(parsed._replace(query=urllib.parse.urlencode(query)))
+          request = urllib.request.Request(
+              url,
+              data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+              headers={"Content-Type": "application/json"},
+              method="POST",
+          )
+
+          try:
+              with urllib.request.urlopen(request, timeout=15) as response:
+                  if response.status != 200:
+                      sys.exit(f"Discord returned HTTP {response.status}.")
+          except urllib.error.HTTPError as error:
+              sys.exit(f"Discord returned HTTP {error.code}.")
+          except urllib.error.URLError:
+              sys.exit("Could not reach the Discord webhook.")
+
+          print(f"Discord notified about release {tag}.")
+          PY
