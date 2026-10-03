@@ -3,6 +3,12 @@ name: Notify Discord on release
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing release tag to notify about again
+        required: true
+        type: string
 
 permissions: {}
 
@@ -29,7 +35,19 @@ jobs:
               sys.exit("Set the DISCORD_RELEASE_WEBHOOK_URL repository secret before publishing a release.")
 
           with open(os.environ["GITHUB_EVENT_PATH"], encoding="utf-8") as event_file:
-              release = json.load(event_file)["release"]
+              event = json.load(event_file)
+
+          release = event.get("release")
+          if release is None:
+              tag = (event.get("inputs") or {}).get("release_tag", "").strip()
+              if not tag:
+                  sys.exit("Specify an existing release tag.")
+              repository = os.environ["GITHUB_REPOSITORY"]
+              release = {
+                  "tag_name": tag,
+                  "name": f"TanukiBCL Mobile {tag.removeprefix('v')}",
+                  "html_url": f"https://github.com/{repository}/releases/tag/{urllib.parse.quote(tag, safe='')}",
+              }
 
           tag = release["tag_name"]
           title = release.get("name") or tag
@@ -50,7 +68,10 @@ jobs:
           request = urllib.request.Request(
               url,
               data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
-              headers={"Content-Type": "application/json"},
+              headers={
+                  "Content-Type": "application/json",
+                  "User-Agent": "TanukiBCL-Release-Notifier/1.0",
+              },
               method="POST",
           )
 
@@ -59,7 +80,15 @@ jobs:
                   if response.status != 200:
                       sys.exit(f"Discord returned HTTP {response.status}.")
           except urllib.error.HTTPError as error:
-              sys.exit(f"Discord returned HTTP {error.code}.")
+              content_type = error.headers.get("Content-Type", "unknown").split(";", 1)[0]
+              api_code = None
+              if content_type == "application/json":
+                  try:
+                      api_code = json.load(error).get("code")
+                  except (ValueError, AttributeError):
+                      pass
+              detail = f", Discord API code {api_code}" if isinstance(api_code, int) else ""
+              sys.exit(f"Discord returned HTTP {error.code} ({content_type}{detail}).")
           except urllib.error.URLError:
               sys.exit("Could not reach the Discord webhook.")
 
