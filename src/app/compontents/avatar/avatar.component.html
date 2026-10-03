@@ -107,12 +107,14 @@
 			/>
 		}
 		@if (connectionIcon(); as icon) {
-			<div class="connectionBadge noselect" [class.novoice]="connectionState === 'novoice'">
+			<div
+				class="connectionBadge noselect"
+				[class.novoice]="connectionState === 'novoice'"
+				role="img"
+				[attr.aria-label]="connectionState === 'novoice' ? '音声未接続' : 'ボイスサーバー未接続'"
+			>
 				<img [src]="icon" class="no-drag-img" alt="" />
 			</div>
 		}
 	</div>
-	<p class="playername_container">
-		<span class="playername noselect">{{ player.name }}</span>
-	</p>
 </div>

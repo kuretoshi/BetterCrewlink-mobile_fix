@@ -1,15 +1,31 @@
-.round {
-    width: 60px;
-    height: 60px;
-    justify-self: center !important;
-    --border-radius: 30px;
-    --vertical-align: middle;
+.footer-links {
+	display: grid;
+	grid-template-columns: repeat(5, minmax(0, 1fr));
+	align-items: center;
+	justify-items: center;
+	box-sizing: border-box;
+	width: 100%;
+	max-width: 450px;
+	margin: 0 auto;
+	padding: 4px 8px;
 }
 
-// Matches the player grid's own column width (game.component.scss `.playerGrid`) so the
-// icons line up under it instead of spanning the full page width.
-.footerRow {
-    max-width: 450px;
-    margin: 0 auto 0 0;
-    padding: 0 16px;
+.footer-link {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 48px;
+	height: 48px;
+	color: #fff;
+	border-radius: 8px;
+}
+
+.footer-link:focus-visible {
+	outline: 2px solid #ba68c8;
+	outline-offset: 2px;
+}
+
+.footer-link svg {
+	width: 32px;
+	height: 32px;
 }

@@ -1,30 +1,92 @@
-.masters {
-	background-color: #25232a;
+.connectedView {
+	max-width: 480px;
+	margin: 0 auto;
+	padding: 12px 10px 28px;
 }
 
-.fixedLabel {
-	min-width: 20% !important;
-	max-width: 20% !important;
-}
-.playerGrid {
-	max-width: 450px;
+.localPlayerRow {
+	display: grid;
+	grid-template-columns: 82px minmax(0, 1fr) 44px;
+	gap: 12px;
+	align-items: center;
+	min-height: 112px;
+	padding-bottom: 12px;
+	border-bottom: 1px solid rgb(0 0 0 / 25%);
 }
 
-.playersGrid {
-	min-height: 400px;
+.localAvatar {
+	width: 82px;
+	min-width: 0;
+
+	app-avatar {
+		display: block;
+		width: 100%;
+	}
 }
-.localPLayerRow {
-	border-bottom: solid 1px #00000041;
+
+.localIdentity {
+	display: flex;
+	min-width: 0;
+	flex-direction: column;
+	align-items: flex-start;
+	justify-content: center;
+}
+
+.nameCode-username {
+	width: 100%;
+	font-size: clamp(16px, 4vw, 20px);
+	line-height: 1.25;
+	overflow-wrap: anywhere;
+}
+
+.nameCode-code {
+	box-sizing: border-box;
+	max-width: 100%;
+	margin-top: 6px;
+	padding: 4px 6px;
+	border-radius: 5px;
+	background: #3e4346;
+	font-family: 'Source Code Pro', monospace;
+	font-size: clamp(20px, 6vw, 28px);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.localAudioControls {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+
+.audioControl {
+	width: 44px;
+	height: 44px;
+	margin: 0;
+	--padding-start: 0;
+	--padding-end: 0;
+	--color: #fff;
+	--background: transparent;
+	--box-shadow: none;
+
+	ion-icon {
+		font-size: 24px;
+	}
+
+	&[aria-pressed='true'] {
+		--color: #ef5350;
+	}
 }
 
 .overlayWarning {
+	display: flex;
 	align-items: center;
 	gap: 8px;
 	margin: 6px 0;
 	padding: 6px 10px;
-	background: rgba(230, 126, 34, 0.15);
 	border: 1px solid #e67e22;
 	border-radius: 8px;
+	background: rgb(230 126 34 / 15%);
 
 	p {
 		flex: 1;
@@ -33,68 +95,69 @@
 	}
 }
 
-@media only screen and (max-width: 1024) {
-	.playerGrid {
-		max-width: unset !important;
+.connectionButtons {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 6px 0;
+}
+
+.playersGrid {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	justify-items: center;
+	align-items: start;
+	column-gap: 12px;
+	row-gap: 18px;
+	max-width: 390px;
+	margin: 18px auto 0;
+}
+
+.playerCell {
+	display: flex;
+	width: 100%;
+	min-width: 0;
+	flex-direction: column;
+	align-items: center;
+
+	app-avatar {
+		display: block;
+		width: min(100%, 88px);
+		min-width: 0;
 	}
 }
 
-.nameCode-code {
-	width: fit-content;
-	margin: 5px auto;
-	display: block;
-	padding: 5px;
-	font-size: 28px;
-	font-family: 'Source Code Pro', monospace;
-	border-radius: 5px;
-}
-
-.nameCode-username {
-	display: block;
-	font-size: 20px;
+.playerName {
+	display: -webkit-box;
+	box-sizing: border-box;
+	max-width: 100%;
+	margin-top: 4px;
+	padding: 2px 4px;
+	border-radius: 6px;
+	background: rgb(0 0 0 / 69%);
+	color: #fff;
+	font-size: 12px;
+	font-weight: bold;
+	line-height: 1.2;
 	text-align: center;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	overflow: hidden;
+	overflow-wrap: anywhere;
 }
 
-.nameCode-Container {
-	height: 100%;
-	display: flex;
-	align-items: center;
-	flex-direction: column;
-	justify-content: center;
-}
+@media (max-width: 360px) {
+	.localPlayerRow {
+		grid-template-columns: 70px minmax(0, 1fr) 40px;
+		gap: 8px;
+	}
 
-.nameCode-Container1 {
-	height: 100%;
-	display: flex;
-	align-items: center;
-	flex-direction: column;
-	justify-content: center;
-}
+	.localAvatar {
+		width: 70px;
+	}
 
-.nameCode-Container {
-	float: left;
-	height: 100%;
-	display: flex;
-	align-items: center;
-	flex-direction: column;
-	justify-content: center;
-}
-
-.muteIcon {
-	font-size: 200px;
-}
-
-.muteAndDeafenIcons-Container {
-	float: left;
-	width: 10px;
-	height: 100%;
-	display: flex;
-	align-items: center;
-	flex-direction: column;
-	justify-content: center;
-}
-
-.connectionButtons {
-	gap: 8px;
-	margin: 6px 0;
+	.playersGrid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		max-width: 300px;
+	}
 }
