@@ -60,52 +60,52 @@
 					alt=""
 				/>
 			}
+			<!-- Desktop 3.2.12: hats and visors are clipped to the same circle as the talking
+			     border, so tall hats no longer spill outside the avatar. -->
+			@if (getHatBack(); as hatBack) {
+				<img
+					[src]="hatBack.src"
+					class="cosmetic no-drag-img"
+					[style.top]="hatBack.top"
+					[style.left]="hatBack.left"
+					[style.width]="hatBack.width"
+					[style.z-index]="hatBack.zIndex"
+					style="display: none"
+					onload="this.style.display=''"
+					onerror="this.style.display='none'"
+					alt=""
+				/>
+			}
+			@if (getHat(); as hat) {
+				<img
+					[src]="hat.src"
+					class="cosmetic no-drag-img"
+					[style.top]="hat.top"
+					[style.left]="hat.left"
+					[style.width]="hat.width"
+					[style.z-index]="hat.zIndex"
+					style="display: none"
+					onload="this.style.display=''"
+					onerror="this.style.display='none'"
+					alt=""
+				/>
+			}
+			@if (getVisor(); as visor) {
+				<img
+					[src]="visor.src"
+					class="cosmetic no-drag-img"
+					[style.top]="visor.top"
+					[style.left]="visor.left"
+					[style.width]="visor.width"
+					[style.z-index]="visor.zIndex"
+					style="display: none"
+					onload="this.style.display=''"
+					onerror="this.style.display='none'"
+					alt=""
+				/>
+			}
 		</div>
 
-		<!-- Hat layers and visor sit outside the clipped body circle (desktop's non-overflow
-		     layout) so tall hats and ears can extend past the avatar's edge. -->
-		@if (getHatBack(); as hatBack) {
-			<img
-				[src]="hatBack.src"
-				class="cosmetic no-drag-img"
-				[style.top]="hatBack.top"
-				[style.left]="hatBack.left"
-				[style.width]="hatBack.width"
-				[style.z-index]="hatBack.zIndex"
-				style="display: none"
-				onload="this.style.display=''"
-				onerror="this.style.display='none'"
-				alt=""
-			/>
-		}
-		@if (getHat(); as hat) {
-			<img
-				[src]="hat.src"
-				class="cosmetic no-drag-img"
-				[style.top]="hat.top"
-				[style.left]="hat.left"
-				[style.width]="hat.width"
-				[style.z-index]="hat.zIndex"
-				style="display: none"
-				onload="this.style.display=''"
-				onerror="this.style.display='none'"
-				alt=""
-			/>
-		}
-		@if (getVisor(); as visor) {
-			<img
-				[src]="visor.src"
-				class="cosmetic no-drag-img"
-				[style.top]="visor.top"
-				[style.left]="visor.left"
-				[style.width]="visor.width"
-				[style.z-index]="visor.zIndex"
-				style="display: none"
-				onload="this.style.display=''"
-				onerror="this.style.display='none'"
-				alt=""
-			/>
-		}
 		@if (connectionIcon(); as icon) {
 			<div
 				class="connectionBadge noselect"

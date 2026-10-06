@@ -215,14 +215,27 @@ describe('calculateVoiceAudio', () => {
 			expect(result.radioEcho).toBeTrue();
 		});
 
-		it('keeps ordinary proximity audio for living crew during an impostor transmission', () => {
+		it('does not leak an impostor transmission to nearby living crew (desktop 3.2.12)', () => {
 			const result = run({
 				other: makePlayer({ id: 2, clientId: 2, x: 1, y: 0, isImpostor: true }),
 				me: makePlayer({ id: 1, clientId: 1, isLocal: true, isImpostor: false, isDead: false }),
 				activeLobbySettings: makeLobbySettings({ impostorRadioEnabled: true }),
 				impostorRadioClientId: 2,
 			});
-			expect(result.gain).toBeGreaterThan(0);
+			expect(result.gain).toBe(0);
+		});
+
+		it('lets ghosts hear an SNR Jackal transmission when jackal radio is enabled', () => {
+			const jackal = { role: { value: 1, name: 'Jackal' }, modifier: null, ghostRole: null };
+			const result = run({
+				state: makeState({ mod: 'SUPER_NEW_ROLES' }),
+				me: makePlayer({ id: 1, clientId: 1, isLocal: true, isDead: true }),
+				other: makePlayer({ id: 2, clientId: 2, x: 999, y: 999, snrRole: jackal }),
+				activeLobbySettings: makeLobbySettings({ jackalRadioEnabled: true }),
+				impostorRadioClientId: 2,
+			});
+			expect(result.gain).toBe(1);
+			expect(result.radioEcho).toBeTrue();
 		});
 
 		it('does not grant radio range when impostorRadioEnabled is off', () => {
