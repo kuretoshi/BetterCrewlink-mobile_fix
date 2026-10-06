@@ -87,6 +87,16 @@
 								<ion-button size="small" fill="clear" (click)="gameHelper.dismissOverlayWarning()">閉じる</ion-button>
 							</div>
 						}
+						@if (gameHelper.voiceController.versionWarning) {
+							<div class="statusNotice" role="status">
+								<p>{{ gameHelper.voiceController.versionWarning }}</p>
+							</div>
+						}
+						@if (getNosReadFailure(); as nosReadFailure) {
+							<div class="statusNotice statusNotice-error" role="status">
+								<p>MOD: NoS（ホストPCの読み取り失敗）: {{ nosReadFailure }}</p>
+							</div>
+						}
 						<div class="connectionButtons">
 							<ion-button size="small" fill="outline" color="light" (click)="gameHelper.connect()">
 								<ion-icon slot="start" name="refresh-outline"></ion-icon>

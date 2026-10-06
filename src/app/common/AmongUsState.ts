@@ -115,6 +115,8 @@ export interface AmongUsState {
 	camouflaged?: boolean;
 	mixupSabotaged?: boolean;
 	airshipMeetingByOutfit?: boolean;
+	nosReadStatus?: { failed: boolean; message: string; schemaVersion?: number };
+	nosLoadedContents?: { path: string; status: string; data?: unknown };
 	nosLocalMicPosition?: { x: number; y: number };
 	nosRadios?: NosRadioData[];
 	debug?: Record<string, unknown>;
@@ -136,10 +138,10 @@ export interface Player {
 	snrHat2Id?: string;
 	snrVisor2Id?: string;
 	nosPlayer?: NosPlayerData;
+	/** Desktop-local `nos-cosmetic://` image URLs; they only resolve on the host PC. */
+	nosCosmetics?: Partial<Record<'skin' | 'hat' | 'hatBack' | 'visor' | 'bodyMask', string>>;
 	tohRole?: TohRole;
 	isThirdParty?: boolean;
-	sizeScale?: number;
-	specialRole?: 'JUMBO' | 'MINI' | 'UNKNOWN';
 }
 
 /** Mobile-only: the payload a desktop Mobile Host broadcasts to the `<lobbyCode>_mobile` room. */

@@ -161,3 +161,22 @@
 		max-width: 300px;
 	}
 }
+
+.statusNotice {
+	margin: 6px 0;
+	padding: 6px 10px;
+	border: 1px solid #e67e22;
+	border-radius: 8px;
+	background: rgb(230 126 34 / 15%);
+	overflow-wrap: anywhere;
+
+	p {
+		margin: 0;
+		font-size: 13px;
+	}
+}
+
+.statusNotice-error {
+	border-color: #a33a45;
+	background: #581e24;
+}

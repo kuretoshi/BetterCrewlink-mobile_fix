@@ -89,19 +89,29 @@ export class AvatarComponent implements OnDestroy {
 	}
 
 	getHat(): CosmeticRender | undefined {
-		return this.resolveCosmetic(CosmeticType.hat, this.player?.hatId);
+		return this.resolveCosmetic(CosmeticType.hat, this.getCosmeticId('hat'));
 	}
 
 	getHatBack(): CosmeticRender | undefined {
-		return this.resolveCosmetic(CosmeticType.hatBack, this.player?.hatId);
+		return this.resolveCosmetic(CosmeticType.hatBack, this.getCosmeticId('hat'));
 	}
 
 	getVisor(): CosmeticRender | undefined {
-		return this.resolveCosmetic(CosmeticType.visor, this.player?.visorId);
+		return this.resolveCosmetic(CosmeticType.visor, this.getCosmeticId('visor'));
 	}
 
 	getSkin(): CosmeticRender | undefined {
-		return this.resolveCosmetic(CosmeticType.skin, this.player?.skinId);
+		return this.resolveCosmetic(CosmeticType.skin, this.getCosmeticId('skin'));
+	}
+
+	/**
+	 * Desktop 3.2.9: NoS publishes the worn costume's name, which wins over the game's id.
+	 * Desktop's rendered NoS images (`nosCosmetics`) are host-local URLs, so mobile only uses the name.
+	 */
+	private getCosmeticId(kind: 'hat' | 'skin' | 'visor'): string | undefined {
+		const nosName = this.mod === 'NoS' ? this.player?.nosPlayer?.[kind]?.name : undefined;
+		if (nosName) return nosName;
+		return kind === 'hat' ? this.player?.hatId : kind === 'skin' ? this.player?.skinId : this.player?.visorId;
 	}
 
 	/** Dead players lose their cosmetics, exactly like desktop's `display: isAlive ? ...`. */

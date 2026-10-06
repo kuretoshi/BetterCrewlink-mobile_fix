@@ -32,6 +32,13 @@ export class GameComponent implements OnInit, OnDestroy {
 		return this.gameHelper.cManager.currentGameState?.mod ?? 'NONE';
 	}
 
+	/** Desktop 3.2.9: the host PC's NoS reader failure, which also stops NoS-driven audio rules. */
+	getNosReadFailure(): string | undefined {
+		const state = this.gameHelper.cManager.currentGameState;
+		if (state?.mod !== 'NoS' || !state.nosReadStatus?.failed) return undefined;
+		return state.nosReadStatus.message || 'NoSデータを取得できません';
+	}
+
 	canUseImpostorRadio(): boolean {
 		const state = this.gameHelper.cManager.currentGameState;
 		const me = this.gameHelper.cManager.localPLayer;

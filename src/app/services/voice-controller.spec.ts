@@ -153,6 +153,25 @@ describe('VoiceController impostor radio', () => {
 		expect(effectiveMe?.tohRole?.roleName).toBe('Jackal');
 	});
 
+	it('warns when the desktop host runs a newer release and ignores malformed versions', () => {
+		const voiceController = makeController();
+		const connectionController = (voiceController as any).connectionController as ConnectionController;
+		const host = makePlayer({ id: 1, clientId: 10, name: 'Host' });
+		const me = makePlayer({ id: 2, clientId: 20, name: 'Me' });
+		connectionController.currentGameState = makeState({ lobbyCode: 'VER123', hostId: 10, players: [host, me] });
+		connectionController.localPLayer = me;
+		(connectionController as any).clients = { hostSocket: { playerId: 1, clientId: 10 } };
+
+		(voiceController as any).onPeerData('hostSocket', { type: 'app-version', lobbyCode: 'VER123', version: '3.3' });
+		expect(voiceController.versionWarning).toBe('');
+		(voiceController as any).onPeerData('hostSocket', { type: 'app-version', lobbyCode: 'OTHER', version: '99.0.0' });
+		expect(voiceController.versionWarning).toBe('');
+
+		(voiceController as any).onPeerData('hostSocket', { type: 'app-version', lobbyCode: 'VER123', version: '99.0.0' });
+		expect(voiceController.versionWarning).toContain('Host（v99.0.0）');
+		expect(voiceController.versionWarning).toContain('ホストはv99.0.0です');
+	});
+
 	it('grants transmission for a living impostor during TASKS when radio is enabled', () => {
 		const voiceController = makeController();
 		const connectionController = (voiceController as any).connectionController as ConnectionController;

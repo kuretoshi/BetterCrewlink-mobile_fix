@@ -138,6 +138,26 @@ describe('AvatarComponent', () => {
 			expect(cosmetics.getCosmeticRender).toHaveBeenCalledWith(1, CosmeticType.hat, 'hat_pizza', 'NoS');
 		});
 
+		it('prefers the NoS costume names over the game cosmetic ids', () => {
+			const { component, cosmetics } = makeComponent(
+				makePlayer({
+					nosPlayer: {
+						playerId: 1, name: 'NoS', isKiller: false, isImpostor: false, isCrewmate: true,
+						isNeutral: false, isImpostorlike: false, speakerPositionX: 0, speakerPositionY: 0,
+						colorR: Number.NaN, colorG: 0, colorB: 0,
+						hat: { name: 'NosHat' }, skin: { name: 'NosSkin' },
+					},
+				})
+			);
+			component.getHat();
+			expect(cosmetics.getCosmeticRender).toHaveBeenCalledWith(0, CosmeticType.hat, 'hat_pizza', 'NONE');
+			component.mod = 'NoS';
+			component.getHat();
+			component.getSkin();
+			expect(cosmetics.getCosmeticRender).toHaveBeenCalledWith(0, CosmeticType.hat, 'NosHat', 'NoS');
+			expect(cosmetics.getCosmeticRender).toHaveBeenCalledWith(0, CosmeticType.skin, 'NosSkin', 'NoS');
+		});
+
 		it('uses the active appearance color during a disguise', () => {
 			const { component } = makeComponent(makePlayer({ colorId: 2, currentOutfit: 1, appearanceColorId: 5 }));
 			expect(component.getBodyImage()).toBe('assets/avatar/players/5-alive.png');

@@ -9,6 +9,8 @@ import { isToh4eHostName } from '../common/Mods';
 import { isTohRole, TohRole } from '../common/TohRole';
 import { isSnrJackalTeam } from '../common/SnrRole';
 import { canHearNosJackalRadio, isNosRadioData, NOS_JACKAL_RADIO_KIND, NosRadioData } from '../common/NosSnapshot';
+import { compareAppVersions, mismatchedAppVersions, requiredAppVersion } from '../common/appVersion';
+import { environment } from '../../environments/environment';
 
 const radioOnAudio = new Audio('assets/sounds/radio_on.wav');
 radioOnAudio.volume = 0.02;
@@ -89,6 +91,11 @@ export class VoiceController {
 	private tohRoleReceivedAt = 0;
 	private tohGameStartNames: numberStringMap = {};
 	private tohSession = '';
+	private peerVersions: Record<string, string> = {};
+	private versionSentAt = 0;
+	private versionSession = '';
+	/** Desktop 3.2.9's version-difference notice, shown on the game page; empty when none. */
+	public versionWarning = '';
 
 	constructor(
 		private connectionController: ConnectionController,
@@ -143,6 +150,10 @@ export class VoiceController {
 		this.tohSession = '';
 		this.radioStatusVersions = {};
 		this.nosRadiosByPlayer = {};
+		this.peerVersions = {};
+		this.versionSentAt = 0;
+		this.versionSession = '';
+		this.versionWarning = '';
 		this.connectionController.audioController.setRadioTransmitting(false);
 	}
 
@@ -258,6 +269,7 @@ export class VoiceController {
 				newLocalPlayer.nosPlayer?.isJammed === true
 		);
 		this.syncNosRadioReports(state, newLocalPlayer);
+		this.syncAppVersion(state, newLocalPlayer);
 
 		if (
 			connectionController.connectionState === ConnectionState.connecting ||
@@ -527,10 +539,80 @@ export class VoiceController {
 		this.nosRadioSentAt = now;
 	}
 
+	/**
+	 * Ported from desktop 3.2.9 VoiceController: every 3s, tell peers which release we run and
+	 * recompute the notice. Mobile reports the desktop release it is ported from, since desktop
+	 * only accepts x.y.z versions and compares them against its own.
+	 */
+	private syncAppVersion(state: AmongUsState, myPlayer: Player): void {
+		const inactive = state.gameState === GameState.MENU || state.gameState === GameState.UNKNOWN;
+		const session = `${state.lobbyCode}|${myPlayer.clientId}`;
+		if (inactive || session !== this.versionSession) {
+			this.peerVersions = {};
+			this.versionSentAt = 0;
+			this.versionSession = session;
+		}
+		if (!inactive && Date.now() - this.versionSentAt >= 3000) {
+			const targets = state.players
+				.filter((player) => player.clientId !== myPlayer.clientId && !player.disconnected)
+				.map((player) => this.connectionController.playerSocketIds[player.clientId])
+				.filter((peerId): peerId is string => Boolean(peerId));
+			this.connectionController.sendToPeers(
+				targets,
+				JSON.stringify({ type: 'app-version', lobbyCode: state.lobbyCode, version: environment.desktopCompatVersion })
+			);
+			this.versionSentAt = Date.now();
+		}
+		this.updateVersionWarning(state, myPlayer);
+	}
+
+	private updateVersionWarning(state: AmongUsState, myPlayer: Player | undefined): void {
+		const local = environment.desktopCompatVersion;
+		const isHost = myPlayer !== undefined && myPlayer.clientId === state.hostId;
+		const participants = Object.entries(this.peerVersions).flatMap(([peerId, version]) => {
+			const clientId = this.connectionController.getClient(peerId)?.clientId;
+			const player = state.players?.find((candidate) => candidate.clientId === clientId && !candidate.disconnected);
+			return player ? [{ name: player.appearanceName || player.name, clientId: player.clientId, version }] : [];
+		});
+		const hostVersion = isHost ? local : participants.find((player) => player.clientId === state.hostId)?.version;
+		const required = requiredAppVersion(
+			local,
+			hostVersion,
+			isHost,
+			participants.map((player) => player.version)
+		);
+		const mismatches = mismatchedAppVersions(local, participants);
+		const mismatchWarning = mismatches.length
+			? `TanukiBCLのバージョンが異なるプレイヤーがいます: ${mismatches
+					.map((player) => `${player.name}（v${player.version}）`)
+					.join('、')}。このモバイル版はPC版v${local}相当です。`
+			: '';
+		const updateWarning = required
+			? isHost
+				? `参加者はv${required}です。ホストのTanukiBCLをアップデートしてください（このモバイル版はPC版v${local}相当）。`
+				: `ホストはv${required}です。TanukiBCLモバイルをアップデートしてください（現在PC版v${local}相当）。`
+			: '';
+		this.versionWarning = [mismatchWarning, updateWarning].filter(Boolean).join(' ');
+	}
+
 	private onPeerData(socketId: string, data: Record<string, unknown>): void {
 		const state = this.connectionController.currentGameState;
 		const senderClientId = this.connectionController.getClient(socketId)?.clientId;
 		const fromHost = Boolean(state && senderClientId !== undefined && senderClientId === state.hostId);
+		if (data.type === 'app-version') {
+			if (
+				!state ||
+				data.lobbyCode !== state.lobbyCode ||
+				typeof data.version !== 'string' ||
+				compareAppVersions(data.version, environment.desktopCompatVersion) === undefined ||
+				senderClientId === undefined ||
+				!state.players?.some((player) => player.clientId === senderClientId && !player.disconnected)
+			)
+				return;
+			this.peerVersions[socketId] = data.version;
+			this.updateVersionWarning(state, this.connectionController.localPLayer);
+			return;
+		}
 		if (data.type === 'nos-radio-data') {
 			const sender = state?.players.find((player) => player.clientId === senderClientId);
 			if (
