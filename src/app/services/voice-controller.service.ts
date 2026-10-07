@@ -8,7 +8,14 @@ import { SettingsService } from './settings.service';
 import { isToh4eHostName } from '../common/Mods';
 import { isTohRole, TohRole } from '../common/TohRole';
 import { isSnrJackalTeam } from '../common/SnrRole';
-import { canHearNosJackalRadio, isNosRadioData, NOS_JACKAL_RADIO_KIND, NosRadioData } from '../common/NosSnapshot';
+import {
+	canHearNosImpostorRadio,
+	canHearNosJackalRadio,
+	isNosRadioData,
+	NOS_IMPOSTOR_RADIO_KIND,
+	NOS_JACKAL_RADIO_KIND,
+	NosRadioData,
+} from '../common/NosSnapshot';
 import { compareAppVersions, mismatchedAppVersions, requiredAppVersion } from '../common/appVersion';
 import { environment } from '../../environments/environment';
 
@@ -362,7 +369,8 @@ export class VoiceController {
 				player,
 				this.impostorRadioClientId,
 				this.impostorRadioClientIds,
-				this.canNosJackalRadioReach(state, player, myPlayer)
+				this.canNosJackalRadioReach(state, player, myPlayer),
+				this.canNosImpostorRadioReach(state, player, myPlayer)
 			);
 			if (endGain === null) {
 				endGain = 0;
@@ -494,7 +502,11 @@ export class VoiceController {
 			if (clientId === myPlayer.clientId) return this.impostorRadioPressed && this.canUseRadio(state, myPlayer);
 			const player = state.players.find((candidate) => candidate.clientId === clientId);
 			return Boolean(
-				player && this.canUseRadio(state, player) && !player.isDead && !player.disconnected && !player.bugged
+				player &&
+				(state.mod === 'NoS' || this.canUseRadio(state, player)) &&
+				!player.isDead &&
+				!player.disconnected &&
+				!player.bugged
 			);
 		});
 		this.impostorRadioClientIds = valid;
@@ -701,7 +713,7 @@ export class VoiceController {
 				(data.impostorRadio &&
 					((state.gameState !== GameState.TASKS && state.gameState !== GameState.DISCUSSION) ||
 						sender.isDead ||
-						!this.canUseRadio(state, sender)))
+						(state.mod !== 'NoS' && !this.canUseRadio(state, sender))))
 			)
 				return;
 			if (typeof version === 'number') this.radioStatusVersions[clientId] = version;
@@ -742,14 +754,35 @@ export class VoiceController {
 		return canHearNosJackalRadio(this.getNosRadios(state, sender), listener.id);
 	}
 
+	private canNosImpostorRadioReach(state: AmongUsState, sender: Player, listener: Player): boolean {
+		return canHearNosImpostorRadio(this.getNosRadios(state, sender), listener.id);
+	}
+
+	private canNosRadioReach(state: AmongUsState, sender: Player, listener: Player): boolean {
+		const settings = this.connectionController.lobbySettings;
+		return (
+			((settings.impostorRadioEnabled || settings.impostorRadioOnlyMode) &&
+				this.canNosImpostorRadioReach(state, sender, listener)) ||
+			(settings.jackalRadioEnabled === true &&
+				settings.impostorRadioOnlyMode !== true &&
+				this.canNosJackalRadioReach(state, sender, listener))
+		);
+	}
+
 	private hasNosJackalRadio(state: AmongUsState, player: Player): boolean {
 		return this.getNosRadios(state, player)?.some((radio) => radio.kind === NOS_JACKAL_RADIO_KIND) ?? false;
 	}
 
 	private canUseRadio(state: AmongUsState, player: Player): boolean {
 		const settings = this.connectionController.lobbySettings;
-		if (state.mod === 'NoS' && this.hasNosJackalRadio(state, player))
-			return settings.jackalRadioEnabled === true && settings.impostorRadioOnlyMode !== true;
+		if (state.mod === 'NoS')
+			return (
+				(this.getNosRadios(state, player)?.some((radio) => radio.kind === NOS_IMPOSTOR_RADIO_KIND) === true &&
+					(settings.impostorRadioEnabled || settings.impostorRadioOnlyMode === true)) ||
+				(this.hasNosJackalRadio(state, player) &&
+					settings.jackalRadioEnabled === true &&
+					settings.impostorRadioOnlyMode !== true)
+			);
 		if (this.isJackalRadioPlayer(state, player)) {
 			return settings.jackalRadioEnabled === true && settings.impostorRadioOnlyMode !== true;
 		}
@@ -757,13 +790,13 @@ export class VoiceController {
 	}
 
 	private areRadioTeammates(state: AmongUsState, first: Player, second: Player): boolean {
-		if (state.mod === 'NoS' && this.hasNosJackalRadio(state, first))
-			return this.canNosJackalRadioReach(state, first, second);
+		if (state.mod === 'NoS') return this.canNosRadioReach(state, first, second);
 		if (this.isJackalRadioPlayer(state, first)) return this.isJackalRadioPlayer(state, second);
 		return first.isImpostor && second.isImpostor && !this.isJackalRadioPlayer(state, second);
 	}
 
 	private areRadioPartners(state: AmongUsState, first: Player, second: Player): boolean {
+		if (state.mod === 'NoS') return this.canNosRadioReach(state, second, first);
 		return this.areRadioTeammates(state, first, second) && this.canUseRadio(state, first);
 	}
 }

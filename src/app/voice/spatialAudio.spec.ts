@@ -108,6 +108,28 @@ function run(overrides: Partial<VoiceAudioInput> = {}) {
 }
 
 describe('calculateVoiceAudio', () => {
+	for (const gameState of [GameState.TASKS, GameState.DISCUSSION]) {
+		for (const isDead of [false, true]) {
+			it(`uses the NoS impostor mask instead of role or ghost bypass, phase=${gameState}, dead=${isDead}`, () => {
+				for (const isImpostor of [false, true]) {
+					for (const x of [1, 50]) {
+						for (const permitted of [false, true]) {
+							const result = run({
+								state: makeState({ mod: 'NoS', gameState }),
+								me: makePlayer({ id: 2, clientId: 20, isImpostor, isDead }),
+								other: makePlayer({ id: 5, clientId: 50, isImpostor: true, x }),
+								activeLobbySettings: makeLobbySettings({ impostorRadioEnabled: true }),
+								impostorRadioClientIds: [50],
+								nosImpostorRadioHearable: permitted,
+							});
+							expect(result.gain).toBe(permitted ? 1 : 0);
+							expect(result.radioEcho).toBe(permitted);
+						}
+					}
+				}
+			});
+		}
+	}
 	it('mutes a disconnected player regardless of state', () => {
 		expect(run({ other: makePlayer({ disconnected: true }) }).gain).toBe(0);
 	});
@@ -294,9 +316,18 @@ describe('calculateVoiceAudio', () => {
 					clientId: 2,
 					x: 1,
 					nosPlayer: {
-						playerId: 2, name: 'NoS', isKiller: false, isImpostor: false, isCrewmate: true,
-						isNeutral: false, isImpostorlike: false, speakerPositionX: 100, speakerPositionY: 100,
-						colorR: 1, colorG: 0, colorB: 0,
+						playerId: 2,
+						name: 'NoS',
+						isKiller: false,
+						isImpostor: false,
+						isCrewmate: true,
+						isNeutral: false,
+						isImpostorlike: false,
+						speakerPositionX: 100,
+						speakerPositionY: 100,
+						colorR: 1,
+						colorG: 0,
+						colorB: 0,
 					},
 				}),
 				activeLobbySettings: makeLobbySettings({ nosVoicePositions: true }),
@@ -308,7 +339,9 @@ describe('calculateVoiceAudio', () => {
 			const result = run({
 				state: makeState({ mod: 'TOH4E' }),
 				me: makePlayer({
-					id: 1, clientId: 1, isLocal: true,
+					id: 1,
+					clientId: 1,
+					isLocal: true,
 					tohRole: { roleId: 10, roleName: 'Jackal', isNeutralKiller: true, isKiller: true },
 				}),
 				other: makePlayer({ id: 2, clientId: 2, x: 1, isDead: true }),

@@ -26,16 +26,25 @@ export interface NosRadioData {
 	name: string;
 }
 
+export const NOS_IMPOSTOR_RADIO_KIND = 0;
 export const NOS_JACKAL_RADIO_KIND = 1;
 
-export function canHearNosJackalRadio(radios: readonly NosRadioData[] | undefined, playerId: number): boolean {
+/** The sender's own bit may be absent; only the listener's PlayerId bit grants reception. */
+export function canHearNosRadio(radios: readonly NosRadioData[] | undefined, playerId: number, kind: number): boolean {
 	return (
 		Number.isInteger(playerId) &&
 		playerId >= 0 &&
 		playerId < 32 &&
-		(radios?.some((radio) => radio.kind === NOS_JACKAL_RADIO_KIND && ((radio.hearableMask >>> playerId) & 1) !== 0) ??
-			false)
+		(radios?.some((radio) => radio.kind === kind && ((radio.hearableMask >>> playerId) & 1) !== 0) ?? false)
 	);
+}
+
+export function canHearNosImpostorRadio(radios: readonly NosRadioData[] | undefined, playerId: number): boolean {
+	return canHearNosRadio(radios, playerId, NOS_IMPOSTOR_RADIO_KIND);
+}
+
+export function canHearNosJackalRadio(radios: readonly NosRadioData[] | undefined, playerId: number): boolean {
+	return canHearNosRadio(radios, playerId, NOS_JACKAL_RADIO_KIND);
 }
 
 export function isNosRadioData(value: unknown): value is NosRadioData {

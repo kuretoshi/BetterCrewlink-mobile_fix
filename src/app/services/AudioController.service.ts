@@ -359,7 +359,8 @@ export default class AudioController {
 		other: Player,
 		impostorRadioClientId: number,
 		impostorRadioClientIds?: readonly number[],
-		nosJackalRadioHearable?: boolean
+		nosJackalRadioHearable?: boolean,
+		nosImpostorRadioHearable?: boolean
 	): number | null {
 		const peer = this.peers.get(peerId);
 		const destination = this.masterGain;
@@ -382,6 +383,7 @@ export default class AudioController {
 			impostorRadioClientId,
 			impostorRadioClientIds,
 			nosJackalRadioHearable,
+			nosImpostorRadioHearable,
 		});
 
 		if (result.panMaxDistance !== null) {

@@ -117,7 +117,11 @@ describe('VoiceController impostor radio', () => {
 
 	function makeController(): VoiceController {
 		const connectionController = new ConnectionController(makeFakeSettingsService());
-		return new VoiceController(connectionController, new MobileHostService(connectionController), makeFakeSettingsService());
+		return new VoiceController(
+			connectionController,
+			new MobileHostService(connectionController),
+			makeFakeSettingsService()
+		);
 	}
 
 	function readyState(connectionController: ConnectionController, me: Player, others: Player[] = []): void {
@@ -125,6 +129,42 @@ describe('VoiceController impostor radio', () => {
 		connectionController.localPLayer = me;
 		connectionController.currentGameState = makeState({ players: [me, ...others] });
 	}
+
+	it('uses the sender NoS impostor mask even without a sender self bit or local transmit channel', () => {
+		const voice = makeController() as any;
+		const connection = voice.connectionController as ConnectionController;
+		const local = makePlayer({ id: 2, clientId: 20, isLocal: true });
+		const remote = makePlayer({ id: 5, clientId: 50, isImpostor: true });
+		readyState(connection, local, [remote]);
+		const state = makeState({ mod: 'NoS', players: [local, remote], nosRadios: [] });
+		connection.currentGameState = state;
+		voice.nosRadiosByPlayer = {
+			5: { clientId: 50, radios: [{ kind: 0, hearableMask: 1 << 2, nameLength: 0, name: '' }], receivedAt: Date.now() },
+		};
+		expect(voice.canUseRadio(state, remote)).toBeTrue();
+		expect(voice.canUseRadio(state, local)).toBeFalse();
+		expect(voice.areRadioPartners(state, local, remote)).toBeTrue();
+		voice.nosRadiosByPlayer[5].radios[0].hearableMask = 1 << 5;
+		expect(voice.areRadioPartners(state, local, remote)).toBeFalse();
+		voice.nosRadiosByPlayer = {};
+		expect(voice.canUseRadio(state, remote)).toBeFalse();
+		expect(voice.areRadioPartners(state, local, remote)).toBeFalse();
+	});
+
+	it('keeps NoS radio transmission state when its mask is delayed or expires', () => {
+		const voice = makeController() as any;
+		const connection = voice.connectionController as any;
+		const local = makePlayer({ id: 2, clientId: 20, isLocal: true });
+		const remote = makePlayer({ id: 5, clientId: 50, isImpostor: true });
+		readyState(connection, local, [remote]);
+		const state = makeState({ mod: 'NoS', players: [local, remote], nosRadios: [] });
+		connection.currentGameState = state;
+		connection.clients = { remoteSocket: { playerId: 5, clientId: 50 } };
+		voice.onPeerData('remoteSocket', { impostorRadio: true, impostorRadioVersion: 1 });
+		expect(voice.impostorRadioClientIds).toEqual([50]);
+		voice.cleanupImpostorRadio(state, local);
+		expect(voice.impostorRadioClientIds).toEqual([50]);
+	});
 
 	it('accepts TOH4E roster and private role only from the game host', () => {
 		const voiceController = makeController();
@@ -139,10 +179,15 @@ describe('VoiceController impostor radio', () => {
 		(voiceController as any).getEffectiveGameState(state);
 
 		(voiceController as any).onPeerData('hostSocket', {
-			type: 'toh4e-roster', lobbyCode: 'TOH123', players: [{ clientId: 20, name: 'RealName' }],
+			type: 'toh4e-roster',
+			lobbyCode: 'TOH123',
+			players: [{ clientId: 20, name: 'RealName' }],
 		});
 		(voiceController as any).onPeerData('hostSocket', {
-			type: 'toh4e-role', lobbyCode: 'TOH123', targetClientId: 20, targetPlayerId: 2,
+			type: 'toh4e-role',
+			lobbyCode: 'TOH123',
+			targetClientId: 20,
+			targetPlayerId: 2,
 			role: { roleId: 5, roleName: 'Jackal', isNeutralKiller: true, isKiller: true },
 		});
 		const effective = (voiceController as any).getEffectiveGameState(state) as AmongUsState;
@@ -437,7 +482,11 @@ describe('VoiceController per-player mute', () => {
 		(connectionController as any).clients = { 'socket-2': { playerId: 2, clientId: 2 } };
 		connectionController.audioController.addPeer('socket-2', createSilentStream());
 
-		(connectionController.events as any).emit('hostUpdate', connectionController.currentGameState, defaultLobbySettings);
+		(connectionController.events as any).emit(
+			'hostUpdate',
+			connectionController.currentGameState,
+			defaultLobbySettings
+		);
 
 		expect((connectionController.audioController as any).peers.get('socket-2').gain.gain.value).toBe(0);
 	});
