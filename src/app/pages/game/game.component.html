@@ -50,6 +50,7 @@
 									[player]="gameHelper.cManager.localPLayer"
 									[talking]="gameHelper.localTalking()"
 									[mod]="getMod()"
+									[isLobby]="isLobby()"
 								></app-avatar>
 							</div>
 							<div class="localIdentity">
@@ -131,6 +132,7 @@
 										[connectionState]="item.connectionState"
 										[talking]="item.talking && item.audible"
 										[mod]="getMod()"
+										[isLobby]="isLobby()"
 									></app-avatar>
 									<span class="playerName" [title]="item.player.appearanceName || item.player.name">{{
 										item.player.appearanceName || item.player.name

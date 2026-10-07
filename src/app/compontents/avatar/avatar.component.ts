@@ -7,7 +7,7 @@ import { SettingsService } from '../../services/settings.service';
 import { CosmeticRender, CosmeticsService, CosmeticType } from '../../services/cosmetics.service';
 import { playerSettingsKey } from '../../services/voice-controller.service';
 import { MOBILE_PLAYERCOLORS } from '../../common/playerColors';
-import { findNosColorIndex } from '../../common/NosSnapshot';
+import { findNosColorIndex, findPaletteColorIndex } from '../../common/NosSnapshot';
 
 @Component({
 	selector: 'app-avatar',
@@ -25,6 +25,8 @@ export class AvatarComponent implements OnDestroy {
 	@Input() connectionState: PlayerConnectionState = 'connected';
 	/** The lobby's mod, so mod-specific hats/skins/visors resolve like they do on desktop. */
 	@Input() mod: ModsType = 'NONE';
+	/** NoS lobby outfits are available before its round PlayerData is published. */
+	@Input() isLobby = false;
 	volumeOpen: boolean;
 	readonly MAXVOLUME = 500;
 	private readonly versionSubscription: Subscription;
@@ -65,11 +67,19 @@ export class AvatarComponent implements OnDestroy {
 		return `assets/avatar/players/${alive}-${this.isDead ? 'dead' : 'alive'}.png`;
 	}
 
-	/** Mirrors desktop: NoS RGB wins, then an active disguise outfit, then the base colour. */
+	/** NoS lobby colour wins before round PlayerData; in-game RGB wins during a round. */
 	getDisplayColorId(): number {
 		if (this.mod === 'NoS') {
-			const nosColor = findNosColorIndex(this.player?.nosPlayer, MOBILE_PLAYERCOLORS);
-			if (nosColor >= 0) return nosColor;
+			if (this.isLobby) {
+				const lobbyColor = findPaletteColorIndex(this.player?.nosLobbyColor, MOBILE_PLAYERCOLORS);
+				if (lobbyColor >= 0) return lobbyColor;
+				const appearanceColor = this.player?.appearanceColorId;
+				if (Number.isInteger(appearanceColor) && appearanceColor >= 0 && appearanceColor < MOBILE_PLAYERCOLORS.length)
+					return appearanceColor;
+			} else {
+				const nosColor = findNosColorIndex(this.player?.nosPlayer, MOBILE_PLAYERCOLORS);
+				if (nosColor >= 0) return nosColor;
+			}
 		}
 		if (
 			this.player?.currentOutfit !== undefined &&
@@ -105,19 +115,39 @@ export class AvatarComponent implements OnDestroy {
 	}
 
 	/**
-	 * Desktop 3.2.9: NoS publishes the worn costume's name, which wins over the game's id.
-	 * Desktop's rendered NoS images (`nosCosmetics`) are host-local URLs, so mobile only uses the name.
+	 * In a NoS lobby, use the live outfit IDs even before round PlayerData exists. During a
+	 * round, use NoS' published names. Nullish fallback preserves an empty ID on removal.
 	 */
 	private getCosmeticId(kind: 'hat' | 'skin' | 'visor'): string | undefined {
-		const nosName = this.mod === 'NoS' ? this.player?.nosPlayer?.[kind]?.name : undefined;
-		if (nosName) return nosName;
-		return kind === 'hat' ? this.player?.hatId : kind === 'skin' ? this.player?.skinId : this.player?.visorId;
+		const gameId = kind === 'hat' ? this.player?.hatId : kind === 'skin' ? this.player?.skinId : this.player?.visorId;
+		if (this.mod !== 'NoS') return gameId;
+		if (this.isLobby) {
+			const appearanceId =
+				kind === 'hat'
+					? this.player?.appearanceHatId
+					: kind === 'skin'
+						? this.player?.appearanceSkinId
+						: this.player?.appearanceVisorId;
+			return appearanceId ?? gameId;
+		}
+		return this.player?.nosPlayer?.[kind]?.name ?? gameId;
 	}
 
 	/** Dead players lose their cosmetics, exactly like desktop's `display: isAlive ? ...`. */
 	private resolveCosmetic(type: CosmeticType, id: string | undefined): CosmeticRender | undefined {
 		if (this.isDead || !this.player) {
 			return undefined;
+		}
+		// Desktop's nos-cosmetic:// URLs resolve only on its PC. Do not substitute a
+		// potentially different CDN sprite for that locally registered custom outfit.
+		if (this.mod === 'NoS') {
+			const localImage =
+				type === CosmeticType.hat || type === CosmeticType.hatBack
+					? this.player.nosCosmetics?.hat || this.player.nosCosmetics?.hatBack
+					: type === CosmeticType.skin
+						? this.player.nosCosmetics?.skin
+						: this.player.nosCosmetics?.visor;
+			if (localImage) return undefined;
 		}
 		return this.cosmetics.getCosmeticRender(this.getDisplayColorId(), type, id, this.mod ?? 'NONE');
 	}

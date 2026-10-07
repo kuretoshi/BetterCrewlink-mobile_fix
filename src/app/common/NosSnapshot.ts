@@ -72,8 +72,12 @@ export function nosColorHex(player?: Pick<NosPlayerData, 'colorR' | 'colorG' | '
 
 /** Match NoS' published RGB to the avatar palette, allowing byte rounding. */
 export function findNosColorIndex(player: NosPlayerData | undefined, palette: string[][]): number {
-	const hex = nosColorHex(player);
-	if (!hex) return -1;
+	return findPaletteColorIndex(nosColorHex(player), palette);
+}
+
+/** Match a host-published NoS lobby colour to a bundled body sprite, without guessing. */
+export function findPaletteColorIndex(hex: string | undefined, palette: string[][]): number {
+	if (!hex || !/^#[0-9a-f]{6}$/i.test(hex)) return -1;
 	const rgb = [1, 3, 5].map((start) => Number.parseInt(hex.slice(start, start + 2), 16));
 	return palette.findIndex(
 		([color]) =>

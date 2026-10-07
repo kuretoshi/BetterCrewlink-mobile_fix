@@ -158,6 +158,63 @@ describe('AvatarComponent', () => {
 			expect(cosmetics.getCosmeticRender).toHaveBeenCalledWith(0, CosmeticType.skin, 'NosSkin', 'NoS');
 		});
 
+		it('uses NoS lobby colour and current outfit before round PlayerData arrives', () => {
+			const { component, cosmetics } = makeComponent(
+				makePlayer({
+					colorId: 0,
+					nosLobbyColor: '#132ed1',
+					appearanceHatId: 'LobbyHat',
+					appearanceSkinId: 'LobbySkin',
+					appearanceVisorId: 'LobbyVisor',
+				})
+			);
+			component.mod = 'NoS';
+			component.isLobby = true;
+			expect(component.getBodyImage()).toBe('assets/avatar/players/1-alive.png');
+			component.getHat();
+			component.getSkin();
+			component.getVisor();
+			expect(cosmetics.getCosmeticRender).toHaveBeenCalledWith(1, CosmeticType.hat, 'LobbyHat', 'NoS');
+			expect(cosmetics.getCosmeticRender).toHaveBeenCalledWith(1, CosmeticType.skin, 'LobbySkin', 'NoS');
+			expect(cosmetics.getCosmeticRender).toHaveBeenCalledWith(1, CosmeticType.visor, 'LobbyVisor', 'NoS');
+		});
+
+		it('uses the appearance colour when the NoS lobby RGB has no bundled sprite', () => {
+			const { component } = makeComponent(
+				makePlayer({ colorId: 0, appearanceColorId: 3, nosLobbyColor: '#123456' })
+			);
+			component.mod = 'NoS';
+			component.isLobby = true;
+			expect(component.getBodyImage()).toBe('assets/avatar/players/3-alive.png');
+		});
+
+		it('keeps a removed NoS lobby hat removed instead of restoring the old game ID', () => {
+			const { component, cosmetics } = makeComponent(makePlayer({ appearanceHatId: '' }));
+			component.mod = 'NoS';
+			component.isLobby = true;
+			component.getHat();
+			expect(cosmetics.getCosmeticRender).toHaveBeenCalledWith(0, CosmeticType.hat, '', 'NoS');
+		});
+
+		it('does not replace host-local NoS images with unrelated CDN sprites', () => {
+			const { component, cosmetics } = makeComponent(
+				makePlayer({
+					nosCosmetics: {
+						hat: 'nos-cosmetic://image/hat',
+						hatBack: 'nos-cosmetic://image/hat-back',
+						skin: 'nos-cosmetic://image/skin',
+						visor: 'nos-cosmetic://image/visor',
+					},
+				})
+			);
+			component.mod = 'NoS';
+			expect(component.getHat()).toBeUndefined();
+			expect(component.getHatBack()).toBeUndefined();
+			expect(component.getSkin()).toBeUndefined();
+			expect(component.getVisor()).toBeUndefined();
+			expect(cosmetics.getCosmeticRender).not.toHaveBeenCalled();
+		});
+
 		it('uses the active appearance color during a disguise', () => {
 			const { component } = makeComponent(makePlayer({ colorId: 2, currentOutfit: 1, appearanceColorId: 5 }));
 			expect(component.getBodyImage()).toBe('assets/avatar/players/5-alive.png');

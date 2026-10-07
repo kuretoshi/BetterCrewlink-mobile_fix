@@ -32,6 +32,10 @@ export class GameComponent implements OnInit, OnDestroy {
 		return this.gameHelper.cManager.currentGameState?.mod ?? 'NONE';
 	}
 
+	isLobby(): boolean {
+		return this.gameHelper.cManager.currentGameState?.gameState === GameState.LOBBY;
+	}
+
 	/** Desktop 3.2.9: the host PC's NoS reader failure, which also stops NoS-driven audio rules. */
 	getNosReadFailure(): string | undefined {
 		const state = this.gameHelper.cManager.currentGameState;

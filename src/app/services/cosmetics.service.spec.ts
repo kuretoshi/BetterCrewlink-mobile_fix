@@ -105,6 +105,21 @@ describe('CosmeticsService', () => {
 		expect(service.getCosmeticRender(0, CosmeticType.hat, undefined)).toBeUndefined();
 	});
 
+	it('keeps Web 3.5 SNR cosmetics from the shared collection when their ids match', () => {
+		const service = makeService({
+			SUPER_NEW_ROLES: {
+				defaultWidth: '140%',
+				defaultTop: '-52%',
+				defaultLeft: '-18px',
+				hats: { Modded_CustomHat: { image: 'customHat.png' } },
+			},
+		});
+		expect(service.getCosmeticRender(0, CosmeticType.hat, 'Modded_CustomHat', 'SUPER_NEW_ROLES').src).toBe(
+			`${HAT_BASE}SUPER_NEW_ROLES/customHat.png`
+		);
+		expect(service.getCosmeticRender(0, CosmeticType.hat, 'Modded_Unknown', 'SUPER_NEW_ROLES')).toBeUndefined();
+	});
+
 	it('prefers mod-only hats inside that mod and falls back to NONE elsewhere', () => {
 		const service = makeService();
 		expect(service.getCosmeticRender(0, CosmeticType.hat, 'hat_modonly')).toBeUndefined();
