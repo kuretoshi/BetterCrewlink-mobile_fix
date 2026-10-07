@@ -19,6 +19,7 @@
 }
 
 .avatar-2 {
+	container-type: inline-size;
 	cursor: pointer;
 	overflow: hidden;
 	position: absolute;
@@ -63,6 +64,18 @@
 	top: 22%;
 	left: -7px;
 	z-index: 2;
+}
+
+.nos-body-mask {
+	position: absolute;
+	inset: 0;
+	z-index: 2;
+	mask-size: 140% auto;
+	mask-position: -18px -52cqw;
+	mask-repeat: no-repeat;
+	-webkit-mask-size: 140% auto;
+	-webkit-mask-position: -18px -52cqw;
+	-webkit-mask-repeat: no-repeat;
 }
 
 /* Hats, visors and skins are positioned from the shared hat collection's metadata (desktop

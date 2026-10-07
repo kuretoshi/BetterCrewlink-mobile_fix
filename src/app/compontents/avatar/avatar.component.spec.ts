@@ -4,6 +4,7 @@ import { AvatarComponent } from './avatar.component';
 import { CosmeticRender, CosmeticType } from '../../services/cosmetics.service';
 import { SettingsService } from '../../services/settings.service';
 import { Player } from '../../common/AmongUsState';
+import { nosCosmeticAssets } from '../../lib/nosCosmeticAssets';
 
 function makePlayer(overrides: Partial<Player> = {}): Player {
 	return {
@@ -57,6 +58,31 @@ function makeComponent(player: Player = makePlayer()) {
 }
 
 describe('AvatarComponent', () => {
+	it('renders received NoS layers and mask, then removes them on death or unequip', () => {
+		const id = 'a'.repeat(64);
+		const png =
+			'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aT1sAAAAASUVORK5CYII=';
+		nosCosmeticAssets.receive('test-host', 'ABCDEF', { [id]: png });
+		const ref = `nos-web://${id}`;
+		const { component, cosmetics } = makeComponent(
+			makePlayer({ nosCosmetics: { skin: ref, hat: ref, hatBack: ref, visor: ref, bodyMask: ref } })
+		);
+		component.mod = 'NoS';
+		expect(component.getHat().src).toBe(png);
+		expect(component.getHatBack().zIndex).toBe(1);
+		expect(component.getSkin().width).toBe('140%');
+		expect(component.getVisor().top).toBe('-52%');
+		expect(component.getBodyMask()).toBe(`url("${png}")`);
+		expect(cosmetics.getCosmeticRender).not.toHaveBeenCalled();
+		component.isDead = true;
+		expect(component.getHat()).toBeUndefined();
+		expect(component.getBodyMask()).toBeUndefined();
+		component.isDead = false;
+		component.player = makePlayer({ nosCosmetics: {} });
+		expect(component.getBodyMask()).toBeUndefined();
+		component.ngOnDestroy();
+		nosCosmeticAssets.clear();
+	});
 	it('starts loading the shared hat collection', () => {
 		const { cosmetics } = makeComponent();
 		expect(cosmetics.initializeHats).toHaveBeenCalled();
@@ -126,9 +152,18 @@ describe('AvatarComponent', () => {
 				makePlayer({
 					colorId: 0,
 					nosPlayer: {
-						playerId: 1, name: 'NoS', isKiller: false, isImpostor: false, isCrewmate: true,
-						isNeutral: false, isImpostorlike: false, speakerPositionX: 0, speakerPositionY: 0,
-						colorR: 0x13 / 255, colorG: 0x2e / 255, colorB: 0xd1 / 255,
+						playerId: 1,
+						name: 'NoS',
+						isKiller: false,
+						isImpostor: false,
+						isCrewmate: true,
+						isNeutral: false,
+						isImpostorlike: false,
+						speakerPositionX: 0,
+						speakerPositionY: 0,
+						colorR: 0x13 / 255,
+						colorG: 0x2e / 255,
+						colorB: 0xd1 / 255,
 					},
 				})
 			);
@@ -142,10 +177,20 @@ describe('AvatarComponent', () => {
 			const { component, cosmetics } = makeComponent(
 				makePlayer({
 					nosPlayer: {
-						playerId: 1, name: 'NoS', isKiller: false, isImpostor: false, isCrewmate: true,
-						isNeutral: false, isImpostorlike: false, speakerPositionX: 0, speakerPositionY: 0,
-						colorR: Number.NaN, colorG: 0, colorB: 0,
-						hat: { name: 'NosHat' }, skin: { name: 'NosSkin' },
+						playerId: 1,
+						name: 'NoS',
+						isKiller: false,
+						isImpostor: false,
+						isCrewmate: true,
+						isNeutral: false,
+						isImpostorlike: false,
+						speakerPositionX: 0,
+						speakerPositionY: 0,
+						colorR: Number.NaN,
+						colorG: 0,
+						colorB: 0,
+						hat: { name: 'NosHat' },
+						skin: { name: 'NosSkin' },
 					},
 				})
 			);
@@ -180,9 +225,7 @@ describe('AvatarComponent', () => {
 		});
 
 		it('uses the appearance colour when the NoS lobby RGB has no bundled sprite', () => {
-			const { component } = makeComponent(
-				makePlayer({ colorId: 0, appearanceColorId: 3, nosLobbyColor: '#123456' })
-			);
+			const { component } = makeComponent(makePlayer({ colorId: 0, appearanceColorId: 3, nosLobbyColor: '#123456' }));
 			component.mod = 'NoS';
 			component.isLobby = true;
 			expect(component.getBodyImage()).toBe('assets/avatar/players/3-alive.png');

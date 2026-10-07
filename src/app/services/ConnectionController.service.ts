@@ -11,6 +11,7 @@ import AudioController from './AudioController.service';
 import { SettingsService } from './settings.service';
 import { GameInfo } from '../common/GameInfo';
 import { environment } from '../../environments/environment';
+import { nosCosmeticAssets } from '../lib/nosCosmeticAssets';
 
 // Ported from bettercrewlink (desktop) v3.2.1 src/renderer/voice/ConnectionController.ts.
 const ICE_DISCONNECT_TIMEOUT_MS = 12000;
@@ -154,6 +155,7 @@ export class ConnectionController implements IConnectionController {
 		this.oldGameState = undefined;
 		this.error = undefined;
 		this.events.emit('connecting');
+		nosCosmeticAssets.clear();
 		this.initialize(voiceserver);
 	}
 
@@ -162,6 +164,7 @@ export class ConnectionController implements IConnectionController {
 			return;
 		}
 		this.connectionState = ConnectionState.disconnected;
+		nosCosmeticAssets.clear();
 		this.gamecode = '';
 		this.amongusUsername = '';
 		this.socketIOClient?.emit('leave');
@@ -209,11 +212,11 @@ export class ConnectionController implements IConnectionController {
 	private canReconnectPeer(socketId: string): boolean {
 		return Boolean(
 			this.connectionState !== ConnectionState.disconnected &&
-				this.audioController.stream &&
-				this.socketIOClient?.connected &&
-				this.socketIOClient.id !== socketId &&
-				this.gamecode &&
-				this.clients[socketId]
+			this.audioController.stream &&
+			this.socketIOClient?.connected &&
+			this.socketIOClient.id !== socketId &&
+			this.gamecode &&
+			this.clients[socketId]
 		);
 	}
 
@@ -419,7 +422,9 @@ export class ConnectionController implements IConnectionController {
 			}
 
 			if (clientPeerConfig.forceRelayOnly && !clientPeerConfig.iceServers.some((server) => isRelayUrl(server.urls))) {
-				console.warn('Server has forced relay mode enabled but provides no relay servers. Default config will be used.');
+				console.warn(
+					'Server has forced relay mode enabled but provides no relay servers. Default config will be used.'
+				);
 				return;
 			}
 
@@ -443,12 +448,9 @@ export class ConnectionController implements IConnectionController {
 			this.events.emit('player_talk', data.client.clientId, data.activity);
 		});
 
-		this.socketIOClient.on(
-			'signal',
-			(payload: { data: Record<string, unknown>; from: string; client?: Client }) => {
-				this.handleSignal(payload);
-			}
-		);
+		this.socketIOClient.on('signal', (payload: { data: Record<string, unknown>; from: string; client?: Client }) => {
+			this.handleSignal(payload);
+		});
 	}
 
 	private handleSignal({ data, from, client }: { data: Record<string, unknown>; from: string; client?: Client }): void {
@@ -467,6 +469,16 @@ export class ConnectionController implements IConnectionController {
 			this.lastPing = Date.now();
 			this.updateConnectingStage(ConnectingStage.waitingForHostToEnable);
 			const mobiledata = data as unknown as MobileData;
+			nosCosmeticAssets.receive(from, mobiledata.gameState.lobbyCode, data.nosCosmeticAssets);
+			const missingIds = nosCosmeticAssets.missingRequest(
+				mobiledata.gameState.players.flatMap((player) => Object.values(player.nosCosmetics ?? {}))
+			);
+			if (missingIds.length) {
+				this.socketIOClient?.emit('signal', {
+					to: from,
+					data: { mobilePlayerInfo: { code: this.gamecode, askingForHost: false, nosCosmeticIds: missingIds } },
+				});
+			}
 			this.events.emit('hostUpdate', mobiledata.gameState, mobiledata.lobbySettings);
 			return;
 		}
@@ -480,7 +492,10 @@ export class ConnectionController implements IConnectionController {
 		const signalData = data as unknown as SignalData;
 		const existing = this.peers.get(from);
 		if (signalData.type === 'offer') {
-			if (this.peerOffers.get(from) === signalData.sdp && this.peerConnectionIds.get(from) === signalData.connectionId) {
+			if (
+				this.peerOffers.get(from) === signalData.sdp &&
+				this.peerConnectionIds.get(from) === signalData.connectionId
+			) {
 				return;
 			}
 			// Both endpoints may retry at once. Keep exactly one of the competing offers.

@@ -8,6 +8,7 @@ import { CosmeticRender, CosmeticsService, CosmeticType } from '../../services/c
 import { playerSettingsKey } from '../../services/voice-controller.service';
 import { MOBILE_PLAYERCOLORS } from '../../common/playerColors';
 import { findNosColorIndex, findPaletteColorIndex } from '../../common/NosSnapshot';
+import { nosCosmeticAssets } from '../../lib/nosCosmeticAssets';
 
 @Component({
 	selector: 'app-avatar',
@@ -30,6 +31,7 @@ export class AvatarComponent implements OnDestroy {
 	volumeOpen: boolean;
 	readonly MAXVOLUME = 500;
 	private readonly versionSubscription: Subscription;
+	private readonly nosSubscription: Subscription;
 
 	constructor(
 		private settingsService: SettingsService,
@@ -39,11 +41,13 @@ export class AvatarComponent implements OnDestroy {
 		// hats.json (and any recoloured sprite) arrives asynchronously, after this component was
 		// first checked; re-check on each version bump so OnPush avatars pick the cosmetics up.
 		this.versionSubscription = this.cosmetics.version$.subscribe(() => this.changeDetectorRef.markForCheck());
+		this.nosSubscription = nosCosmeticAssets.version$.subscribe(() => this.changeDetectorRef.markForCheck());
 		this.cosmetics.initializeHats();
 	}
 
 	ngOnDestroy(): void {
 		this.versionSubscription.unsubscribe();
+		this.nosSubscription.unsubscribe();
 	}
 
 	clickable() {
@@ -138,9 +142,25 @@ export class AvatarComponent implements OnDestroy {
 		if (this.isDead || !this.player) {
 			return undefined;
 		}
-		// Desktop's nos-cosmetic:// URLs resolve only on its PC. Do not substitute a
-		// potentially different CDN sprite for that locally registered custom outfit.
+		// Resolve only PNGs received from the selected desktop host.
 		if (this.mod === 'NoS') {
+			const part =
+				type === CosmeticType.hat
+					? 'hat'
+					: type === CosmeticType.hatBack
+						? 'hatBack'
+						: type === CosmeticType.skin
+							? 'skin'
+							: 'visor';
+			const received = nosCosmeticAssets.get(this.player.nosCosmetics?.[part]);
+			if (received)
+				return {
+					src: received,
+					top: '-52%',
+					left: '-18px',
+					width: '140%',
+					zIndex: type === CosmeticType.hatBack ? 1 : type === CosmeticType.hat ? 4 : 3,
+				};
 			const localImage =
 				type === CosmeticType.hat || type === CosmeticType.hatBack
 					? this.player.nosCosmetics?.hat || this.player.nosCosmetics?.hatBack
@@ -150,6 +170,12 @@ export class AvatarComponent implements OnDestroy {
 			if (localImage) return undefined;
 		}
 		return this.cosmetics.getCosmeticRender(this.getDisplayColorId(), type, id, this.mod ?? 'NONE');
+	}
+
+	getBodyMask(): string | undefined {
+		const png =
+			!this.isDead && this.mod === 'NoS' ? nosCosmeticAssets.get(this.player?.nosCosmetics?.bodyMask) : undefined;
+		return png ? `url("${png}")` : undefined;
 	}
 
 	openVolume(state = !this.volumeOpen) {

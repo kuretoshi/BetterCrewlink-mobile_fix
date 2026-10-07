@@ -38,14 +38,16 @@
 		(keyup.enter)="openVolume()"
 	>
 		<div class="avatar avatar-2">
-			<img
-				[src]="getBodyImage()"
-				class="base no-drag-img"
-				style="display: none"
-				onload="this.style.display=''"
-				(error)="onBodyImageError($event)"
-				alt="{{ player.name }}"
-			/>
+			<div class="nos-body-mask" [style.mask-image]="getBodyMask()" [style.-webkit-mask-image]="getBodyMask()">
+				<img
+					[src]="getBodyImage()"
+					class="base no-drag-img"
+					style="display: none"
+					onload="this.style.display = ''"
+					(error)="onBodyImageError($event)"
+					alt="{{ player.name }}"
+				/>
+			</div>
 			@if (getSkin(); as skin) {
 				<img
 					[src]="skin.src"
@@ -55,8 +57,8 @@
 					[style.width]="skin.width"
 					[style.z-index]="skin.zIndex"
 					style="display: none"
-					onload="this.style.display=''"
-					onerror="this.style.display='none'"
+					onload="this.style.display = ''"
+					onerror="this.style.display = 'none'"
 					alt=""
 				/>
 			}
@@ -71,8 +73,8 @@
 					[style.width]="hatBack.width"
 					[style.z-index]="hatBack.zIndex"
 					style="display: none"
-					onload="this.style.display=''"
-					onerror="this.style.display='none'"
+					onload="this.style.display = ''"
+					onerror="this.style.display = 'none'"
 					alt=""
 				/>
 			}
@@ -85,8 +87,8 @@
 					[style.width]="hat.width"
 					[style.z-index]="hat.zIndex"
 					style="display: none"
-					onload="this.style.display=''"
-					onerror="this.style.display='none'"
+					onload="this.style.display = ''"
+					onerror="this.style.display = 'none'"
 					alt=""
 				/>
 			}
@@ -99,8 +101,8 @@
 					[style.width]="visor.width"
 					[style.z-index]="visor.zIndex"
 					style="display: none"
-					onload="this.style.display=''"
-					onerror="this.style.display='none'"
+					onload="this.style.display = ''"
+					onerror="this.style.display = 'none'"
 					alt=""
 				/>
 			}

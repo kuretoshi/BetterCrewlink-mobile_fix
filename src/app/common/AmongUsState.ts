@@ -138,7 +138,7 @@ export interface Player {
 	snrHat2Id?: string;
 	snrVisor2Id?: string;
 	nosPlayer?: NosPlayerData;
-	/** Desktop-local `nos-cosmetic://` image URLs; they only resolve on the host PC. */
+	/** Old hosts send local URLs; updated hosts send nos-web:// SHA-256 asset references. */
 	nosCosmetics?: Partial<Record<'skin' | 'hat' | 'hatBack' | 'visor' | 'bodyMask', string>>;
 	tohRole?: TohRole;
 	isThirdParty?: boolean;
@@ -148,4 +148,6 @@ export interface Player {
 export interface MobileData {
 	gameState: AmongUsState;
 	lobbySettings: ILobbySettings;
+	/** At most one bounded, already processed PNG per frame; normal frames only carry references. */
+	nosCosmeticAssets?: Record<string, string>;
 }
