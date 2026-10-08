@@ -3,9 +3,10 @@
 // (oldGameState is only set from the second one) - and because the render happens
 // synchronously inside VoiceController's hostUpdate handler, that view-layer TypeError
 // was caught there and turned into a full connection error.
-import { connectionStageLabel } from './game-helper.service';
+import { connectionStageLabel, selectMicrophone } from './game-helper.service';
 import { ConnectingStage } from './ConnectionController.service';
 import { AmongUsState, GameState } from '../common/AmongUsState';
+import { IDeviceInfo } from './smallInterfaces';
 
 function ctx(overrides: { oldGameState?: AmongUsState } = {}) {
 	return { gamecode: 'ABCD', amongusUsername: 'Guus', ...overrides };
@@ -42,5 +43,27 @@ describe('connectionStageLabel', () => {
 		);
 		expect(connectionStageLabel(ConnectingStage.FullyConnected, ctx())).toBe('ゲームへ接続しました');
 		expect(connectionStageLabel(99 as ConnectingStage, ctx())).toBe('不明な接続状態: 99');
+	});
+});
+
+describe('selectMicrophone', () => {
+	const first: IDeviceInfo = { id: 1, label: 'First', deviceId: 'first', kind: 'audioinput' };
+	const second: IDeviceInfo = { id: 2, label: 'Second', deviceId: 'second', kind: 'audioinput' };
+
+	it('preserves a stored microphone when it is still available', () => {
+		expect(selectMicrophone([first, second], second)).toBe(second);
+	});
+
+	it('falls back to the first available microphone when the stored one is gone', () => {
+		expect(selectMicrophone([first, second], { ...second, id: 3 })).toBe(first);
+	});
+
+	it('uses the default device when no microphones are available', () => {
+		expect(selectMicrophone([], undefined)).toEqual({
+			id: 0,
+			label: 'default',
+			deviceId: 'default',
+			kind: 'audioinput',
+		});
 	});
 });

@@ -21,6 +21,7 @@ export interface ILobbySettings {
 	nosSizeVoiceEffect: boolean;
 	nosFixerJammingVoiceBlock: boolean;
 	tohNeutralKillerHaunting: boolean;
+	tohGhostRoles?: Record<string, boolean>;
 	hearImpostorsInVents: boolean;
 	impostersHearImpostersInvent: boolean;
 	impostorRadioEnabled: boolean;

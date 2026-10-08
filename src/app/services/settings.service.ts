@@ -167,10 +167,8 @@ export class SettingsService {
 			const loadedSettings = await this.storage.get('settings');
 			if (loadedSettings) {
 				for (const key of Object.keys(this.settings)) {
-					if (key === 'playerSettings') continue;
-					if (key in loadedSettings) {
-						this.settings[key] = loadedSettings[key];
-					}
+					if (key === 'playerSettings' || !(key in loadedSettings)) continue;
+					this.settings[key] = loadedSettings[key];
 				}
 				this.settings.playerSettings = this.deserializePlayerSettings(loadedSettings.playerSettings);
 			}

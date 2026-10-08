@@ -3,6 +3,8 @@ import { ISettings, ILobbySettings } from '../common/ISettings';
 import { AmongUsMaps, CameraLocation } from '../common/AmongusMap';
 import { poseCollide } from '../common/ColliderMap';
 import { isSnrJackal, isSnrNeutralKiller, isSnrSidekick } from '../common/SnrRole';
+import { canTohHearGhosts } from '../common/TohGhostRoles';
+import { withImpostorClassification } from '../common/Impostor';
 
 export interface MuffleSetting {
 	type: BiquadFilterType;
@@ -39,14 +41,39 @@ function distance(panPos: [number, number]): number {
 	return Math.sqrt(panPos[0] * panPos[0] + panPos[1] * panPos[1]);
 }
 
+function cameraPanPosition(state: AmongUsState, other: Player): [number, number] | undefined {
+	if (state.currentCamera !== CameraLocation.NONE && state.currentCamera !== CameraLocation.Skeld) {
+		const cameraPos = AmongUsMaps[state.map].cameras[state.currentCamera];
+		return [other.x - cameraPos.x, other.y - cameraPos.y];
+	}
+	if (state.currentCamera === CameraLocation.Skeld) {
+		let closest = 999;
+		let cameraPos = { x: 999, y: 999 };
+		for (const camera of Object.values(AmongUsMaps[state.map].cameras)) {
+			const cameraDist = Math.sqrt(Math.pow(other.x - camera.x, 2) + Math.pow(other.y - camera.y, 2));
+			if (closest > cameraDist) {
+				closest = cameraDist;
+				cameraPos = camera;
+			}
+		}
+		if (closest !== 999) {
+			return [other.x - cameraPos.x, other.y - cameraPos.y];
+		}
+	}
+	return undefined;
+}
+
 export function calculateVoiceAudio(input: VoiceAudioInput): VoiceAudioResult {
 	const { state, settings, activeLobbySettings, maxDistance, impostorRadioClientId } = input;
 	const useNosPositions = state.mod === 'NoS' && activeLobbySettings.nosVoicePositions === true;
-	const me = useNosPositions && state.nosLocalMicPosition ? { ...input.me, ...state.nosLocalMicPosition } : input.me;
+	const localPlayer = withImpostorClassification(state.mod, input.me);
+	const remotePlayer = withImpostorClassification(state.mod, input.other);
+	const me =
+		useNosPositions && state.nosLocalMicPosition ? { ...localPlayer, ...state.nosLocalMicPosition } : localPlayer;
 	const other =
-		useNosPositions && input.other.nosPlayer
-			? { ...input.other, x: input.other.nosPlayer.speakerPositionX, y: input.other.nosPlayer.speakerPositionY }
-			: input.other;
+		useNosPositions && remotePlayer.nosPlayer
+			? { ...remotePlayer, x: remotePlayer.nosPlayer.speakerPositionX, y: remotePlayer.nosPlayer.speakerPositionY }
+			: remotePlayer;
 
 	const result: VoiceAudioResult = {
 		gain: 0,
@@ -91,16 +118,14 @@ export function calculateVoiceAudio(input: VoiceAudioInput): VoiceAudioResult {
 		me.nosPlayer?.isNeutral === true &&
 		me.nosPlayer.isKiller === true &&
 		me.nosPlayer.isImpostor === false;
-	const canHearGhosts = meJackal
-		? snrNeutralKillerGhosts
-		: meSidekick
-			? activeLobbySettings.sidekickHaunting
-			: (state.mod === 'TOH4E' &&
-					activeLobbySettings.tohNeutralKillerHaunting === true &&
-					me.tohRole?.isKiller === true) ||
-				nosKillerGhosts ||
-				snrNeutralKillerGhosts ||
-				(me.isImpostor && activeLobbySettings.haunting);
+	const canHearGhosts = resolveGhostHearing();
+	function resolveGhostHearing(): boolean {
+		if (state.mod === 'TOH4E')
+			return canTohHearGhosts(activeLobbySettings, me.tohRole, me.vanillaIsImpostor ?? me.isImpostor);
+		if (meJackal) return snrNeutralKillerGhosts;
+		if (meSidekick) return activeLobbySettings.sidekickHaunting;
+		return nosKillerGhosts || snrNeutralKillerGhosts || (me.isImpostor && activeLobbySettings.haunting);
+	}
 	const radioOnlyMode = activeLobbySettings.impostorRadioOnlyMode === true;
 	const radioEnabled = activeLobbySettings.impostorRadioEnabled || radioOnlyMode;
 	const activeRadioClientIds =
@@ -234,23 +259,7 @@ export function calculateVoiceAudio(input: VoiceAudioInput): VoiceAudioResult {
 			return result;
 		}
 
-		if (state.currentCamera !== CameraLocation.NONE && state.currentCamera !== CameraLocation.Skeld) {
-			const cameraPos = AmongUsMaps[state.map].cameras[state.currentCamera];
-			panPos = [other.x - cameraPos.x, other.y - cameraPos.y];
-		} else if (state.currentCamera === CameraLocation.Skeld) {
-			let closest = 999;
-			let cameraPos = { x: 999, y: 999 };
-			for (const camera of Object.values(AmongUsMaps[state.map].cameras)) {
-				const cameraDist = Math.sqrt(Math.pow(other.x - camera.x, 2) + Math.pow(other.y - camera.y, 2));
-				if (closest > cameraDist) {
-					closest = cameraDist;
-					cameraPos = camera;
-				}
-			}
-			if (closest !== 999) {
-				panPos = [other.x - cameraPos.x, other.y - cameraPos.y];
-			}
-		}
+		panPos = cameraPanPosition(state, other) ?? panPos;
 
 		if (distance(panPos) > maxDistance) {
 			return result;

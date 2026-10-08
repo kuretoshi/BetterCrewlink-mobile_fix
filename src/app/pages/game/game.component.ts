@@ -43,23 +43,16 @@ export class GameComponent implements OnInit, OnDestroy {
 		return state.nosReadStatus.message || 'NoSデータを取得できません';
 	}
 
-	canUseImpostorRadio(): boolean {
-		const state = this.gameHelper.cManager.currentGameState;
-		const me = this.gameHelper.cManager.localPLayer;
-		return Boolean(
-			this.gameHelper.cManager.lobbySettings.impostorRadioEnabled &&
-				state?.gameState === GameState.TASKS &&
-				me?.isImpostor &&
-				!me.isDead
-		);
+	canUseImpostorRadio(kind = 0): boolean {
+		return this.gameHelper.voiceController.canTransmitRadio(kind);
 	}
 
-	startRadio(): void {
-		this.gameHelper.voiceController.applyImpostorRadio(true);
+	startRadio(kind = 0): void {
+		this.gameHelper.voiceController.applyImpostorRadio(true, kind);
 	}
-
-	stopRadio(): void {
-		this.gameHelper.voiceController.applyImpostorRadio(false);
+	stopRadio(kind?: number): void {
+		if (kind === undefined) this.gameHelper.voiceController.releaseRadio();
+		else this.gameHelper.voiceController.applyImpostorRadio(false, kind);
 	}
 
 	// Mirrors desktop's releaseHeldKeys(): a held transmit button must not stay "pressed" forever

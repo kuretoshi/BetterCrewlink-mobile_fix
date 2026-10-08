@@ -193,6 +193,30 @@ describe('calculateVoiceAudio', () => {
 		expect(result.reverb).toBe(true);
 	});
 
+	it('uses TOH4E per-role ghost hearing without granting it to other factions', () => {
+		const ghost = makePlayer({ id: 2, clientId: 2, isDead: true });
+		const jackal = makePlayer({
+			id: 1, clientId: 1, isLocal: true,
+			tohRole: { roleId: 2, roleName: 'Jackal', isNeutralKiller: true, isKiller: true, customRoleType: 'Neutral' },
+		});
+		const settings = makeLobbySettings({ tohGhostRoles: { Jackal: true }, tohNeutralKillerHaunting: false });
+		const enabled = run({ state: makeState({ mod: 'TOH4E' }), me: jackal, other: ghost, activeLobbySettings: settings });
+		expect(enabled.gain).toBeGreaterThan(0);
+		expect(enabled.reverb).toBeTrue();
+		const disabled = run({
+			state: makeState({ mod: 'TOH4E' }), me: jackal, other: ghost,
+			activeLobbySettings: { ...settings, tohGhostRoles: { Jackal: false } },
+		});
+		expect(disabled.gain).toBe(0);
+		const madmate = run({
+			state: makeState({ mod: 'TOH4E' }),
+			me: makePlayer({ ...jackal, tohRole: { ...jackal.tohRole, customRoleType: 'Madmate' }, isImpostor: true }),
+			other: ghost,
+			activeLobbySettings: { ...settings, haunting: true },
+		});
+		expect(madmate.gain).toBe(0);
+	});
+
 	it('mutes a dead player heard by a living player when haunting is off', () => {
 		const result = run({ other: makePlayer({ id: 2, clientId: 2, x: 1, y: 0, isDead: true }) });
 		expect(result.gain).toBe(0);
@@ -342,7 +366,7 @@ describe('calculateVoiceAudio', () => {
 					id: 1,
 					clientId: 1,
 					isLocal: true,
-					tohRole: { roleId: 10, roleName: 'Jackal', isNeutralKiller: true, isKiller: true },
+					tohRole: { roleId: 10, roleName: 'Jackal', isNeutralKiller: true, isKiller: true, customRoleType: 'Neutral' },
 				}),
 				other: makePlayer({ id: 2, clientId: 2, x: 1, isDead: true }),
 				activeLobbySettings: makeLobbySettings({ tohNeutralKillerHaunting: true }),

@@ -45,6 +45,31 @@
 						</ion-col>
 					</ion-item>
 				}
+				@if (isToh4e) {
+					<ion-list-header lines="full" color="secondary">
+						<ion-label>幽霊の声が聞こえる役職設定</ion-label>
+					</ion-list-header>
+					<ion-item color="secondary">
+						<ion-label class="ion-text-wrap">ホストの設定を表示しています。インポスターは上の「インポスターの幽霊音声」設定を使用します。</ion-label>
+					</ion-item>
+					@if (ghostRoleGroups().length === 0) {
+						<ion-item color="secondary">
+							<ion-label class="ion-text-wrap">役職一覧をホストから受信待ちです。</ion-label>
+						</ion-item>
+					} @else {
+						@for (group of ghostRoleGroups(); track group.label) {
+							<ion-list-header lines="full" color="secondary">
+								<ion-label>{{ group.label }}（{{ group.enabled }} / {{ group.roles.length }} 役職がオン）</ion-label>
+							</ion-list-header>
+							@for (role of group.roles; track role.label) {
+								<ion-item color="secondary">
+									<ion-col size="7" class="settingLabelCol"><ion-label class="ion-text-wrap">{{ role.label }}</ion-label></ion-col>
+									<ion-col size="5"><ion-label>{{ role.value ? 'オン' : 'オフ' }}</ion-label></ion-col>
+								</ion-item>
+							}
+						}
+					}
+				}
 				<ion-item color="secondary">
 					<ion-label class="ion-text-wrap">
 						ロビー設定はBetterCrewLinkを実行しているPCホストが管理します。モバイルでは表示のみ可能です。変更する場合はPCホスト側で設定してください。

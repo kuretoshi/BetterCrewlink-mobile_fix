@@ -2,10 +2,17 @@ import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrateg
 import { GameHelperService } from '../../services/game-helper.service';
 import { ILobbySettings } from '../../common/ISettings';
 import { GameState } from '../../common/AmongUsState';
+import { tohGhostRoleEnabled, tohGhostRoleGroups } from '../../common/TohGhostRoles';
 
 interface LobbyToggle {
 	label: string;
 	value: boolean;
+}
+
+interface GhostRoleGroup {
+	label: string;
+	enabled: number;
+	roles: LobbyToggle[];
 }
 
 @Component({
@@ -89,11 +96,28 @@ export class LobbySettingsComponent implements OnInit, OnDestroy {
 				{ label: 'NoS サイズ連動ボイスエフェクト', value: settings.nosSizeVoiceEffect },
 				{ label: 'NoS Fixer妨害中の音声遮断', value: settings.nosFixerJammingVoiceBlock }
 			);
-		} else if (mod === 'TOH4E') {
-			toggles.push({ label: 'TOH4E 第三陣営キラーの幽霊音声', value: settings.tohNeutralKillerHaunting });
+		} else if (mod === 'TOH4E' && settings.tohGhostRoles === undefined) {
+			toggles.push({ label: 'TOH4E 旧設定（対象キラー共通）', value: settings.tohNeutralKillerHaunting });
 		}
 		toggles.unshift({ label: 'インポスター無線専用モード', value: settings.impostorRadioOnlyMode });
 		return toggles;
+	}
+
+	get isToh4e(): boolean {
+		return this.gameHelper.cManager.currentGameState?.mod === 'TOH4E';
+	}
+
+	ghostRoleGroups(): GhostRoleGroup[] {
+		const catalog = this.gameHelper.cManager.currentGameState?.tohRoleCatalog;
+		const settings = this.lobbySettings;
+		if (!catalog?.length || !settings) return [];
+		return tohGhostRoleGroups(catalog).map((group) => {
+			const roles = group.roles.map((role) => ({
+				label: role.displayName,
+				value: tohGhostRoleEnabled(settings, role.roleName),
+			}));
+			return { label: group.label, enabled: roles.filter((role) => role.value).length, roles };
+		});
 	}
 
 	maxDistance(): number | undefined {

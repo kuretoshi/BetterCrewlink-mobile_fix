@@ -53,6 +53,15 @@ export function connectionStageLabel(
 	}
 }
 
+export function selectMicrophone(devices: IDeviceInfo[], stored: IDeviceInfo | undefined): IDeviceInfo {
+	return devices.find((device) => device.id === stored?.id) ?? devices[0] ?? {
+		id: 0,
+		label: 'default',
+		deviceId: 'default',
+		kind: 'audioinput',
+	};
+}
+
 @Injectable({
 	providedIn: 'root',
 })
@@ -228,26 +237,7 @@ export class GameHelperService {
 		// devices are enumerated and a default is picked - otherwise the fresh device list's
 		// positional id would be matched against (and overwrite) the persisted selection, or the
 		// hardcoded default would win before the stored value ever arrived.
-		void this.settings.load().then(() => {
-			this.cManager.audioController.getDevices().then((devices) => {
-				this.microphones = devices.filter((o) => o.kind === 'audioinput');
-				this.speakers = devices.filter((o) => o.kind === 'audiooutput');
-				const storedMicrophone = this.settings.get().selectedMicrophone;
-				if (!this.microphones.some((o) => o.id === storedMicrophone?.id)) {
-					this.settings.get().selectedMicrophone = this.microphones[0] ?? {
-						id: 0,
-						label: 'default',
-						deviceId: 'default',
-						kind: 'audioinput',
-					};
-				} else {
-					this.settings.get().selectedMicrophone = this.microphones.find(
-						(o) => o.id === storedMicrophone.id
-					);
-				}
-				this.updateViews();
-			});
-		});
+		void this.loadAudioDevices();
 
 		// this.connect();
 
@@ -342,5 +332,17 @@ export class GameHelperService {
 		// 	this.connect();
 		// 	this.showNotification();
 		// });
+	}
+
+	private async loadAudioDevices(): Promise<void> {
+		await this.settings.load();
+		const devices = await this.cManager.audioController.getDevices();
+		this.microphones = devices.filter((device) => device.kind === 'audioinput');
+		this.speakers = devices.filter((device) => device.kind === 'audiooutput');
+		this.settings.get().selectedMicrophone = selectMicrophone(
+			this.microphones,
+			this.settings.get().selectedMicrophone
+		);
+		this.updateViews();
 	}
 }

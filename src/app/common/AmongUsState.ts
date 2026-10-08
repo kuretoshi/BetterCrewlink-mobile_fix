@@ -3,7 +3,7 @@ import type { ILobbySettings } from './ISettings';
 import { ModsType } from './Mods';
 import type { SnrLiveRole } from './SnrRole';
 import type { NosPlayerData, NosRadioData } from './NosSnapshot';
-import type { TohRole } from './TohRole';
+import type { TohRole, TohRoleDefinition } from './TohRole';
 
 // --- verbatim from bettercrewlink (desktop) v3.2.1 src/common/AmongUsState.ts,
 // with one documented mobile-only addition on `Player` (`isbetter`, set locally when
@@ -119,6 +119,7 @@ export interface AmongUsState {
 	nosLoadedContents?: { path: string; status: string; data?: unknown };
 	nosLocalMicPosition?: { x: number; y: number };
 	nosRadios?: NosRadioData[];
+	tohRoleCatalog?: TohRoleDefinition[];
 	debug?: Record<string, unknown>;
 }
 
@@ -141,6 +142,9 @@ export interface Player {
 	/** Old hosts send local URLs; updated hosts send nos-web:// SHA-256 asset references. */
 	nosCosmetics?: Partial<Record<'skin' | 'hat' | 'hatBack' | 'visor' | 'bodyMask', string>>;
 	tohRole?: TohRole;
+	vanillaIsImpostor?: boolean;
+	/** Host-confirmed TOH faction flag; never a substitute role name. */
+	tohImpostor?: boolean;
 	isThirdParty?: boolean;
 }
 

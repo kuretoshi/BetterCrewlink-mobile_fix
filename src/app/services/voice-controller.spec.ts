@@ -151,6 +151,51 @@ describe('VoiceController impostor radio', () => {
 		expect(voice.areRadioPartners(state, local, remote)).toBeFalse();
 	});
 
+	it('selects exactly one NoS channel with dual membership and overlapping holds', () => {
+		const voice = makeController() as any;
+		const connection = voice.connectionController as any;
+		const me = makePlayer({ id: 2, clientId: 20, isImpostor: true });
+		const remote = makePlayer({ id: 5, clientId: 50 });
+		readyState(connection, me, [remote]);
+		connection.lobbySettings.jackalRadioEnabled = true;
+		connection.currentGameState.mod = 'NoS';
+		const radios = [
+			{ kind: 0, hearableMask: 1 << 2, nameLength: 0, name: '' },
+			{ kind: 1, hearableMask: 1 << 7, nameLength: 0, name: '' },
+		];
+		connection.currentGameState.nosRadios = radios;
+		connection.clients = { remoteSocket: { playerId: 5, clientId: 50 } };
+		voice.nosRadiosByPlayer = { 5: { clientId: 50, radios, receivedAt: Date.now() } };
+		expect(voice.canTransmitRadio(0)).toBeTrue();
+		expect(voice.canTransmitRadio(1)).toBeTrue();
+		const packets: any[] = [];
+		spyOn(connection, 'sendToPeers').and.callFake((_targets: any, payload: any) => packets.push(JSON.parse(payload)));
+		voice.applyImpostorRadio(true, 0);
+		voice.applyImpostorRadio(true, 1);
+		voice.applyImpostorRadio(true, 0);
+		expect(voice.heldNosRadio.kind).toBe(1);
+		voice.applyImpostorRadio(false, 1);
+		expect(voice.heldNosRadio.kind).toBe(0);
+		voice.applyImpostorRadio(false, 0);
+		expect(packets.map((packet) => [packet.impostorRadio, packet.nosRadioKind])).toEqual([
+			[true, 0],
+			[true, 1],
+			[true, 0],
+			[false, undefined],
+		]);
+		voice.onPeerData('remoteSocket', { impostorRadio: true, impostorRadioVersion: 1, nosRadioKind: 1 });
+		expect(voice.areRadioPartners(connection.currentGameState, me, remote)).toBeFalse();
+		expect(voice.canNosImpostorRadioReach(connection.currentGameState, remote, me)).toBeFalse();
+		voice.onPeerData('remoteSocket', { impostorRadio: true, impostorRadioVersion: 2, nosRadioKind: 0 });
+		expect(voice.areRadioPartners(connection.currentGameState, me, remote)).toBeTrue();
+		voice.onPeerData('remoteSocket', { impostorRadio: true, impostorRadioVersion: 999, nosRadioKind: 2 });
+		expect(voice.radioStatusVersions[50]).toBe(2);
+		voice.applyImpostorRadio(true, 1);
+		connection.lobbySettings.jackalRadioEnabled = false;
+		voice.cleanupImpostorRadio(connection.currentGameState, me);
+		expect(voice.heldNosRadio.kind).toBeUndefined();
+	});
+
 	it('keeps NoS radio transmission state when its mask is delayed or expires', () => {
 		const voice = makeController() as any;
 		const connection = voice.connectionController as any;
@@ -196,6 +241,68 @@ describe('VoiceController impostor radio', () => {
 		expect(effective.mod).toBe('TOH4E');
 		expect(effectiveMe?.name).toBe('RealName');
 		expect(effectiveMe?.tohRole?.roleName).toBe('Jackal');
+	});
+
+	it('uses fresh host TOH4E faction data for radio and clears it on expiry', () => {
+		const voice = makeController() as any;
+		const connection = voice.connectionController as any;
+		const host = makePlayer({ id: 1, clientId: 10, name: 'Host', isImpostor: true });
+		const me = makePlayer({ id: 2, clientId: 20, name: 'Me', isImpostor: true });
+		const neutral = makePlayer({ id: 3, clientId: 30, name: 'Neutral', isImpostor: true });
+		const state = makeState({ mod: 'TOH4E', hostId: 10, players: [host, me, neutral] });
+		connection.currentGameState = state;
+		connection.localPLayer = me;
+		connection.amongusUsername = 'Me';
+		connection.lobbySettings = { ...defaultLobbySettings, impostorRadioEnabled: true };
+		connection.clients = { hostSocket: { playerId: 1, clientId: 10 }, otherSocket: { playerId: 3, clientId: 30 } };
+		voice.getEffectiveGameState(state);
+		const catalog = [{
+			roleId: 5, roleName: 'Assassin', displayName: 'アサシン', customRoleType: 'Impostor', isKiller: true,
+		}];
+		voice.onPeerData('otherSocket', { type: 'toh4e-lobby', lobbyCode: 'ABCD', enabled: true, roleCatalog: catalog });
+		expect(voice.getEffectiveGameState(state).tohRoleCatalog).toEqual([]);
+		voice.onPeerData('hostSocket', { type: 'toh4e-lobby', lobbyCode: 'ABCD', enabled: true, roleCatalog: [{ bad: true }] });
+		expect(voice.getEffectiveGameState(state).tohRoleCatalog).toEqual([]);
+		voice.onPeerData('hostSocket', { type: 'toh4e-lobby', lobbyCode: 'ABCD', enabled: true, roleCatalog: catalog });
+		voice.onPeerData('hostSocket', {
+			type: 'toh4e-role', lobbyCode: 'ABCD', targetClientId: 20, targetPlayerId: 2,
+			role: { roleId: 5, roleName: 'Assassin', isNeutralKiller: false, isKiller: true, customRoleType: 'Impostor' },
+			impostors: [{ playerId: 2, clientId: 20, isImpostor: 'true' }],
+		});
+		expect(voice.getEffectiveGameState(state).players.find((player: Player) => player.clientId === 20)?.isImpostor).toBeFalse();
+		voice.onPeerData('hostSocket', {
+			type: 'toh4e-role', lobbyCode: 'ABCD', targetClientId: 20, targetPlayerId: 2,
+			role: { roleId: 5, roleName: 'Assassin', isNeutralKiller: false, isKiller: true, customRoleType: 'Impostor' },
+			impostors: [
+				{ playerId: 1, clientId: 10, isImpostor: true },
+				{ playerId: 2, clientId: 20, isImpostor: true },
+				{ playerId: 3, clientId: 30, isImpostor: false },
+			],
+		});
+		const effective = voice.getEffectiveGameState(state) as AmongUsState;
+		const effectiveMe = effective.players.find((player) => player.clientId === 20) as Player;
+		const effectiveNeutral = effective.players.find((player) => player.clientId === 30) as Player;
+		expect(effective.tohRoleCatalog?.[0].roleName).toBe('Assassin');
+		expect(effectiveMe.isImpostor).toBeTrue();
+		expect(effectiveNeutral.isImpostor).toBeFalse();
+		expect(voice.canUseRadio(effective, effectiveMe)).toBeTrue();
+		expect(voice.areRadioTeammates(effective, effectiveMe, effectiveNeutral)).toBeFalse();
+
+		voice.tohRoleReceivedAt = Date.now() - 6000;
+		voice.tohCatalogReceivedAt = Date.now() - 6000;
+		const expired = voice.getEffectiveGameState(state) as AmongUsState;
+		expect(expired.players.find((player) => player.clientId === 20)?.isImpostor).toBeFalse();
+		expect(expired.tohRoleCatalog).toEqual([]);
+	});
+
+	it('copies per-role TOH4E settings and falls back for older hosts', () => {
+		const voice = makeController() as any;
+		const connection = voice.connectionController as ConnectionController;
+		voice.onLobbySettingsChange({ ...defaultLobbySettings, tohGhostRoles: { Jackal: true } });
+		expect(connection.lobbySettings.tohGhostRoles).toEqual({ Jackal: true });
+		voice.onLobbySettingsChange({ ...defaultLobbySettings, tohNeutralKillerHaunting: true });
+		expect(connection.lobbySettings.tohGhostRoles).toBeUndefined();
+		expect(connection.lobbySettings.tohNeutralKillerHaunting).toBeTrue();
 	});
 
 	it('warns when the desktop host runs a newer release and ignores malformed versions', () => {

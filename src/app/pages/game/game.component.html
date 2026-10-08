@@ -76,7 +76,10 @@
 									[attr.aria-pressed]="gameHelper.audioMuted()"
 									(click)="gameHelper.muteAudio()"
 								>
-									<ion-icon slot="icon-only" [name]="gameHelper.audioMuted() ? 'volume-mute' : 'volume-high'"></ion-icon>
+									<ion-icon
+										slot="icon-only"
+										[name]="gameHelper.audioMuted() ? 'volume-mute' : 'volume-high'"
+									></ion-icon>
 								</ion-button>
 							</div>
 						</div>
@@ -113,12 +116,25 @@
 								<ion-button
 									color="danger"
 									(pointerdown)="startRadio()"
-									(pointerup)="stopRadio()"
-									(pointercancel)="stopRadio()"
-									(pointerleave)="stopRadio()"
+									(pointerup)="stopRadio(0)"
+									(pointercancel)="stopRadio(0)"
+									(pointerleave)="stopRadio(0)"
 								>
 									<ion-icon slot="start" name="radio-outline"></ion-icon>
 									長押しでインポスター無線を使用
+								</ion-button>
+							</ion-row>
+						}
+						@if (getMod() === 'NoS' && canUseImpostorRadio(1)) {
+							<ion-row class="ion-justify-content-center">
+								<ion-button
+									color="primary"
+									(pointerdown)="startRadio(1)"
+									(pointerup)="stopRadio(1)"
+									(pointercancel)="stopRadio(1)"
+									(pointerleave)="stopRadio(1)"
+								>
+									<ion-icon slot="start" name="radio-outline"></ion-icon>長押しでジャッカル無線を使用
 								</ion-button>
 							</ion-row>
 						}
