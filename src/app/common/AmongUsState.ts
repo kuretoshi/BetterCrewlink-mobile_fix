@@ -3,6 +3,7 @@ import type { ILobbySettings } from './ISettings';
 import { ModsType } from './Mods';
 import type { SnrLiveRole } from './SnrRole';
 import type { NosPlayerData, NosRadioData } from './NosSnapshot';
+import type { NosRole } from './NosRole';
 import type { TohRole, TohRoleDefinition } from './TohRole';
 
 // --- verbatim from bettercrewlink (desktop) v3.2.1 src/common/AmongUsState.ts,
@@ -119,6 +120,7 @@ export interface AmongUsState {
 	nosLoadedContents?: { path: string; status: string; data?: unknown };
 	nosLocalMicPosition?: { x: number; y: number };
 	nosRadios?: NosRadioData[];
+	nosAddonIds?: string[];
 	tohRoleCatalog?: TohRoleDefinition[];
 	debug?: Record<string, unknown>;
 }
@@ -139,6 +141,7 @@ export interface Player {
 	snrHat2Id?: string;
 	snrVisor2Id?: string;
 	nosPlayer?: NosPlayerData;
+	nosRole?: NosRole;
 	/** Old hosts send local URLs; updated hosts send nos-web:// SHA-256 asset references. */
 	nosCosmetics?: Partial<Record<'skin' | 'hat' | 'hatBack' | 'visor' | 'bodyMask', string>>;
 	tohRole?: TohRole;

@@ -7,8 +7,15 @@ import { SettingsService } from './settings.service';
 import { calculateVoiceAudio } from '../voice/spatialAudio';
 import { PeerAudioNodes, RadioEchoNodes } from '../voice/types';
 import VAD from './vad';
-import { selectVoiceEffect } from '../voice/voiceEffectRules';
-import { createVoiceDisguiseEffect, disconnectVoiceDisguiseEffect, updateVoiceDisguiseEffect } from './voiceEffect';
+import { selectVoiceEffect, shouldApplyRainbowStarEcho, type VoiceEffectSetting } from '../voice/voiceEffectRules';
+import { createVoiceDisguiseEffect, updateVoiceDisguiseEffect } from './voiceEffect';
+import { createBerserkerEffect } from '../voice/berserkerEffect';
+import {
+	prepareSourceFilter,
+	createSourceFilterEffect,
+	updateSourceFilterEffect,
+	disconnectProcessingEffect,
+} from '../voice/sourceFilterEffect';
 
 const REVERB_URL = 'assets/sounds/reverb.ogx';
 
@@ -40,6 +47,7 @@ export default class AudioController {
 	private masterElement?: HTMLAudioElement;
 	private useContextSink = false;
 	private convolverBuffer: AudioBuffer | null = null;
+	private sourceFilterReady = false;
 	private peers = new Map<string, PeerAudioNodes>();
 	// Input chain (desktop's createInputChain): raw mic stream -> optional microphoneGain ->
 	// optional processed MediaStreamDestination. `stream` above is the last stage's output.
@@ -58,6 +66,12 @@ export default class AudioController {
 		}
 
 		this.ensureOutputBus();
+		try {
+			await prepareSourceFilter(this.context);
+			this.sourceFilterReady = true;
+		} catch (error) {
+			console.warn('NoS source-filter audio is unavailable', error);
+		}
 
 		const settings = this.settingsService.get();
 		const audio: MediaTrackConstraintSet = {
@@ -278,7 +292,6 @@ export default class AudioController {
 
 		const reverb = context.createConvolver();
 		reverb.buffer = this.convolverBuffer;
-		const voiceEffect = createVoiceDisguiseEffect(context, this.settingsService.get().voiceEffectStrength);
 		const radioEcho = createRadioEcho(context);
 
 		source.connect(pan);
@@ -294,7 +307,6 @@ export default class AudioController {
 			muffle,
 			muffleConnected: false,
 			reverbConnected: false,
-			voiceEffect,
 			voiceEffectConnected: false,
 			radioEcho,
 			radioEchoConnected: false,
@@ -313,8 +325,9 @@ export default class AudioController {
 		peer.gain.disconnect();
 		peer.reverb?.disconnect();
 		peer.muffle?.disconnect();
-		disconnectVoiceDisguiseEffect(peer.voiceEffect);
+		if (peer.voiceEffect) disconnectProcessingEffect(peer.voiceEffect);
 		disconnectRadioEcho(peer.radioEcho);
+		if (peer.starEcho) disconnectRadioEcho(peer.starEcho);
 	}
 
 	private teardownAudioElement(element: HTMLAudioElement): void {
@@ -399,28 +412,41 @@ export default class AudioController {
 		const wantReverb = result.reverb === null ? peer.reverbConnected : result.reverb;
 		const wantMuffle = result.muffle === null ? peer.muffleConnected : result.muffle !== false;
 		const wantRadioEcho = result.radioEcho;
-		const effect = selectVoiceEffect(
-			state,
-			settings,
-			activeLobbySettings,
-			me,
-			other,
-			impostorRadioClientId,
-			impostorRadioClientIds
-		);
-		const wantVoiceEffect = effect !== null && !wantMuffle;
-		if (effect)
-			updateVoiceDisguiseEffect(
-				peer.voiceEffect,
-				effect.strength,
-				effect.direction,
-				effect.formantScale,
-				effect.jumbo,
-				effect.squash,
-				effect.toneRate,
-				effect.directPitch
-			);
-		rebuildEffectChain(peer, destination, wantReverb, wantMuffle, wantVoiceEffect, wantRadioEcho);
+		let effect =
+			result.gain > 0
+				? selectVoiceEffect(
+						state,
+						settings,
+						activeLobbySettings,
+						me,
+						other,
+						impostorRadioClientId,
+						impostorRadioClientIds
+					)
+				: null;
+		if (effect?.sourceFilter && !this.sourceFilterReady) effect = null;
+		const wantKind = effect?.berserker ? 'berserker' : effect?.sourceFilter ? 'source-filter' : 'disguise';
+		const currentKind = peer.voiceEffect && 'kind' in peer.voiceEffect ? peer.voiceEffect.kind : 'disguise';
+		if (effect && peer.voiceEffect && wantKind !== currentKind) {
+			disconnectProcessingEffect(peer.voiceEffect);
+			peer.voiceEffect = undefined;
+			peer.voiceEffectConnected = false;
+		}
+		if (effect && this.context) {
+			updatePeerVoiceEffect(peer, this.context, effect);
+		} else if (peer.voiceEffect) {
+			disconnectProcessingEffect(peer.voiceEffect);
+			peer.voiceEffect = undefined;
+		}
+		const wantStarEcho = result.gain > 0 && shouldApplyRainbowStarEcho(state, other, activeLobbySettings);
+		if (wantStarEcho && !peer.starEcho && this.context) {
+			peer.starEcho = createRadioEcho(this.context);
+			peer.starEcho.dry.gain.value = 0.94;
+			peer.starEcho.wet.gain.value = 0.08;
+			peer.starEcho.delay.delayTime.value = 0.075;
+			peer.starEcho.feedback.gain.value = 0.08;
+		}
+		rebuildEffectChain(peer, destination, wantReverb, wantMuffle, !!effect, wantRadioEcho, wantStarEcho);
 
 		if (result.panPosition) {
 			const time = pan.context.currentTime;
@@ -483,20 +509,46 @@ export default class AudioController {
 	}
 }
 
-// --- verbatim from bettercrewlink (desktop) v3.2.1 src/renderer/voice/AudioController.ts ---
+function updatePeerVoiceEffect(peer: PeerAudioNodes, context: AudioContext, effect: VoiceEffectSetting): void {
+	if (effect.berserker) {
+		peer.voiceEffect ??= createBerserkerEffect(context);
+		return;
+	}
+	if (effect.sourceFilter) {
+		peer.voiceEffect ??= createSourceFilterEffect(context);
+		if ('kind' in peer.voiceEffect && peer.voiceEffect.kind === 'source-filter')
+			updateSourceFilterEffect(peer.voiceEffect, effect.sourceFilter);
+		return;
+	}
+	peer.voiceEffect ??= createVoiceDisguiseEffect(context, effect.strength);
+	if (!('kind' in peer.voiceEffect))
+		updateVoiceDisguiseEffect(
+			peer.voiceEffect,
+			effect.strength,
+			effect.direction,
+			effect.formantScale,
+			effect.jumbo,
+			effect.squash,
+			effect.toneRate,
+			effect.directPitch
+		);
+}
+
 function rebuildEffectChain(
 	peer: PeerAudioNodes,
 	destination: AudioNode,
 	wantReverb: boolean,
 	wantMuffle: boolean,
 	wantVoiceEffect: boolean,
-	wantRadioEcho: boolean
+	wantRadioEcho: boolean,
+	wantStarEcho: boolean
 ): void {
 	if (
 		peer.reverbConnected === wantReverb &&
 		peer.muffleConnected === wantMuffle &&
 		peer.voiceEffectConnected === wantVoiceEffect &&
-		peer.radioEchoConnected === wantRadioEcho
+		peer.radioEchoConnected === wantRadioEcho &&
+		!!peer.starEchoConnected === wantStarEcho
 	)
 		return;
 
@@ -507,16 +559,13 @@ function rebuildEffectChain(
 			/* not connected */
 		}
 	}
-	try {
-		peer.voiceEffect.output.disconnect();
-	} catch {
-		/* not connected */
-	}
+	peer.voiceEffect?.output.disconnect();
 	try {
 		peer.radioEcho.output.disconnect();
 	} catch {
 		/* not connected */
 	}
+	peer.starEcho?.output.disconnect();
 
 	const chain: AudioNode[] = [peer.gain];
 	if (wantMuffle) chain.push(peer.muffle);
@@ -527,9 +576,13 @@ function rebuildEffectChain(
 			chain[index].connect(chain[index + 1]);
 		}
 		let tail = chain[chain.length - 1];
-		if (wantVoiceEffect) {
+		if (wantVoiceEffect && peer.voiceEffect) {
 			tail.connect(peer.voiceEffect.input);
 			tail = peer.voiceEffect.output;
+		}
+		if (wantStarEcho && peer.starEcho) {
+			tail.connect(peer.starEcho.input);
+			tail = peer.starEcho.output;
 		}
 		if (wantRadioEcho) {
 			tail.connect(peer.radioEcho.input);
@@ -541,12 +594,14 @@ function rebuildEffectChain(
 		peer.muffleConnected = wantMuffle;
 		peer.voiceEffectConnected = wantVoiceEffect;
 		peer.radioEchoConnected = wantRadioEcho;
+		peer.starEchoConnected = wantStarEcho;
 	} catch (error) {
 		console.warn('Failed to rebuild audio effect chain', error);
 		peer.reverbConnected = false;
 		peer.muffleConnected = false;
 		peer.voiceEffectConnected = false;
 		peer.radioEchoConnected = false;
+		peer.starEchoConnected = false;
 		try {
 			peer.gain.connect(destination);
 		} catch {
@@ -585,4 +640,3 @@ function disconnectRadioEcho(nodes: RadioEchoNodes): void {
 		}
 	}
 }
-// --- end verbatim block ---

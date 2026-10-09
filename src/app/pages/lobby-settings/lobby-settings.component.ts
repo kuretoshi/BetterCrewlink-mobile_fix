@@ -94,8 +94,15 @@ export class LobbySettingsComponent implements OnInit, OnDestroy {
 				{ label: 'NoS 第三陣営キラーの幽霊音声', value: settings.nosNeutralKillerHaunting },
 				{ label: 'NoS の音声位置', value: settings.nosVoicePositions },
 				{ label: 'NoS サイズ連動ボイスエフェクト', value: settings.nosSizeVoiceEffect },
-				{ label: 'NoS Fixer妨害中の音声遮断', value: settings.nosFixerJammingVoiceBlock }
+				{ label: 'NoS バーサーカーの声', value: settings.nosBerserkerVoiceEffect },
+				{ label: 'NoS ろくろ首の声', value: settings.nosRokurokubiVoiceEffect },
+				{ label: 'NoS レインボースターのエコー', value: settings.nosRainbowStarEcho },
+				{ label: 'NoS Fixer妨害中の音声遮断', value: settings.nosFixerJammingVoiceBlock },
+				{ label: 'NoS Fixer妨害中のローパス', value: settings.nosFixerJammingLowpass }
 			);
+			if (this.gameHelper.cManager.currentGameState?.nosAddonIds?.includes('UchuAddon')) {
+				toggles.push({ label: 'NoS シトラスの声', value: settings.nosCitrusVoiceEffect });
+			}
 		} else if (mod === 'TOH4E' && settings.tohGhostRoles === undefined) {
 			toggles.push({ label: 'TOH4E 旧設定（対象キラー共通）', value: settings.tohNeutralKillerHaunting });
 		}

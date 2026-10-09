@@ -1,5 +1,5 @@
 import { ILobbySettings } from '../common/ISettings';
-import type { VoiceDisguiseEffect } from '../services/voiceEffect';
+import type { VoiceProcessingEffect } from './sourceFilterEffect';
 
 // --- verbatim from bettercrewlink (desktop) v3.2.1 src/renderer/voice/types.ts ---
 export interface PeerAudioNodes {
@@ -12,10 +12,12 @@ export interface PeerAudioNodes {
 	source: MediaStreamAudioSourceNode;
 	reverbConnected: boolean;
 	muffleConnected: boolean;
-	voiceEffect: VoiceDisguiseEffect;
+	voiceEffect?: VoiceProcessingEffect;
 	voiceEffectConnected: boolean;
 	radioEcho: RadioEchoNodes;
 	radioEchoConnected: boolean;
+	starEcho?: RadioEchoNodes;
+	starEchoConnected?: boolean;
 }
 
 export interface RadioEchoNodes {
@@ -41,7 +43,12 @@ export const defaultLobbySettings: ILobbySettings = {
 	nosNeutralKillerHaunting: false,
 	nosVoicePositions: false,
 	nosSizeVoiceEffect: true,
+	nosBerserkerVoiceEffect: true,
+	nosRokurokubiVoiceEffect: true,
+	nosCitrusVoiceEffect: true,
+	nosRainbowStarEcho: true,
 	nosFixerJammingVoiceBlock: true,
+	nosFixerJammingLowpass: false,
 	tohNeutralKillerHaunting: false,
 	hearImpostorsInVents: false,
 	impostersHearImpostersInvent: false,

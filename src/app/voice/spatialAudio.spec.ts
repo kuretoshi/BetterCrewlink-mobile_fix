@@ -2,8 +2,10 @@ import { AmongUsState, GameState, Player } from '../common/AmongUsState';
 import { CameraLocation, MapType } from '../common/AmongusMap';
 import { ILobbySettings, ISettings } from '../common/ISettings';
 import { PlayerSettingsMap } from '../services/smallInterfaces';
+import type { NosPlayerData } from '../common/NosSnapshot';
 import { defaultLobbySettings } from './types';
 import { calculateVoiceAudio, VoiceAudioInput } from './spatialAudio';
+import { selectVoiceEffect, shouldApplyRainbowStarEcho } from './voiceEffectRules';
 
 function makePlayer(overrides: Partial<Player> = {}): Player {
 	return {
@@ -91,6 +93,24 @@ function makeSettings(overrides: Partial<ISettings> = {}): ISettings {
 
 function makeLobbySettings(overrides: Partial<ILobbySettings> = {}): ILobbySettings {
 	return { ...defaultLobbySettings, ...overrides };
+}
+
+function makeNosPlayer(overrides: Partial<NosPlayerData> = {}): NosPlayerData {
+	return {
+		playerId: 2,
+		name: 'NoS',
+		isKiller: false,
+		isImpostor: false,
+		isCrewmate: true,
+		isNeutral: false,
+		isImpostorlike: false,
+		speakerPositionX: 1,
+		speakerPositionY: 0,
+		colorR: 1,
+		colorG: 0,
+		colorB: 0,
+		...overrides,
+	};
 }
 
 /** `me` is always id/clientId 1 (local, alive, crew); `other` is id/clientId 2, 1 unit away. */
@@ -320,6 +340,29 @@ describe('calculateVoiceAudio', () => {
 	});
 
 	describe('mod role routing', () => {
+		it('uses Fixer lowpass in both directions only when blocking is disabled', () => {
+			const activeLobbySettings = makeLobbySettings({
+				nosFixerJammingVoiceBlock: false,
+				nosFixerJammingLowpass: true,
+			});
+			for (const side of ['me', 'other'] as const) {
+				const jammed = makePlayer({ id: side === 'me' ? 1 : 2, clientId: side === 'me' ? 1 : 2, x: side === 'me' ? 0 : 1, nosPlayer: makeNosPlayer({ isJammed: true }) });
+				const result = run({
+					state: makeState({ mod: 'NoS' }),
+					activeLobbySettings,
+					[side]: jammed,
+				});
+				expect(result.gain).toBe(1);
+				expect(result.muffle).toEqual({ type: 'lowpass', frequency: 1200, q: Math.SQRT1_2 });
+			}
+			const blocked = run({
+				state: makeState({ mod: 'NoS' }),
+				other: makePlayer({ id: 2, clientId: 2, x: 1, nosPlayer: makeNosPlayer({ isJammed: true }) }),
+				activeLobbySettings: makeLobbySettings({ nosFixerJammingVoiceBlock: true, nosFixerJammingLowpass: true }),
+			});
+			expect(blocked.gain).toBe(0);
+		});
+
 		it('allows SNR Jackal teammates to talk together in vents when enabled', () => {
 			const jackal = { role: { value: 1, name: 'Jackal' }, modifier: null, ghostRole: null };
 			const sidekick = { role: { value: 2, name: 'Sidekick' }, modifier: null, ghostRole: null };
@@ -427,5 +470,71 @@ describe('calculateVoiceAudio', () => {
 			});
 			expect(result.gain).toBe(1);
 		});
+	});
+});
+
+describe('NoS 3.2.21 voice effects', () => {
+	const me = makePlayer({ id: 1, clientId: 1, isLocal: true });
+	const state = makeState({ mod: 'NoS' });
+	const settings = makeSettings();
+	const lobby = makeLobbySettings();
+	const effectFor = (other: Player, changes: Partial<AmongUsState> = {}, options: Partial<ILobbySettings> = {}) =>
+		selectVoiceEffect({ ...state, ...changes }, settings, { ...lobby, ...options }, me, other, -1);
+
+	it('applies size pitch and formant independently with smooth squash', () => {
+		const small = effectFor(makePlayer({ nosPlayer: makeNosPlayer({ bodyRateX: 0.8, bodyRateY: 0.5 }) }));
+		expect(small?.sourceFilter?.pitch).toBeGreaterThan(1);
+		expect(small?.sourceFilter?.formant).toBeCloseTo(1.25);
+		const squash = effectFor(makePlayer({ nosPlayer: makeNosPlayer({ bodyRateX: 1, bodyRateY: 0.5 }) }));
+		expect(squash?.sourceFilter?.squash).toBeGreaterThan(0);
+		expect(effectFor(makePlayer({ nosPlayer: makeNosPlayer({ bodyRateX: 0.8, bodyRateY: 0.5 }) }), {}, { nosSizeVoiceEffect: false })).toBeNull();
+	});
+
+	it('gates Berserker overload by role and active body type', () => {
+		const other = makePlayer({
+			nosRole: { roleId: 1, roleName: 'berserker', displayName: 'Berserker', runtimeClass: 'Berserker' },
+			nosPlayer: makeNosPlayer({ bodyType: 2 }),
+		});
+		expect(effectFor(other)?.berserker).toBeTrue();
+		expect(effectFor(other, {}, { nosBerserkerVoiceEffect: false })).toBeNull();
+		expect(effectFor({ ...other, nosPlayer: makeNosPlayer({ bodyType: 1 }) })).toBeNull();
+	});
+
+	it('uses neck length for Rokurokubi pitch', () => {
+		const other = makePlayer({ nosPlayer: makeNosPlayer({ bodyType: 3, neckLength: 40, bodyRateX: 0.8 }) });
+		expect(effectFor(other)?.sourceFilter?.pitch).toBeCloseTo(2);
+		expect(effectFor(other)?.sourceFilter?.formant).toBeCloseTo(1.25);
+		expect(effectFor(other, {}, { nosRokurokubiVoiceEffect: false })).toBeNull();
+	});
+
+	it('keeps Citrus disguise in tasks and discussion only', () => {
+		const other = makePlayer({ nosPlayer: makeNosPlayer({ hat: { name: 'noshat_catudon_Citrus_Lemon' } }) });
+		expect(effectFor(other)?.direction).toBe('up');
+		expect(effectFor(other, { gameState: GameState.DISCUSSION })?.direction).toBe('up');
+		expect(effectFor(other, { gameState: GameState.LOBBY })).toBeNull();
+		expect(effectFor(other, {}, { nosCitrusVoiceEffect: false })).toBeNull();
+	});
+
+	it('enables Rainbow Star echo only for a live star in tasks or discussion', () => {
+		const other = makePlayer({
+			nosRole: { roleId: 2, roleName: 'star', displayName: 'Star', runtimeClass: 'Star', isRainbowStar: true },
+		});
+		expect(shouldApplyRainbowStarEcho(state, other, lobby)).toBeTrue();
+		expect(shouldApplyRainbowStarEcho({ ...state, gameState: GameState.DISCUSSION }, other, lobby)).toBeTrue();
+		expect(shouldApplyRainbowStarEcho(state, { ...other, isDead: true }, lobby)).toBeFalse();
+		expect(shouldApplyRainbowStarEcho(state, other, { ...lobby, nosRainbowStarEcho: false })).toBeFalse();
+	});
+
+	it('preserves camouflage and mushroom voice disguises outside NoS', () => {
+		const other = makePlayer({ id: 2, clientId: 2 });
+		const disguised = effectFor(other, { mod: 'NONE', camouflaged: true });
+		expect(disguised?.strength).toBe(settings.voiceEffectStrength);
+		expect(disguised?.sourceFilter).toBeUndefined();
+		expect(effectFor(other, { mod: 'NONE', mushroomMixupSabotaged: true })?.strength).toBe(settings.voiceEffectStrength);
+	});
+
+	it('avoids applying the task voice effect during an Airship outfit meeting', () => {
+		const other = makePlayer({ nosPlayer: makeNosPlayer({ bodyRateX: 0.8, bodyRateY: 0.8 }) });
+		expect(effectFor(other, { map: MapType.AIRSHIP, airshipMeetingByOutfit: true })).toBeNull();
 	});
 });
