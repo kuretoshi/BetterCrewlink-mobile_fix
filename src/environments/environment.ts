@@ -6,10 +6,10 @@ export const environment = {
 	production: false,
 	// Single source of truth for the app version (also reported in the gameinfo payload).
 	// Keep in sync with android/app/build.gradle's versionName when bumping.
-	appVersion: '3.11',
+	appVersion: '3.12',
 	// Desktop TanukiBCL release this build is ported from; exchanged with desktop peers as
 	// their `app-version` so version-difference notices compare like with like.
-	desktopCompatVersion: '3.2.21',
+	desktopCompatVersion: '3.2.22',
 };
 
 /*

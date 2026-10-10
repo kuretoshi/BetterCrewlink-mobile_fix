@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const MOBILE_ROOT = resolve(__dirname, '..');
 const DESKTOP_REPO = process.env.BCL_DESKTOP_REPO ?? resolve(MOBILE_ROOT, '../bettercrewlink');
-const DESKTOP_TAG = process.env.BCL_DESKTOP_TAG ?? 'v3.2.21';
+const DESKTOP_TAG = process.env.BCL_DESKTOP_TAG ?? 'v3.2.22';
 
 if (!existsSync(resolve(DESKTOP_REPO, '.git'))) {
 	console.log(
