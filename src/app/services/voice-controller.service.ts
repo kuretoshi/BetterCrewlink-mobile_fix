@@ -220,12 +220,9 @@ export class VoiceController {
 	private getEffectiveTohPlayer(player: Player, localName: string): Player {
 		const fixedName = this.tohGameStartNames[player.clientId];
 		const namedPlayer = fixedName ? { ...player, name: fixedName, appearanceName: fixedName } : player;
-		const entry = this.tohImpostors.find(
-			(value) => value.playerId === player.id && value.clientId === player.clientId
-		);
+		const entry = this.tohImpostors.find((value) => value.playerId === player.id && value.clientId === player.clientId);
 		const effectivePlayer = { ...namedPlayer, tohImpostor: entry?.isImpostor };
-		if (normalizeUsername(namedPlayer.name) !== localName)
-			return withImpostorClassification('TOH4E', effectivePlayer);
+		if (normalizeUsername(namedPlayer.name) !== localName) return withImpostorClassification('TOH4E', effectivePlayer);
 		return withImpostorClassification('TOH4E', {
 			...effectivePlayer,
 			tohRole: this.tohRoleOverride ?? undefined,
@@ -254,7 +251,8 @@ export class VoiceController {
 		}
 		const ghostRoles = settings.tohGhostRoles;
 		lobbySettings.tohGhostRoles =
-			ghostRoles && typeof ghostRoles === 'object' &&
+			ghostRoles &&
+			typeof ghostRoles === 'object' &&
 			Object.values(ghostRoles).every((enabled) => typeof enabled === 'boolean')
 				? { ...ghostRoles }
 				: undefined;
@@ -351,8 +349,7 @@ export class VoiceController {
 	private updateMaxDistance(state: AmongUsState, myPlayer: Player): void {
 		const lobbySettings = this.connectionController.lobbySettings;
 		let maxDistance = lobbySettings.maxDistance;
-		if (lobbySettings.visionHearing && !isPlayerImpostor(state.mod, myPlayer))
-			maxDistance = state.lightRadius + 0.5;
+		if (lobbySettings.visionHearing && !isPlayerImpostor(state.mod, myPlayer)) maxDistance = state.lightRadius + 0.5;
 		if (maxDistance <= 0.6) maxDistance = 1;
 		this.connectionController.audioController.setMaxDistance(maxDistance);
 	}
@@ -391,6 +388,12 @@ export class VoiceController {
 				playerState.settings = this.settingsService.getPlayerSettings(playerSettingsKey(player));
 			}
 			player.isbetter = this.mobileHostService.isKnownDesktopHost(peerId);
+			if (playerState.settings?.isMuted || playerState.settings?.volume === 0 || settings.masterVolume === 0) {
+				audioController.stopPeerDeathEcho(peerId);
+				audioController.setPeerGain(peerId, 0);
+				playerState.audible = false;
+				continue;
+			}
 
 			let endGain = audioController.applyVoiceAudio(
 				peerId,
@@ -888,15 +891,19 @@ export class VoiceController {
 		if (this.isJackalRadioPlayer(state, player)) {
 			return settings.jackalRadioEnabled === true && settings.impostorRadioOnlyMode !== true;
 		}
-		return isPlayerImpostor(state.mod, player) &&
-			(settings.impostorRadioEnabled || settings.impostorRadioOnlyMode === true);
+		return (
+			isPlayerImpostor(state.mod, player) && (settings.impostorRadioEnabled || settings.impostorRadioOnlyMode === true)
+		);
 	}
 
 	private areRadioTeammates(state: AmongUsState, first: Player, second: Player): boolean {
 		if (state.mod === 'NoS') return this.canNosRadioReach(state, first, second);
 		if (this.isJackalRadioPlayer(state, first)) return this.isJackalRadioPlayer(state, second);
-		return isPlayerImpostor(state.mod, first) && isPlayerImpostor(state.mod, second) &&
-			!this.isJackalRadioPlayer(state, second);
+		return (
+			isPlayerImpostor(state.mod, first) &&
+			isPlayerImpostor(state.mod, second) &&
+			!this.isJackalRadioPlayer(state, second)
+		);
 	}
 
 	private areRadioPartners(state: AmongUsState, first: Player, second: Player): boolean {

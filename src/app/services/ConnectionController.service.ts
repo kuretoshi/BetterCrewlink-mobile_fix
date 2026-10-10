@@ -1,3 +1,4 @@
+import { VoiceRoleSources } from '../common/VoiceRoleSource';
 import { EventEmitter as EventEmitterO } from 'events';
 import { io, Socket } from 'socket.io-client';
 import { AmongUsState, MobileData, numberStringMap, Player } from '../common/AmongUsState';
@@ -12,6 +13,7 @@ import { SettingsService } from './settings.service';
 import { GameInfo } from '../common/GameInfo';
 import { environment } from '../../environments/environment';
 import { nosCosmeticAssets } from '../lib/nosCosmeticAssets';
+import { DirectVoiceClient } from './direct-voice-client';
 
 // Ported from bettercrewlink (desktop) v3.2.1 src/renderer/voice/ConnectionController.ts.
 const ICE_DISCONNECT_TIMEOUT_MS = 12000;
@@ -64,6 +66,7 @@ export class ConnectionController implements IConnectionController {
 	public currentGameState: AmongUsState;
 	public oldGameState: AmongUsState;
 
+	private readonly voiceRoleSources = new VoiceRoleSources();
 	private clients: SocketClientMap = {};
 	private peers = new Map<string, PeerConnection>();
 	private peerConnectionIds = new Map<string, string>();
@@ -89,8 +92,19 @@ export class ConnectionController implements IConnectionController {
 	public currentHost: string | undefined;
 	public error: string | undefined;
 	public events = new EventEmitterO();
+	public readonly voiceRole = new DirectVoiceClient(() => this.events.emit('onChange'));
 	constructor(private settingsService: SettingsService) {
 		this.audioController = new AudioController(this, settingsService);
+		this.audioController.events.on('voiceRoleSample', (rms: number, active: boolean) => {
+			this.voiceRole.sample(
+				rms,
+				active,
+				this.currentGameState,
+				this.localPLayer,
+				this.socketIOClient?.connected === true,
+				this.lastPing
+			);
+		});
 	}
 
 	/**
@@ -130,7 +144,7 @@ export class ConnectionController implements IConnectionController {
 		for (const socketId of Object.keys(this.clients)) {
 			map[this.clients[socketId].clientId] = socketId;
 		}
-		return map;
+		return this.voiceRoleSources.apply(map, this.clients);
 	}
 
 	getPlayer(clientId: number): Player {
@@ -139,6 +153,8 @@ export class ConnectionController implements IConnectionController {
 	}
 
 	connect(voiceserver: string, gamecode: string, username: string, deviceID: string, natFix: boolean) {
+		this.voiceRoleSources.clear();
+		this.voiceRole.reset();
 		console.log('Connect called??');
 		this.destroyAllPeers();
 		this.clients = {};
@@ -160,6 +176,8 @@ export class ConnectionController implements IConnectionController {
 	}
 
 	disconnect(disconnectAudio: boolean) {
+		this.voiceRoleSources.clear();
+		this.voiceRole.reset();
 		if (this.connectionState === ConnectionState.disconnected) {
 			return;
 		}
@@ -296,12 +314,12 @@ export class ConnectionController implements IConnectionController {
 		connectionId: string | undefined = initiator ? crypto.randomUUID() : undefined
 	): PeerConnection {
 		this.destroyPeer(socketId);
-		// A player refreshing gets a new socket ID. Retire the old socket's retries too.
+		// Retire old refresh sockets, preserving a paired phone across PC reconnects.
 		const clients = { ...this.clients };
-		for (const [otherSocketId, otherClient] of Object.entries(this.clients)) {
-			if (otherSocketId !== socketId && otherClient.clientId === client.clientId) {
-				delete clients[otherSocketId];
-			}
+		const preferred = this.voiceRoleSources.apply({}, clients)[client.clientId];
+		for (const [oldPeer, oldClient] of Object.entries(clients)) {
+			if (oldPeer !== socketId && oldClient.clientId === client.clientId && oldPeer !== preferred)
+				delete clients[oldPeer];
 		}
 		this.setClients({ ...clients, [socketId]: client });
 
@@ -454,6 +472,10 @@ export class ConnectionController implements IConnectionController {
 	}
 
 	private handleSignal({ data, from, client }: { data: Record<string, unknown>; from: string; client?: Client }): void {
+		if (data.type === 'nos-voice-source') {
+			if (this.voiceRoleSources.receive(client, data, this.gamecode, this.clients)) this.updateViews();
+			return;
+		}
 		if (Object.prototype.hasOwnProperty.call(data, 'mobileHostInfo')) {
 			const mobiledata = data as unknown as { mobileHostInfo: { isHostingMobile: boolean; isGameHost: boolean } };
 			this.events.emit('mobileHostBeacon', from, mobiledata.mobileHostInfo);
@@ -469,6 +491,9 @@ export class ConnectionController implements IConnectionController {
 			this.lastPing = Date.now();
 			this.updateConnectingStage(ConnectingStage.waitingForHostToEnable);
 			const mobiledata = data as unknown as MobileData;
+			if (typeof mobiledata.nosVoiceFrameTime === 'number' && Number.isFinite(mobiledata.nosVoiceFrameTime)) {
+				mobiledata.gameState.nosVoiceFrameTime = mobiledata.nosVoiceFrameTime;
+			}
 			nosCosmeticAssets.receive(from, mobiledata.gameState.lobbyCode, data.nosCosmeticAssets);
 			const missingIds = nosCosmeticAssets.missingRequest(
 				mobiledata.gameState.players.flatMap((player) => Object.values(player.nosCosmetics ?? {}))

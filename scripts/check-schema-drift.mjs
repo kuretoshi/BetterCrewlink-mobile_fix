@@ -47,11 +47,13 @@ function extractBlock(source, header) {
 	let depth = 0;
 	let i = openBraceIndex;
 	for (; i < source.length; i++) {
-		if (source[i] === '{') depth++;
-		else if (source[i] === '}') {
-			depth--;
-			if (depth === 0) break;
+		if (source[i] === '{') {
+			depth++;
+			continue;
 		}
+		if (source[i] !== '}') continue;
+		depth--;
+		if (depth === 0) break;
 	}
 	return source.slice(openBraceIndex + 1, i);
 }
@@ -151,7 +153,8 @@ function checkObjectDeepEqual(label, desktopBlockText, mobileBlockText) {
 		'AmongUsState',
 		mergedInterfaceFields(desktopSrc, 'AmongUsState'),
 		mergedInterfaceFields(mobileSrc, 'AmongUsState'),
-		['mushroomMixupSabotaged']
+		// Pending NoS addon support, newer than the pinned desktop baseline.
+		['mushroomMixupSabotaged', 'nosMegaphones', 'nosPortableMegaphones', 'nosBibiriEchoes', 'nosVoiceFrameTime']
 	);
 
 	// --- Player (mobile may add its own `isbetter` flag; nothing else) ---

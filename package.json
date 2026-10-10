@@ -1,6 +1,6 @@
 {
   "name": "better-crewlink-mobile",
-  "version": "3.10.0",
+  "version": "3.11.0",
   "author": "OhMyGuus",
   "homepage": "https://bettercrewlink.app",
   "scripts": {
@@ -11,7 +11,8 @@
     "dev": "ionic serve --external --ssl --configuration=development",
     "build": "ionic capacitor build android --prod",
     "lint": "ng lint",
-    "check:drift": "node scripts/check-schema-drift.mjs"
+    "check:drift": "node scripts/check-schema-drift.mjs",
+    "test:nos-direct": "node scripts/test-direct-nos-voice.mjs"
   },
   "private": true,
   "engines": {

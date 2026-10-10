@@ -4,6 +4,7 @@ import { AmongUsMaps, CameraLocation } from '../common/AmongusMap';
 import { poseCollide } from '../common/ColliderMap';
 import { isSnrJackal, isSnrNeutralKiller, isSnrSidekick } from '../common/SnrRole';
 import { canTohHearGhosts } from '../common/TohGhostRoles';
+import { chargingMegaphone, megaphoneGain, portableMegaphoneExtraRange } from './megaphoneVoice';
 import { withImpostorClassification } from '../common/Impostor';
 
 export interface MuffleSetting {
@@ -64,7 +65,7 @@ function cameraPanPosition(state: AmongUsState, other: Player): [number, number]
 }
 
 export function calculateVoiceAudio(input: VoiceAudioInput): VoiceAudioResult {
-	const { state, settings, activeLobbySettings, maxDistance, impostorRadioClientId } = input;
+	const { state, settings, activeLobbySettings, impostorRadioClientId } = input;
 	const useNosPositions = state.mod === 'NoS' && activeLobbySettings.nosVoicePositions === true;
 	const localPlayer = withImpostorClassification(state.mod, input.me);
 	const remotePlayer = withImpostorClassification(state.mod, input.other);
@@ -75,10 +76,12 @@ export function calculateVoiceAudio(input: VoiceAudioInput): VoiceAudioResult {
 			? { ...remotePlayer, x: remotePlayer.nosPlayer.speakerPositionX, y: remotePlayer.nosPlayer.speakerPositionY }
 			: remotePlayer;
 
+	const extraRange = me.isDead ? 0 : portableMegaphoneExtraRange(state, other);
+	const maxDistance = input.maxDistance + extraRange;
 	const result: VoiceAudioResult = {
 		gain: 0,
 		panPosition: null,
-		panMaxDistance: null,
+		panMaxDistance: extraRange > 0 ? maxDistance : null,
 		muffle: null,
 		reverb: null,
 		radioEcho: false,
@@ -95,8 +98,23 @@ export function calculateVoiceAudio(input: VoiceAudioInput): VoiceAudioResult {
 	}
 
 	let panPos: [number, number] = [other.x - me.x, other.y - me.y];
-	// eslint-disable-next-line no-useless-assignment -- keep desktop's code as-is; every switch branch below overwrites this
-	let endGain = 0;
+	const megaphone = chargingMegaphone(state, other);
+	if (megaphone && !me.isDead && !activeLobbySettings.deadOnly) {
+		const commsBlocked = activeLobbySettings.commsSabotage && state.comsSabotaged && !me.isImpostor;
+		const jammedLowpass =
+			activeLobbySettings.nosFixerJammingLowpass === true &&
+			activeLobbySettings.nosFixerJammingVoiceBlock === false &&
+			(me.nosPlayer?.isJammed === true || other.nosPlayer?.isJammed === true);
+		return {
+			gain: commsBlocked ? 0 : megaphoneGain(megaphone.range, other.x - me.x, other.y - me.y),
+			panPosition: settings.enableSpatialAudio ? panPos : [0, 0],
+			panMaxDistance: megaphone.range,
+			muffle: jammedLowpass ? { type: 'lowpass', frequency: 1200, q: Math.SQRT1_2 } : false,
+			reverb: false,
+			radioEcho: false,
+		};
+	}
+	let endGain: number;
 	let wallCheckEnabled = false;
 	let skipDistanceCheck = false;
 	let muffleEnabled = false;

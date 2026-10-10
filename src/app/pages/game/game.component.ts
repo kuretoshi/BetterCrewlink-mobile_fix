@@ -12,6 +12,14 @@ import { ModsType } from '../../common/Mods';
 	standalone: false,
 })
 export class GameComponent implements OnInit, OnDestroy {
+	voiceRoleCode = '';
+	connectVoiceRole(): void {
+		this.gameHelper.cManager.voiceRole.enable(this.voiceRoleCode);
+		this.voiceRoleCode = '';
+	}
+	disconnectVoiceRole(): void {
+		this.gameHelper.cManager.voiceRole.release();
+	}
 	private onChangeListener = () => this.changeDetectorRef.detectChanges();
 
 	constructor(

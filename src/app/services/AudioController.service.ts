@@ -1,5 +1,5 @@
 import { EventEmitter as EventEmitterO } from 'events';
-import { AmongUsState, Player } from '../common/AmongUsState';
+import { AmongUsState, GameState, Player } from '../common/AmongUsState';
 import { ILobbySettings, ISettings } from '../common/ISettings';
 import { IDeviceInfo } from './smallInterfaces';
 import { ConnectingStage, ConnectionController } from './ConnectionController.service';
@@ -16,6 +16,8 @@ import {
 	updateSourceFilterEffect,
 	disconnectProcessingEffect,
 } from '../voice/sourceFilterEffect';
+
+import { createBibiriEcho, updateBibiriEcho, stopBibiriEcho, disconnectBibiriEcho } from '../voice/bibiriEcho';
 
 const REVERB_URL = 'assets/sounds/reverb.ogx';
 
@@ -52,6 +54,8 @@ export default class AudioController {
 	// Input chain (desktop's createInputChain): raw mic stream -> optional microphoneGain ->
 	// optional processed MediaStreamDestination. `stream` above is the last stage's output.
 	private inputStream?: MediaStream;
+	private voiceRoleTimer?: ReturnType<typeof setInterval>;
+	private voiceRoleAnalyser?: AnalyserNode;
 	private inputSource?: MediaStreamAudioSourceNode;
 	private microphoneGain?: GainNode;
 	private inputDestination?: MediaStreamAudioDestinationNode;
@@ -87,6 +91,28 @@ export default class AudioController {
 		const context = this.context;
 		const inputSource = context.createMediaStreamSource(inputStream);
 		this.inputSource = inputSource;
+		const analyser = context.createAnalyser();
+		analyser.fftSize = 2048;
+		analyser.smoothingTimeConstant = 0;
+		inputSource.connect(analyser);
+		this.voiceRoleAnalyser = analyser;
+		const samples = new Float32Array(analyser.fftSize);
+		this.voiceRoleTimer = setInterval(() => {
+			analyser.getFloatTimeDomainData(samples);
+			let sum = 0;
+			for (const sample of samples) sum += sample * sample;
+			const track = this.inputStream?.getAudioTracks()[0];
+			const active =
+				!!track &&
+				track.enabled &&
+				track.readyState === 'live' &&
+				!track.muted &&
+				context.state === 'running' &&
+				!this.microphoneMuted &&
+				!this.audioMuted &&
+				!this.jammed;
+			this.events.emit('voiceRoleSample', Math.min(1, Math.sqrt(sum / samples.length)), active);
+		}, 50);
 
 		// Desktop's createInputChain: only wire a manual gain stage when a mic setting asks for
 		// one and AGC isn't already doing it; the processed stream becomes what peers receive.
@@ -297,8 +323,10 @@ export default class AudioController {
 		source.connect(pan);
 		pan.connect(gain);
 		gain.connect(masterGain);
+		const bibiriEcho = createBibiriEcho(context, gain, masterGain);
 
 		this.peers.set(peerId, {
+			bibiriEcho,
 			stream,
 			dummyAudioElement,
 			gain,
@@ -328,6 +356,7 @@ export default class AudioController {
 		if (peer.voiceEffect) disconnectProcessingEffect(peer.voiceEffect);
 		disconnectRadioEcho(peer.radioEcho);
 		if (peer.starEcho) disconnectRadioEcho(peer.starEcho);
+		if (peer.bibiriEcho) disconnectBibiriEcho(peer.bibiriEcho);
 	}
 
 	private teardownAudioElement(element: HTMLAudioElement): void {
@@ -344,6 +373,7 @@ export default class AudioController {
 	silenceAllPeers(): void {
 		for (const peer of this.peers.values()) {
 			peer.gain.gain.value = 0;
+			if (peer.bibiriEcho) stopBibiriEcho(peer.bibiriEcho);
 		}
 	}
 
@@ -351,6 +381,7 @@ export default class AudioController {
 		for (const [peerId, peer] of this.peers) {
 			if (!peerIds.includes(peerId)) {
 				peer.gain.gain.value = 0;
+				if (peer.bibiriEcho) stopBibiriEcho(peer.bibiriEcho);
 			}
 		}
 	}
@@ -358,6 +389,10 @@ export default class AudioController {
 	setPeerGain(peerId: string, gain: number): void {
 		const peer = this.peers.get(peerId);
 		if (peer) peer.gain.gain.value = gain;
+	}
+	stopPeerDeathEcho(peerId: string): void {
+		const echo = this.peers.get(peerId)?.bibiriEcho;
+		if (echo) stopBibiriEcho(echo);
 	}
 
 	/**
@@ -385,6 +420,16 @@ export default class AudioController {
 			return 0;
 		}
 
+		if (peer.bibiriEcho)
+			updateBibiriEcho(
+				peer.bibiriEcho,
+				state.mod === 'NoS' &&
+					!other.disconnected &&
+					(state.gameState === GameState.TASKS || state.gameState === GameState.DISCUSSION),
+				other.isDead,
+				state.nosBibiriEchoes?.find((e) => e.playerId === other.id)?.unixMs,
+				state.nosVoiceFrameTime
+			);
 		const { pan, muffle } = peer;
 		const result = calculateVoiceAudio({
 			state,
@@ -399,9 +444,7 @@ export default class AudioController {
 			nosImpostorRadioHearable,
 		});
 
-		if (result.panMaxDistance !== null) {
-			pan.maxDistance = result.panMaxDistance;
-		}
+		pan.maxDistance = result.panMaxDistance ?? this.maxDistance;
 
 		if (result.muffle) {
 			muffle.type = result.muffle.type;
@@ -459,6 +502,10 @@ export default class AudioController {
 	}
 
 	disconnect() {
+		if (this.voiceRoleTimer) clearInterval(this.voiceRoleTimer);
+		this.voiceRoleTimer = undefined;
+		this.voiceRoleAnalyser?.disconnect();
+		this.voiceRoleAnalyser = undefined;
 		this.audioListener?.destroy();
 		this.audioListener = undefined;
 
@@ -559,6 +606,7 @@ function rebuildEffectChain(
 			/* not connected */
 		}
 	}
+	if (peer.bibiriEcho) peer.gain.connect(peer.bibiriEcho.input);
 	peer.voiceEffect?.output.disconnect();
 	try {
 		peer.radioEcho.output.disconnect();

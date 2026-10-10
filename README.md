@@ -26,6 +26,14 @@
 
 ## ダウンロード
 
+### NoSアドオン直接接続（ベータ機能）
+
+役職用の声量は本人のWeb/APKから本人のNoSアドオンへWSSで直接送ります。本人のPC版ベタクルは不要です。通常の通話とMobile Hostによるゲーム情報配信、メガホン・レーザーの音声範囲と加工・死亡時の残響は既存の仕組みを使います。
+
+NoSのロビーで役職設定内の「Web・モバイル直接接続を開始／停止」を押し、発行した接続先をWeb/APKのゲーム画面へ入力します。Tanuki BCL Roles 0.8.0 Build30以降が必要です。初回は本人のNoSが作成した公開証明書 `direct-voice.cer` の手動インストール・信頼設定が必要です。別端末は同じLANへ接続します。Androidの配布APKもユーザーが手動で信頼した証明書に対応します。TLS検証は有効です。iPhone Safari・Android実機の証明書・LAN権限・背景動作・実ゲームでの確認はまだです。解除は役職通信だけを停止します。
+
+[接続手順と制約](docs/nos-direct-voice.md)
+
 配布版を使う場合は、このフォークの Releases から最新版をダウンロードしてください。
 
 [Releases](https://github.com/kuretoshi/BetterCrewlink-mobile_fix/releases)

@@ -1,4 +1,5 @@
 import { CameraLocation, MapType } from './AmongusMap';
+import type { MegaphoneState } from './MegaphoneState';
 import type { ILobbySettings } from './ISettings';
 import { ModsType } from './Mods';
 import type { SnrLiveRole } from './SnrRole';
@@ -121,6 +122,11 @@ export interface AmongUsState {
 	nosLocalMicPosition?: { x: number; y: number };
 	nosRadios?: NosRadioData[];
 	nosAddonIds?: string[];
+	nosMegaphones?: MegaphoneState[];
+	nosPortableMegaphones?: { playerId: number; extraRange: number }[];
+	nosBibiriEchoes?: { playerId: number; unixMs: number }[];
+	/** Host clock for voice events; phone and PC clocks need not agree. */
+	nosVoiceFrameTime?: number;
 	tohRoleCatalog?: TohRoleDefinition[];
 	debug?: Record<string, unknown>;
 }
@@ -153,6 +159,7 @@ export interface Player {
 
 /** Mobile-only: the payload a desktop Mobile Host broadcasts to the `<lobbyCode>_mobile` room. */
 export interface MobileData {
+	nosVoiceFrameTime?: number;
 	gameState: AmongUsState;
 	lobbySettings: ILobbySettings;
 	/** At most one bounded, already processed PNG per frame; normal frames only carry references. */

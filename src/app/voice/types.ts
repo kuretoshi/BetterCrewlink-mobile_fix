@@ -3,6 +3,7 @@ import type { VoiceProcessingEffect } from './sourceFilterEffect';
 
 // --- verbatim from bettercrewlink (desktop) v3.2.1 src/renderer/voice/types.ts ---
 export interface PeerAudioNodes {
+	bibiriEcho?: ReturnType<typeof import('./bibiriEcho').createBibiriEcho>;
 	stream: MediaStream;
 	dummyAudioElement: HTMLAudioElement;
 	gain: GainNode;
