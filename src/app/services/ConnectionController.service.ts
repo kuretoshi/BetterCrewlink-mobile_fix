@@ -13,7 +13,7 @@ import { SettingsService } from './settings.service';
 import { GameInfo } from '../common/GameInfo';
 import { environment } from '../../environments/environment';
 import { nosCosmeticAssets } from '../lib/nosCosmeticAssets';
-import { DirectVoiceClient } from './direct-voice-client';
+import { HostVoiceClient } from './host-voice-client';
 
 // Ported from bettercrewlink (desktop) v3.2.1 src/renderer/voice/ConnectionController.ts.
 const ICE_DISCONNECT_TIMEOUT_MS = 12000;
@@ -92,7 +92,12 @@ export class ConnectionController implements IConnectionController {
 	public currentHost: string | undefined;
 	public error: string | undefined;
 	public events = new EventEmitterO();
-	public readonly voiceRole = new DirectVoiceClient(() => this.events.emit('onChange'));
+	public readonly voiceRole = new HostVoiceClient(
+		(data) => {
+			if (this.currentHost) this.socketIOClient?.emit('signal', { to: this.currentHost, data });
+		},
+		() => this.events.emit('onChange')
+	);
 	constructor(private settingsService: SettingsService) {
 		this.audioController = new AudioController(this, settingsService);
 		this.audioController.events.on('voiceRoleSample', (rms: number, active: boolean) => {
@@ -472,6 +477,10 @@ export class ConnectionController implements IConnectionController {
 	}
 
 	private handleSignal({ data, from, client }: { data: Record<string, unknown>; from: string; client?: Client }): void {
+		if (data.type === 'nos-host-voice-ack' && from === this.currentHost) {
+			this.voiceRole.acknowledge();
+			return;
+		}
 		if (data.type === 'nos-voice-source') {
 			if (this.voiceRoleSources.receive(client, data, this.gamecode, this.clients)) this.updateViews();
 			return;

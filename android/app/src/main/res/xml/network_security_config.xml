@@ -1,10 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- Direct NoS connections require an explicitly user-installed CA. TLS validation remains enabled. -->
+    <!-- Host relay uses the existing public TLS service; no participant CA installation is required. -->
     <base-config>
         <trust-anchors>
             <certificates src="system" />
-            <certificates src="user" />
         </trust-anchors>
     </base-config>
 </network-security-config>

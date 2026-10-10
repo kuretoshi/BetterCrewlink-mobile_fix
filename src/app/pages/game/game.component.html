@@ -45,26 +45,10 @@
 					<div class="connectedView">
 						@if (getMod() === 'NoS') {
 							<div class="statusNotice" role="status">
-								<p>NoSアドオンへマイクを直接接続（ベータ）</p>
-								<p>PC版ベタクルは不要です。別端末は同じLANで接続し、NoSの証明書を信頼設定してください。</p>
-								@if (gameHelper.cManager.voiceRole.code) {
-									<p>{{ gameHelper.cManager.voiceRole.status }}</p>
-									<p>マイク音量レベル：{{ gameHelper.cManager.voiceRole.level }}</p>
-									<ion-button size="small" (click)="disconnectVoiceRole()">役職への直接接続を解除</ion-button>
-								} @else {
-									<ion-input
-										label="本人のNoSで発行した接続先"
-										labelPlacement="stacked"
-										maxlength="256"
-										autocomplete="off"
-										[(ngModel)]="voiceRoleCode"
-										placeholder="wss://接続先:57742/voice#接続キー"
-									></ion-input>
-									<ion-button size="small" (click)="connectVoiceRole()">このマイクを役職に使う</ion-button>
-									@if (gameHelper.cManager.voiceRole.status) {
-										<p>{{ gameHelper.cManager.voiceRole.status }}</p>
-									}
-								}
+								<p>NoS役職のマイク連携（ホスト中継・ベータ）</p>
+								<p>通常の参加後に自動接続します。ホスト側に対応版ベタクルとアドオンが必要です。</p>
+								<p>{{ gameHelper.cManager.voiceRole.status }}</p>
+								<p>マイク音量レベル：{{ gameHelper.cManager.voiceRole.level }}</p>
 							</div>
 						}
 						<div class="localPlayerRow">
