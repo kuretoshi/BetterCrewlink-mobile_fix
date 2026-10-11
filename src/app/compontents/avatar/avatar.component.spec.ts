@@ -1,7 +1,9 @@
-import { ChangeDetectorRef } from '@angular/core';
+import { ChangeDetectorRef, NO_ERRORS_SCHEMA } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
+import { FormsModule } from '@angular/forms';
 import { BehaviorSubject } from 'rxjs';
 import { AvatarComponent } from './avatar.component';
-import { CosmeticRender, CosmeticType } from '../../services/cosmetics.service';
+import { CosmeticRender, CosmeticsService, CosmeticType } from '../../services/cosmetics.service';
 import { SettingsService } from '../../services/settings.service';
 import { Player } from '../../common/AmongUsState';
 import { nosCosmeticAssets } from '../../lib/nosCosmeticAssets';
@@ -58,6 +60,44 @@ function makeComponent(player: Player = makePlayer()) {
 }
 
 describe('AvatarComponent', () => {
+	it('aligns host NoS cosmetic PNGs with their body mask at mobile avatar sizes', () => {
+		const id = 'b'.repeat(64);
+		const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aT1sAAAAASUVORK5CYII=';
+		nosCosmeticAssets.receive('geometry-host', 'TEST', { [id]: png });
+		const cosmetics = {
+			version$: new BehaviorSubject(0),
+			initializeHats: jasmine.createSpy('initializeHats'),
+			getCosmeticRender: jasmine.createSpy('getCosmeticRender'),
+		};
+		TestBed.configureTestingModule({
+			declarations: [AvatarComponent],
+			imports: [FormsModule],
+			providers: [
+				{ provide: SettingsService, useValue: {} },
+				{ provide: CosmeticsService, useValue: cosmetics },
+			],
+			schemas: [NO_ERRORS_SCHEMA],
+		});
+		const fixture = TestBed.createComponent(AvatarComponent);
+		fixture.componentInstance.player = makePlayer({ nosCosmetics: { hat: `nos-web://${id}`, bodyMask: `nos-web://${id}` } });
+		fixture.componentInstance.mod = 'NoS';
+		fixture.nativeElement.style.display = 'block';
+		fixture.detectChanges();
+		const mask = fixture.nativeElement.querySelector('.nos-body-mask') as HTMLElement;
+		const hat = fixture.nativeElement.querySelector('img.cosmetic') as HTMLImageElement;
+		// Inline onload normally reveals it; make geometry measurable before image decoding completes.
+		hat.style.display = 'block';
+		for (const size of [70, 88, 100]) {
+			fixture.nativeElement.style.width = `${size}px`;
+			const maskY = Number.parseFloat(getComputedStyle(mask).maskPosition.split(' ')[1]);
+			const maskTop = mask.getBoundingClientRect().top + maskY;
+			const hatTop = hat.getBoundingClientRect().top;
+			expect(Math.abs(maskTop - hatTop)).withContext(`${size}px avatar`).toBeLessThan(0.1);
+		}
+		fixture.destroy();
+		nosCosmeticAssets.clear();
+	});
+
 	it('renders received NoS layers and mask, then removes them on death or unequip', () => {
 		const id = 'a'.repeat(64);
 		const png =
@@ -71,7 +111,8 @@ describe('AvatarComponent', () => {
 		expect(component.getHat().src).toBe(png);
 		expect(component.getHatBack().zIndex).toBe(1);
 		expect(component.getSkin().width).toBe('140%');
-		expect(component.getVisor().top).toBe('-52%');
+		expect(component.getVisor().top).toBe('-30%');
+		expect(component.getVisor().left).toBe('-24px');
 		expect(component.getBodyMask()).toBe(`url("${png}")`);
 		expect(cosmetics.getCosmeticRender).not.toHaveBeenCalled();
 		component.isDead = true;
@@ -168,6 +209,7 @@ describe('AvatarComponent', () => {
 				})
 			);
 			component.mod = 'NoS';
+			expect(component.getNosDisplayColor()).toBe('#132ed1');
 			expect(component.getBodyImage()).toBe('assets/avatar/players/1-alive.png');
 			component.getHat();
 			expect(cosmetics.getCosmeticRender).toHaveBeenCalledWith(1, CosmeticType.hat, 'hat_pizza', 'NoS');
@@ -228,7 +270,25 @@ describe('AvatarComponent', () => {
 			const { component } = makeComponent(makePlayer({ colorId: 0, appearanceColorId: 3, nosLobbyColor: '#123456' }));
 			component.mod = 'NoS';
 			component.isLobby = true;
+			expect(component.getNosDisplayColor()).toBe('#123456');
 			expect(component.getBodyImage()).toBe('assets/avatar/players/3-alive.png');
+		});
+
+		it('uses a custom round RGB instead of a stale NoS lobby colour', () => {
+			const { component } = makeComponent(
+				makePlayer({
+					nosLobbyColor: '#123456',
+					nosPlayer: {
+						playerId: 1, name: 'NoS', isKiller: false, isImpostor: false, isCrewmate: true,
+						isNeutral: false, isImpostorlike: false, speakerPositionX: 0, speakerPositionY: 0,
+						colorR: 0x65 / 255, colorG: 0x43 / 255, colorB: 0xd2 / 255,
+					},
+				})
+			);
+			component.mod = 'NoS';
+			expect(component.getNosDisplayColor()).toBe('#6543d2');
+			component.isLobby = true;
+			expect(component.getNosDisplayColor()).toBe('#123456');
 		});
 
 		it('keeps a removed NoS lobby hat removed instead of restoring the old game ID', () => {

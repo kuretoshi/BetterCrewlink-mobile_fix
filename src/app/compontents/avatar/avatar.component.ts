@@ -7,8 +7,9 @@ import { SettingsService } from '../../services/settings.service';
 import { CosmeticRender, CosmeticsService, CosmeticType } from '../../services/cosmetics.service';
 import { playerSettingsKey } from '../../services/voice-controller.service';
 import { MOBILE_PLAYERCOLORS } from '../../common/playerColors';
-import { findNosColorIndex, findPaletteColorIndex } from '../../common/NosSnapshot';
+import { findNosColorIndex, findPaletteColorIndex, nosColorHex } from '../../common/NosSnapshot';
 import { nosCosmeticAssets } from '../../lib/nosCosmeticAssets';
+import { getNosAvatar } from '../../lib/nosAvatar';
 
 @Component({
 	selector: 'app-avatar',
@@ -32,6 +33,9 @@ export class AvatarComponent implements OnDestroy {
 	readonly MAXVOLUME = 500;
 	private readonly versionSubscription: Subscription;
 	private readonly nosSubscription: Subscription;
+	private requestedBodyKey?: string;
+	private coloredBody?: { key: string; url: string };
+	private destroyed = false;
 
 	constructor(
 		private settingsService: SettingsService,
@@ -46,6 +50,7 @@ export class AvatarComponent implements OnDestroy {
 	}
 
 	ngOnDestroy(): void {
+		this.destroyed = true;
 		this.versionSubscription.unsubscribe();
 		this.nosSubscription.unsubscribe();
 	}
@@ -62,13 +67,37 @@ export class AvatarComponent implements OnDestroy {
 	}
 
 	/**
-	 * Body sprite, with a fallback for out-of-range colors so the avatar never renders broken.
-	 * Desktop generates these from the game's colour table; mobile bundles pre-rendered ones.
+	 * NoS colours are rendered from the desktop mask; other colours use bundled sprites.
+	 * Keep a bundled fallback while the custom sprite loads or if its template is unavailable.
 	 */
 	getBodyImage(): string {
+		const nosColor = this.getNosDisplayColor();
+		if (nosColor) {
+			const key = `${!this.isDead}:${nosColor.toLowerCase()}`;
+			if (this.coloredBody?.key === key) return this.coloredBody.url;
+			if (this.requestedBodyKey !== key) {
+				this.requestedBodyKey = key;
+				void getNosAvatar(!this.isDead, nosColor)
+					.then((url) => {
+						if (this.destroyed || this.requestedBodyKey !== key) return;
+						this.coloredBody = { key, url };
+						this.changeDetectorRef.markForCheck();
+					})
+					.catch(() => {
+						// Keep the bundled sprite if a template or canvas cannot load.
+					});
+			}
+		}
 		const colorId = this.getDisplayColorId();
 		const alive = colorId >= 0 && colorId <= 17 ? colorId : 0;
 		return `assets/avatar/players/${alive}-${this.isDead ? 'dead' : 'alive'}.png`;
+	}
+
+	/** Use the host's published RGB without reducing custom NoS colours to 18 bundled IDs. */
+	getNosDisplayColor(): string | undefined {
+		if (this.mod !== 'NoS') return undefined;
+		const hex = this.isLobby ? this.player?.nosLobbyColor : nosColorHex(this.player?.nosPlayer) ?? this.player?.nosLobbyColor;
+		return hex && /^#[0-9a-f]{6}$/i.test(hex) ? hex : undefined;
 	}
 
 	/** NoS lobby colour wins before round PlayerData; in-game RGB wins during a round. */
@@ -156,8 +185,9 @@ export class AvatarComponent implements OnDestroy {
 			if (received)
 				return {
 					src: received,
-					top: '-52%',
-					left: '-18px',
+					// Desktop adds the body's 22% top and -7px left offsets to NoS PNG metadata.
+					top: '-30%',
+					left: '-24px',
 					width: '140%',
 					zIndex: type === CosmeticType.hatBack ? 1 : type === CosmeticType.hat ? 4 : 3,
 				};

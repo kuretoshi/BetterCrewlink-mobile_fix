@@ -71,10 +71,12 @@
 	inset: 0;
 	z-index: 2;
 	mask-size: 140% auto;
-	mask-position: -18px -52cqw;
+	// The content-box container unit excludes the two 2px borders. Match the cosmetic's
+	// -30% position against the border-box by adding 30% of those 4px back to the offset.
+	mask-position: -24px calc(-30cqw - 1.2px);
 	mask-repeat: no-repeat;
 	-webkit-mask-size: 140% auto;
-	-webkit-mask-position: -18px -52cqw;
+	-webkit-mask-position: -24px calc(-30cqw - 1.2px);
 	-webkit-mask-repeat: no-repeat;
 }
 
