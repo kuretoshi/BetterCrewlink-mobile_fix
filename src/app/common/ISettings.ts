@@ -75,6 +75,8 @@ export interface ISettings {
 	microphoneGainEnabled: boolean;
 	micSensitivity: number;
 	micSensitivityEnabled: boolean;
+	/** Multiplier for NoS role microphone measurements; does not change call volume. */
+	nosRoleMicrophoneSensitivity?: number;
 	/** Strength of the Mushroom Mixup/Camouflage voice disguise (0 disables it). */
 	voiceEffectStrength: number;
 }

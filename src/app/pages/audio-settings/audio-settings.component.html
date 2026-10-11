@@ -138,6 +138,14 @@
 			</ion-item>
 			<ion-item>
 				<ion-col size="7" class="settingLabelCol">
+					<ion-label>NoS役職のマイク感度：{{ getSettings().nosRoleMicrophoneSensitivity ?? 100 }}%<p>ビビリ・レーザーなどの反応が弱い時に上げます。通話音量は変わりません。</p></ion-label>
+				</ion-col>
+				<ion-col size="5" class="settingInputCol">
+					<ion-range [(ngModel)]="getSettings().nosRoleMicrophoneSensitivity" (ionChange)="onSettingsChange()" min="25" max="1000" step="25"></ion-range>
+				</ion-col>
+			</ion-item>
+			<ion-item>
+				<ion-col size="7" class="settingLabelCol">
 					<ion-label>マスター音量</ion-label>
 				</ion-col>
 				<ion-col size="5" class="settingInputCol">

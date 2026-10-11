@@ -7,6 +7,7 @@ import { SettingsService } from './settings.service';
 import { calculateVoiceAudio } from '../voice/spatialAudio';
 import { PeerAudioNodes, RadioEchoNodes } from '../voice/types';
 import VAD from './vad';
+import { voiceRoleLevel } from './voice-role-level';
 import { selectVoiceEffect, shouldApplyRainbowStarEcho, type VoiceEffectSetting } from '../voice/voiceEffectRules';
 import { createVoiceDisguiseEffect, updateVoiceDisguiseEffect } from './voiceEffect';
 import { createBerserkerEffect } from '../voice/berserkerEffect';
@@ -111,7 +112,8 @@ export default class AudioController {
 				!this.microphoneMuted &&
 				!this.audioMuted &&
 				!this.jammed;
-			this.events.emit('voiceRoleSample', Math.min(1, Math.sqrt(sum / samples.length)), active);
+			const rms = Math.min(1, Math.sqrt(sum / samples.length));
+			this.events.emit('voiceRoleSample', voiceRoleLevel(rms, this.settingsService.get().nosRoleMicrophoneSensitivity), active);
 		}, 50);
 
 		// Desktop's createInputChain: only wire a manual gain stage when a mic setting asks for
