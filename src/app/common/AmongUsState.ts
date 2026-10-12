@@ -7,10 +7,9 @@ import type { NosPlayerData, NosRadioData } from './NosSnapshot';
 import type { NosRole } from './NosRole';
 import type { TohRole, TohRoleDefinition } from './TohRole';
 
-// --- verbatim from bettercrewlink (desktop) v3.2.1 src/common/AmongUsState.ts,
-// with one documented mobile-only addition on `Player` (`isbetter`, set locally when
-// a peer is a known BetterCrewLink desktop Mobile Host - see ConnectionController).
-// See scripts/check-schema-drift.mjs for the field-coverage check against desktop.
+// Desktop-compatible fields, plus one mobile-only Player field (`isbetter`, set
+// when a peer is a known desktop Mobile Host). The drift check compares fields
+// against the pinned desktop release.
 
 export interface AmongUsState {
 	gameState: GameState;
@@ -144,6 +143,9 @@ export interface Player {
 	nosLobbyColor?: string;
 	roleName?: string;
 	snrRole?: SnrLiveRole;
+	/** True only while SNR's pushed-player animation is alive. */
+	snrPushedFalling?: boolean;
+	snrPushOrigin?: { x: number; y: number };
 	snrHat2Id?: string;
 	snrVisor2Id?: string;
 	nosPlayer?: NosPlayerData;

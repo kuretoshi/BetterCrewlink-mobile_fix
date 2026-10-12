@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const MOBILE_ROOT = resolve(__dirname, '..');
 const DESKTOP_REPO = process.env.BCL_DESKTOP_REPO ?? resolve(MOBILE_ROOT, '../bettercrewlink');
-const DESKTOP_TAG = process.env.BCL_DESKTOP_TAG ?? 'v3.2.23';
+const DESKTOP_TAG = process.env.BCL_DESKTOP_TAG ?? 'v3.2.26';
 
 if (!existsSync(resolve(DESKTOP_REPO, '.git'))) {
 	console.log(
@@ -153,8 +153,8 @@ function checkObjectDeepEqual(label, desktopBlockText, mobileBlockText) {
 		'AmongUsState',
 		mergedInterfaceFields(desktopSrc, 'AmongUsState'),
 		mergedInterfaceFields(mobileSrc, 'AmongUsState'),
-		// Pending NoS addon support, newer than the pinned desktop baseline.
-		['mushroomMixupSabotaged', 'nosMegaphones', 'nosPortableMegaphones', 'nosBibiriEchoes', 'nosVoiceFrameTime']
+		// Mobile-only host data not present in the pinned desktop schema.
+		['mushroomMixupSabotaged', 'nosVoiceFrameTime']
 	);
 
 	// --- Player (mobile may add its own `isbetter` flag; nothing else) ---

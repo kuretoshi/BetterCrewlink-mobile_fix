@@ -69,12 +69,29 @@ export function calculateVoiceAudio(input: VoiceAudioInput): VoiceAudioResult {
 	const useNosPositions = state.mod === 'NoS' && activeLobbySettings.nosVoicePositions === true;
 	const localPlayer = withImpostorClassification(state.mod, input.me);
 	const remotePlayer = withImpostorClassification(state.mod, input.other);
+	const falling = (player: Player) =>
+		state.mod === 'SUPER_NEW_ROLES' &&
+		state.gameState === GameState.TASKS &&
+		player.snrPushedFalling === true &&
+		player.isDead &&
+		!player.disconnected &&
+		!player.isDummy;
+	const localVoicePlayer = falling(localPlayer)
+		? { ...localPlayer, ...localPlayer.snrPushOrigin, isDead: false }
+		: localPlayer;
+	const remoteVoicePlayer = falling(remotePlayer)
+		? { ...remotePlayer, ...remotePlayer.snrPushOrigin, isDead: false }
+		: remotePlayer;
 	const me =
-		useNosPositions && state.nosLocalMicPosition ? { ...localPlayer, ...state.nosLocalMicPosition } : localPlayer;
+		useNosPositions && state.nosLocalMicPosition ? { ...localVoicePlayer, ...state.nosLocalMicPosition } : localVoicePlayer;
 	const other =
-		useNosPositions && remotePlayer.nosPlayer
-			? { ...remotePlayer, x: remotePlayer.nosPlayer.speakerPositionX, y: remotePlayer.nosPlayer.speakerPositionY }
-			: remotePlayer;
+		useNosPositions && remoteVoicePlayer.nosPlayer
+			? {
+					...remoteVoicePlayer,
+					x: remoteVoicePlayer.nosPlayer.speakerPositionX,
+					y: remoteVoicePlayer.nosPlayer.speakerPositionY,
+				}
+			: remoteVoicePlayer;
 
 	const extraRange = me.isDead ? 0 : portableMegaphoneExtraRange(state, other);
 	const maxDistance = input.maxDistance + extraRange;
@@ -263,6 +280,7 @@ export function calculateVoiceAudio(input: VoiceAudioInput): VoiceAudioResult {
 	if (!other.isDead || state.gameState !== GameState.TASKS || !canHearGhosts || me.isDead) {
 		result.reverb = false;
 	}
+	if (falling(remotePlayer)) result.reverb = true;
 
 	if (activeLobbySettings.deadOnly) {
 		panPos = [0, 0];

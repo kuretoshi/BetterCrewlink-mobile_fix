@@ -242,6 +242,60 @@ describe('calculateVoiceAudio', () => {
 		expect(result.gain).toBe(0);
 	});
 
+	describe('SNR pushed fall', () => {
+		const state = makeState({ mod: 'SUPER_NEW_ROLES' });
+		const falling = (overrides: Partial<Player> = {}) =>
+			makePlayer({
+				id: 2, clientId: 2, x: 100, y: 0, isDead: true,
+				snrPushedFalling: true, snrPushOrigin: { x: 1, y: 0 },
+				...overrides,
+			});
+
+		it('keeps a falling player audible from the pre-fall position with reverb', () => {
+			const result = run({ state, other: falling() });
+			expect(result.gain).toBe(1);
+			expect(result.panPosition).toEqual([1, 0]);
+			expect(result.reverb).toBeTrue();
+			expect(run({ state, other: falling({ snrPushOrigin: { x: 100, y: 0 } }) }).gain).toBe(0);
+		});
+
+		it('restores normal ghost gating as soon as the fall ends', () => {
+			expect(run({ state, other: falling({ x: 1, snrPushedFalling: false }) }).gain).toBe(0);
+			expect(run({ state, other: falling({ x: 1, snrPushedFalling: undefined }) }).gain).toBe(0);
+			const haunting = run({
+				state,
+				me: makePlayer({ id: 1, clientId: 1, isLocal: true, isImpostor: true }),
+				other: falling({ x: 1, snrPushedFalling: false }),
+				activeLobbySettings: makeLobbySettings({ haunting: true }),
+			});
+			expect(haunting.gain).toBeCloseTo(0.1);
+		});
+
+		it('does not bypass other MODs, phases, disconnects or voice permissions', () => {
+			for (const mod of ['NONE', 'NoS', 'TOH4E'] as const)
+				expect(run({ state: makeState({ mod }), other: falling() }).gain).toBe(0);
+			for (const gameState of [GameState.DISCUSSION, GameState.MENU, GameState.UNKNOWN])
+				expect(run({ state: makeState({ mod: 'SUPER_NEW_ROLES', gameState }), other: falling() }).gain).toBe(0);
+			expect(run({ state, other: falling({ disconnected: true }) }).gain).toBe(0);
+			expect(run({ state, other: falling({ isDummy: true }) }).gain).toBe(0);
+			expect(run({ state, other: falling(), activeLobbySettings: makeLobbySettings({ deadOnly: true }) }).gain).toBe(0);
+			expect(run({ state, other: falling(), activeLobbySettings: makeLobbySettings({ meetingGhostOnly: true }) }).gain).toBe(0);
+			expect(run({
+				state: makeState({ mod: 'SUPER_NEW_ROLES', comsSabotaged: true }),
+				other: falling(), activeLobbySettings: makeLobbySettings({ commsSabotage: true }),
+			}).gain).toBe(0);
+		});
+
+		it('keeps a falling local player in the living voice group', () => {
+			const result = run({
+				state,
+				me: falling({ id: 1, clientId: 1, isLocal: true, snrPushOrigin: { x: 0, y: 0 } }),
+				other: makePlayer({ id: 2, clientId: 2, x: 1, isDead: true }),
+			});
+			expect(result.gain).toBe(0);
+		});
+	});
+
 	it('in DISCUSSION, centers panning and only lets like hear like', () => {
 		const deadHearsLiving = run({
 			state: makeState({ gameState: GameState.DISCUSSION }),
