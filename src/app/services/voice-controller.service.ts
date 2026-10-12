@@ -271,6 +271,7 @@ export class VoiceController {
 		connectionController.currentGameState = state;
 
 		const { player: newLocalPlayer, ambiguous } = matchLocalPlayer(state.players, connectionController.amongusUsername);
+		connectionController.audioController.updateMegaphoneState(state, newLocalPlayer);
 		if (ambiguous) {
 			console.warn(
 				`Multiple players in the lobby match the configured name "${connectionController.amongusUsername}"; using the first match.`
@@ -424,6 +425,10 @@ export class VoiceController {
 				endGain *= settings.masterVolume / 100;
 			}
 			audioController.setPeerGain(peerId, endGain);
+			audioController.setMegaphonePlaybackVolume(
+				peerId,
+				(((playerState.settings?.volume ?? 100) / 100) * settings.masterVolume) / 100
+			);
 			playerState.audible = endGain > 0;
 		}
 		audioController.silencePeersExcept(handledPeerIds);

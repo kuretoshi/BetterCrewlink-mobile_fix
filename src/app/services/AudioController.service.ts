@@ -20,6 +20,8 @@ import {
 
 import { createBibiriEcho, updateBibiriEcho, stopBibiriEcho, disconnectBibiriEcho } from '../voice/bibiriEcho';
 
+import { createMegaphoneRecording } from '../voice/megaphoneRecording';
+
 const REVERB_URL = 'assets/sounds/reverb.ogx';
 
 export default class AudioController {
@@ -58,6 +60,7 @@ export default class AudioController {
 	private voiceRoleTimer?: ReturnType<typeof setInterval>;
 	private voiceRoleAnalyser?: AnalyserNode;
 	private inputSource?: MediaStreamAudioSourceNode;
+	private localMegaphoneRecording?: ReturnType<typeof createMegaphoneRecording>;
 	private microphoneGain?: GainNode;
 	private inputDestination?: MediaStreamAudioDestinationNode;
 	private maxDistance = 2;
@@ -92,6 +95,13 @@ export default class AudioController {
 		const context = this.context;
 		const inputSource = context.createMediaStreamSource(inputStream);
 		this.inputSource = inputSource;
+		this.localMegaphoneRecording = createMegaphoneRecording(
+			context,
+			inputSource,
+			this.masterGain,
+			() =>
+				!!this.inputStream?.getAudioTracks()[0]?.enabled && !this.microphoneMuted && !this.audioMuted && !this.jammed
+		);
 		const analyser = context.createAnalyser();
 		analyser.fftSize = 2048;
 		analyser.smoothingTimeConstant = 0;
@@ -113,7 +123,11 @@ export default class AudioController {
 				!this.audioMuted &&
 				!this.jammed;
 			const rms = Math.min(1, Math.sqrt(sum / samples.length));
-			this.events.emit('voiceRoleSample', voiceRoleLevel(rms, this.settingsService.get().nosRoleMicrophoneSensitivity), active);
+			this.events.emit(
+				'voiceRoleSample',
+				voiceRoleLevel(rms, this.settingsService.get().nosRoleMicrophoneSensitivity),
+				active
+			);
 		}, 50);
 
 		// Desktop's createInputChain: only wire a manual gain stage when a mic setting asks for
@@ -328,6 +342,7 @@ export default class AudioController {
 		const bibiriEcho = createBibiriEcho(context, gain, masterGain);
 
 		this.peers.set(peerId, {
+			megaphoneRecording: createMegaphoneRecording(context, source, masterGain),
 			bibiriEcho,
 			stream,
 			dummyAudioElement,
@@ -348,6 +363,7 @@ export default class AudioController {
 		const peer = this.peers.get(peerId);
 		if (!peer) return;
 		this.peers.delete(peerId);
+		peer.megaphoneRecording?.disconnect();
 
 		this.teardownAudioElement(peer.dummyAudioElement);
 		peer.source.disconnect();
@@ -373,6 +389,8 @@ export default class AudioController {
 	}
 
 	silenceAllPeers(): void {
+		this.localMegaphoneRecording?.cancel();
+		for (const peer of this.peers.values()) peer.megaphoneRecording?.cancel();
 		for (const peer of this.peers.values()) {
 			peer.gain.gain.value = 0;
 			if (peer.bibiriEcho) stopBibiriEcho(peer.bibiriEcho);
@@ -382,6 +400,7 @@ export default class AudioController {
 	silencePeersExcept(peerIds: string[]): void {
 		for (const [peerId, peer] of this.peers) {
 			if (!peerIds.includes(peerId)) {
+				peer.megaphoneRecording?.cancel();
 				peer.gain.gain.value = 0;
 				if (peer.bibiriEcho) stopBibiriEcho(peer.bibiriEcho);
 			}
@@ -393,6 +412,7 @@ export default class AudioController {
 		if (peer) peer.gain.gain.value = gain;
 	}
 	stopPeerDeathEcho(peerId: string): void {
+		this.peers.get(peerId)?.megaphoneRecording?.cancel();
 		const echo = this.peers.get(peerId)?.bibiriEcho;
 		if (echo) stopBibiriEcho(echo);
 	}
@@ -415,6 +435,11 @@ export default class AudioController {
 		const peer = this.peers.get(peerId);
 		const destination = this.masterGain;
 		if (!peer || !destination) return null;
+		peer.megaphoneRecording?.update(
+			state.nosMegaphones?.find((entry) => entry.playerId === other.id),
+			state.mod === 'NoS' && state.gameState === GameState.TASKS && !other.disconnected && !this.audioMuted,
+			settings.masterVolume / 100
+		);
 
 		// Mobile-only: a local "mute all incoming audio" toggle desktop doesn't have.
 		if (this.audioMuted) {
@@ -503,7 +528,21 @@ export default class AudioController {
 		return result.gain;
 	}
 
+	setMegaphonePlaybackVolume(peerId: string, volume: number): void {
+		this.peers.get(peerId)?.megaphoneRecording?.setVolume(volume);
+	}
+	updateMegaphoneState(state: AmongUsState, local?: Player): void {
+		this.localMegaphoneRecording?.update(
+			state.nosMegaphones?.find((entry) => entry.playerId === local?.id),
+			state.mod === 'NoS' && state.gameState === GameState.TASKS && !!local && !local.disconnected && !this.audioMuted,
+			this.settingsService.get().masterVolume / 100
+		);
+		if (state.mod !== 'NoS' || state.gameState !== GameState.TASKS)
+			for (const peer of this.peers.values()) peer.megaphoneRecording?.cancel();
+	}
 	disconnect() {
+		this.localMegaphoneRecording?.disconnect();
+		this.localMegaphoneRecording = undefined;
 		if (this.voiceRoleTimer) clearInterval(this.voiceRoleTimer);
 		this.voiceRoleTimer = undefined;
 		this.voiceRoleAnalyser?.disconnect();
