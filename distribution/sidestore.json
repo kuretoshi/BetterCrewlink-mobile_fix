@@ -1,0 +1,54 @@
+{
+  "name": "Tanuki BCL Mobile",
+  "identifier": "io.bettercrewlink.tanuki.source",
+  "sourceURL": "https://raw.githubusercontent.com/kuretoshi/BetterCrewlink-mobile_fix/voice_effect/distribution/sidestore.json",
+  "apps": [
+    {
+      "name": "Tanuki BCL Mobile",
+      "bundleIdentifier": "io.bettercrewlink.tanuki",
+      "developerName": "kuretoshi / BetterCrewLink contributors",
+      "subtitle": "Among Usの近接ボイスチャット（iOS試験版）",
+      "localizedDescription": "Tanuki BCL MobileのiOS試験版。同じiPhoneでAmong Usを開いている間の通話継続は未検証です。SideStoreで利用者自身のApple Accountによる署名が必要です。",
+      "iconURL": "https://raw.githubusercontent.com/kuretoshi/BetterCrewlink-mobile_fix/voice_effect/resources/icon.png",
+      "tintColor": "8C38FF",
+      "permissions": [
+        {
+          "type": "microphone",
+          "usageDescription": "Among Usの近接ボイスチャットとマイクテストにマイクを使用します。"
+        },
+        {
+          "type": "network",
+          "usageDescription": "同じネットワーク内のボイスサーバーやプレイヤーに接続します。"
+        },
+        {
+          "type": "background-audio",
+          "usageDescription": "通話用の背景音声を宣言しています。ゲーム中の通話継続は未検証です。"
+        }
+      ],
+      "versions": [
+        {
+          "version": "3.18.0",
+          "date": "2026-10-12",
+          "downloadURL": "https://github.com/kuretoshi/BetterCrewlink-mobile_fix/releases/download/v3.18/TanukiBCL-Mobile-iOS-3.18-SideStore.ipa",
+          "size": 4042444,
+          "minOSVersion": "15.0",
+          "localizedDescription": "v3.18の修正を反映。iOS版は試験版で、ゲーム中の通話継続は未検証です。\nhttps://github.com/kuretoshi/BetterCrewlink-mobile_fix/releases/tag/v3.18"
+        },
+        {
+          "version": "3.16.0",
+          "date": "2026-10-12",
+          "downloadURL": "https://github.com/kuretoshi/BetterCrewlink-mobile_fix/releases/download/v3.16/TanukiBCL-Mobile-iOS-3.16-SideStore.ipa",
+          "size": 4132347,
+          "minOSVersion": "15.0",
+          "localizedDescription": "v3.16の修正を反映。iOS版は試験版で、ゲーム中の通話継続は未検証です。\nhttps://github.com/kuretoshi/BetterCrewlink-mobile_fix/releases/tag/v3.16"
+        }
+      ],
+      "version": "3.18.0",
+      "versionDate": "2026-10-12",
+      "versionDescription": "v3.18の修正を反映。iOS版は試験版で、ゲーム中の通話継続は未検証です。\nhttps://github.com/kuretoshi/BetterCrewlink-mobile_fix/releases/tag/v3.18",
+      "downloadURL": "https://github.com/kuretoshi/BetterCrewlink-mobile_fix/releases/download/v3.18/TanukiBCL-Mobile-iOS-3.18-SideStore.ipa",
+      "size": 4042444
+    }
+  ],
+  "news": []
+}
