@@ -95,6 +95,7 @@ export class VoiceController {
 	private readonly heldNosRadio = new HeldNosRadio();
 	private nosRadioKinds: Record<number, number | undefined> = {};
 	private radioTransmitting = false;
+	private activeNosRadioKind: number | undefined;
 	private radioStatusVersion = Date.now();
 	private radioStatusVersions: Record<number, number> = {};
 	private lastRadioStatusSentAt = 0;
@@ -495,8 +496,7 @@ export class VoiceController {
 				(!player ||
 					player.isDead ||
 					(state.gameState !== GameState.TASKS && state.gameState !== GameState.DISCUSSION) ||
-					!isNosRadioEnabled(kind, this.connectionController.lobbySettings) ||
-					!this.getNosRadios(state, player)?.some((radio) => radio.kind === kind))
+					!isNosRadioEnabled(kind, this.connectionController.lobbySettings))
 			)
 				return;
 			const previous = this.heldNosRadio.kind;
@@ -522,7 +522,8 @@ export class VoiceController {
 		if (state.mod !== 'NoS') return kind === 0 && this.canUseRadio(state, player);
 		return (
 			isNosRadioEnabled(kind, this.connectionController.lobbySettings) &&
-			(this.getNosRadios(state, player)?.some((radio) => radio.kind === kind) ?? false)
+			(this.heldNosRadio.kind === kind ||
+				(this.getNosRadios(state, player)?.some((radio) => radio.kind === kind) ?? false))
 		);
 	}
 
@@ -533,6 +534,8 @@ export class VoiceController {
 	private stopAllRadio(): void {
 		this.heldNosRadio.clear();
 		this.impostorRadioPressed = false;
+		this.activeNosRadioKind = undefined;
+		this.connectionController.audioController.setRadioPending(false);
 		this.radioStatusVersion = Math.max(Date.now(), this.radioStatusVersion + 1);
 		this.updateImpostorRadioTransmission(true);
 	}
@@ -547,11 +550,24 @@ export class VoiceController {
 			myPlayer !== undefined &&
 			this.canUseRadio(state, myPlayer) &&
 			!myPlayer.isDead;
+		const pending = Boolean(
+			state?.mod === 'NoS' && this.impostorRadioPressed && this.heldNosRadio.kind !== undefined &&
+			!granted && myPlayer && !myPlayer.isDead &&
+			(state.gameState === GameState.TASKS || state.gameState === GameState.DISCUSSION)
+		);
+		// Mask capture before dropping radio mode; otherwise a short proximity packet can leak.
+		if (pending) connectionController.audioController.setRadioPending(true);
+		this.activeNosRadioKind = granted && state?.mod === 'NoS' ? this.heldNosRadio.kind : undefined;
 
-		if (granted === this.radioTransmitting && !forceSend) return;
+		if (granted === this.radioTransmitting && !forceSend) {
+			if (!pending) connectionController.audioController.setRadioPending(false);
+			return;
+		}
 		const changed = granted !== this.radioTransmitting;
+		if (changed) this.radioStatusVersion = Math.max(Date.now(), this.radioStatusVersion + 1);
 		this.radioTransmitting = granted;
 		connectionController.audioController.setRadioTransmitting(granted);
+		if (!pending) connectionController.audioController.setRadioPending(false);
 		if (myPlayer) this.setRadioClientActive(myPlayer.clientId, granted);
 
 		if (changed)
@@ -572,7 +588,7 @@ export class VoiceController {
 			JSON.stringify({
 				impostorRadio: granted,
 				impostorRadioVersion: this.radioStatusVersion,
-				nosRadioKind: state?.mod === 'NoS' ? this.heldNosRadio.kind : undefined,
+				nosRadioKind: this.activeNosRadioKind,
 			})
 		);
 		this.lastRadioStatusSentAt = Date.now();
@@ -587,7 +603,9 @@ export class VoiceController {
 			(myPlayer.isDead ||
 				(state.mod !== 'NoS' && this.heldNosRadio.kind !== undefined) ||
 				(state.gameState !== GameState.TASKS && state.gameState !== GameState.DISCUSSION) ||
-				!this.canUseRadio(state, myPlayer))
+				(state.mod === 'NoS' && this.heldNosRadio.kind !== undefined &&
+					!isNosRadioEnabled(this.heldNosRadio.kind, this.connectionController.lobbySettings)) ||
+				(state.mod !== 'NoS' && !this.canUseRadio(state, myPlayer)))
 		)
 			this.stopAllRadio();
 		else if (this.impostorRadioPressed && Date.now() - this.lastRadioStatusSentAt >= 1000)
@@ -856,7 +874,7 @@ export class VoiceController {
 	private senderNosRadioKind(state: AmongUsState, sender: Player): number | undefined {
 		const selected =
 			sender.clientId === this.connectionController.localPLayer?.clientId
-				? this.heldNosRadio.kind
+				? this.activeNosRadioKind
 				: this.nosRadioKinds[sender.clientId];
 		return resolveNosRadioKind(this.getNosRadios(state, sender), selected);
 	}

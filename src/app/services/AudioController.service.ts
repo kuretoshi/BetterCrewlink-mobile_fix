@@ -39,6 +39,7 @@ export default class AudioController {
 	localTalking: boolean;
 	/** True while the local player is holding down impostor radio; overrides mic mute, matching desktop. */
 	radioTransmitting = false;
+	private radioPending = false;
 	private jammed = false;
 	public events: EventEmitterO = new EventEmitterO();
 
@@ -214,6 +215,16 @@ export default class AudioController {
 		this.applyTrackEnabled();
 	}
 
+	setRadioPending(pending: boolean): void {
+		this.radioPending = pending;
+		if (pending && this.localTalking) {
+			this.localTalking = false;
+			this.events.emit('local_talk', false);
+			this.connectionController?.socketIOClient?.emit('VAD', false);
+		}
+		this.applyTrackEnabled();
+	}
+
 	setJammed(jammed: boolean): void {
 		this.jammed = jammed;
 		if (jammed && this.localTalking) {
@@ -227,7 +238,8 @@ export default class AudioController {
 	private applyTrackEnabled(): void {
 		const track = this.stream?.getAudioTracks()[0];
 		if (!track) return;
-		track.enabled = !this.jammed && (this.radioTransmitting || (!this.microphoneMuted && !this.audioMuted));
+		track.enabled = !this.jammed && !this.radioPending &&
+			(this.radioTransmitting || (!this.microphoneMuted && !this.audioMuted));
 	}
 
 	private ensureOutputBus() {

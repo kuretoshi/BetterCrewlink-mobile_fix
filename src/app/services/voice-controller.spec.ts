@@ -196,6 +196,38 @@ describe('VoiceController impostor radio', () => {
 		expect(voice.heldNosRadio.kind).toBeUndefined();
 	});
 
+	it('masks a held NoS radio while RadioData is missing and resumes on recovery', () => {
+		const voice = makeController() as any;
+		const connection = voice.connectionController as any;
+		const me = makePlayer({ id: 2, clientId: 20, isImpostor: true });
+		readyState(connection, me);
+		connection.currentGameState.mod = 'NoS';
+		connection.currentGameState.nosRadios = [
+			{ kind: 0, hearableMask: 1 << 2, nameLength: 0, name: '' },
+		];
+		const packets: any[] = [];
+		spyOn(connection, 'sendToPeers').and.callFake((_targets: any, payload: any) => packets.push(JSON.parse(payload)));
+		voice.applyImpostorRadio(true, 0);
+		expect(connection.audioController.radioTransmitting).toBeTrue();
+		connection.currentGameState.nosRadios = [];
+		voice.updateImpostorRadioTransmission();
+		expect(voice.heldNosRadio.kind).toBe(0);
+		expect(voice.canTransmitRadio(0)).toBeTrue();
+		expect(connection.audioController.radioTransmitting).toBeFalse();
+		expect(connection.audioController.radioPending).toBeTrue();
+		expect(packets[packets.length - 1].impostorRadio).toBeFalse();
+		connection.currentGameState.nosRadios = [
+			{ kind: 0, hearableMask: 1 << 2, nameLength: 0, name: '' },
+		];
+		voice.updateImpostorRadioTransmission();
+		expect(connection.audioController.radioTransmitting).toBeTrue();
+		expect(connection.audioController.radioPending).toBeFalse();
+		expect(packets[packets.length - 1].nosRadioKind).toBe(0);
+		voice.applyImpostorRadio(false, 0);
+		expect(connection.audioController.radioTransmitting).toBeFalse();
+		expect(connection.audioController.radioPending).toBeFalse();
+	});
+
 	it('keeps NoS radio transmission state when its mask is delayed or expires', () => {
 		const voice = makeController() as any;
 		const connection = voice.connectionController as any;
