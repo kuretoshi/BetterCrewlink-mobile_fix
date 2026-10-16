@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Update the public SideStore feed after building an unsigned IPA.
+"""Update SideStore and AltStore Classic feeds after building an unsigned IPA.
 
 Usage: python3 scripts/update-sidestore-source.py IPA RELEASE_TAG YYYY-MM-DD
-Upload the IPA to the named release before publishing distribution/sidestore.json.
+Upload the IPA to the named release before publishing distribution/sidestore.json and distribution/altstore.json.
 """
 import datetime
 import json
@@ -54,3 +54,35 @@ app.update(version=version['version'], versionDate=date,
 path.parent.mkdir(parents=True, exist_ok=True)
 path.write_text(json.dumps(feed, ensure_ascii=False, indent=2) + '\n')
 print(source_url)
+
+# AltStore Classic uses explicit appPermissions and buildVersion metadata.
+# Keep its format separate so the existing SideStore schema stays compatible.
+import copy
+alt_path = Path('distribution/altstore.json')
+old_alt = json.loads(alt_path.read_text()) if alt_path.exists() else None
+alt_version = {**version, 'buildVersion': info['CFBundleVersion']}
+alt_app = copy.deepcopy(app)
+for key in ['permissions', 'version', 'versionDate', 'versionDescription', 'downloadURL', 'size']:
+    alt_app.pop(key, None)
+alt_app['localizedDescription'] = alt_app['localizedDescription'].replace('SideStoreで', 'SideStoreまたはAltStore Classicで')
+alt_app['category'] = 'social'
+alt_app['appPermissions'] = {
+    'entitlements': [],
+    'privacy': {k: v for k, v in info.items() if k.startswith('NS') and k.endswith('UsageDescription')},
+}
+# These public IPAs are unsigned and do not carry additional entitlements.
+with zipfile.ZipFile(ipa) as archive:
+    if any(n.endswith('embedded.mobileprovision') or '/_CodeSignature/' in n for n in archive.namelist()):
+        raise ValueError('Use a fresh unsigned IPA without personal signing material')
+previous = old_alt['apps'][0]['versions'] if old_alt else []
+alt_app['versions'] = [alt_version] + [v for v in previous if v['version'] != alt_version['version']]
+alt_feed = {
+    'name': 'Tanuki BCL Mobile',
+    'subtitle': 'AltStore Classic向けiOS試験版',
+    'description': 'Tanuki BCL MobileのAltStore Classic用配布ソース。ゲーム中の通話継続は未検証です。',
+    'website': f'https://github.com/{repo}',
+    'iconURL': app['iconURL'], 'tintColor': app['tintColor'],
+    'apps': [alt_app], 'news': [],
+}
+alt_path.write_text(json.dumps(alt_feed, ensure_ascii=False, indent=2) + '\n')
+print(f'https://raw.githubusercontent.com/{repo}/voice_effect/distribution/altstore.json')
