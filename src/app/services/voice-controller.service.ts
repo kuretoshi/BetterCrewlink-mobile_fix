@@ -281,6 +281,10 @@ export class VoiceController {
 
 		connectionController.updateConnectingStage(ConnectingStage.WaitingForGameData);
 		if (!newLocalPlayer) {
+			// A shutdown frame can have no player list. Do not keep sending NoS voice-role
+			// samples under the previous local player's identity.
+			if (this.impostorRadioPressed || this.radioTransmitting) this.stopAllRadio();
+			connectionController.localPLayer = undefined;
 			this.muteAll(); // if localplayer not found mute all players in lobby.
 			return;
 		}

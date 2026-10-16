@@ -29,4 +29,16 @@ describe('NoS cosmetic host transfer', () => {
 		handle({ gameState, nosCosmeticAssets: { [id]: png } }, 'selected');
 		expect(nosCosmeticAssets.get(ref)).toBe(png);
 	});
+	it('normalizes an exit frame without players before emitting it to voice consumers', () => {
+		const connection = new ConnectionController({} as SettingsService);
+		const hostUpdate = jasmine.createSpy('hostUpdate');
+		connection.events.on('hostUpdate', hostUpdate);
+		connection.socketIOClient = { emit: jasmine.createSpy('emit') } as any;
+		connection.currentHost = 'selected';
+		const gameState = { lobbyCode: 'ABCDEF', mod: 'NoS', gameState: 3 };
+
+		expect(() => (connection as any).handleSignal({ data: { gameState }, from: 'selected' })).not.toThrow();
+		expect(hostUpdate).toHaveBeenCalledWith(jasmine.objectContaining({ players: [] }), undefined);
+		expect(connection.socketIOClient.emit).not.toHaveBeenCalled();
+	});
 });

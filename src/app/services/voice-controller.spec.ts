@@ -130,6 +130,20 @@ describe('VoiceController impostor radio', () => {
 		connectionController.currentGameState = makeState({ players: [me, ...others] });
 	}
 
+	it('clears the local NoS voice identity when a shutdown frame has no players', () => {
+		const voice = makeController() as any;
+		const connection = voice.connectionController as ConnectionController;
+		const me = makePlayer({ id: 2, clientId: 20, name: 'Me' });
+		readyState(connection, me);
+		connection.amongusUsername = 'Me';
+		const exitState = makeState({ mod: 'NoS', gameState: GameState.MENU, players: [] });
+
+		expect(() => connection.events.emit('hostUpdate', exitState, undefined)).not.toThrow();
+		expect(connection.currentGameState.players).toEqual([]);
+		expect(connection.localPLayer).toBeUndefined();
+		expect(connection.connectionState).not.toBe(ConnectionState.error);
+	});
+
 	it('uses the sender NoS impostor mask even without a sender self bit or local transmit channel', () => {
 		const voice = makeController() as any;
 		const connection = voice.connectionController as ConnectionController;

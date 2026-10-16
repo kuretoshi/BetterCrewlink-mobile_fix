@@ -500,12 +500,18 @@ export class ConnectionController implements IConnectionController {
 			this.lastPing = Date.now();
 			this.updateConnectingStage(ConnectingStage.waitingForHostToEnable);
 			const mobiledata = data as unknown as MobileData;
+			// Desktop may broadcast a final game state without players while Among Us exits.
+			// Normalize it before cosmetics, voice-role and UI consumers see the frame.
+			const gameState = {
+				...mobiledata.gameState,
+				players: Array.isArray(mobiledata.gameState.players) ? mobiledata.gameState.players : [],
+			};
 			if (typeof mobiledata.nosVoiceFrameTime === 'number' && Number.isFinite(mobiledata.nosVoiceFrameTime)) {
-				mobiledata.gameState.nosVoiceFrameTime = mobiledata.nosVoiceFrameTime;
+				gameState.nosVoiceFrameTime = mobiledata.nosVoiceFrameTime;
 			}
-			nosCosmeticAssets.receive(from, mobiledata.gameState.lobbyCode, data.nosCosmeticAssets);
+			nosCosmeticAssets.receive(from, gameState.lobbyCode, data.nosCosmeticAssets);
 			const missingIds = nosCosmeticAssets.missingRequest(
-				mobiledata.gameState.players.flatMap((player) => Object.values(player.nosCosmetics ?? {}))
+				gameState.players.flatMap((player) => Object.values(player.nosCosmetics ?? {}))
 			);
 			if (missingIds.length) {
 				this.socketIOClient?.emit('signal', {
@@ -513,7 +519,7 @@ export class ConnectionController implements IConnectionController {
 					data: { mobilePlayerInfo: { code: this.gamecode, askingForHost: false, nosCosmeticIds: missingIds } },
 				});
 			}
-			this.events.emit('hostUpdate', mobiledata.gameState, mobiledata.lobbySettings);
+			this.events.emit('hostUpdate', gameState, mobiledata.lobbySettings);
 			return;
 		}
 
