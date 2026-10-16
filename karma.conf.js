@@ -26,6 +26,13 @@ module.exports = function (config) {
 		autoWatch: true,
 		browsers: ['Chrome'],
 		customLaunchers: {
+			// The two real WebRTC loopback tests must not depend on a hosted
+			// runner's LAN interface or multicast DNS. Only this CI browser uses
+			// direct loopback ICE candidates; the shipped application is unchanged.
+			ChromeHeadlessWebRTC: {
+				base: 'ChromeHeadless',
+				flags: ['--allow-loopback-in-peer-connection', '--disable-features=WebRtcHideLocalIpsWithMdns'],
+			},
 			// Headless Chrome for CI / sandboxed environments where no display is available.
 			ChromeHeadlessNoSandbox: {
 				base: 'ChromeHeadless',
