@@ -7,12 +7,20 @@ Upload the IPA to the named release before publishing distribution/sidestore.jso
 import datetime
 import json
 import plistlib
+import re
 import sys
 import zipfile
 from pathlib import Path
 
 ipa, tag, date = sys.argv[1:]
 datetime.date.fromisoformat(date)
+
+def numeric_version(value):
+    if not re.fullmatch(r'\d+\.\d+(?:\.\d+)?', value):
+        raise ValueError('Expected a numeric release version')
+    parts = tuple(map(int, value.split('.')))
+    return parts + (0,) * (3 - len(parts))
+
 repo = 'kuretoshi/BetterCrewlink-mobile_fix'
 source_url = f'https://raw.githubusercontent.com/{repo}/voice_effect/distribution/sidestore.json'
 path = Path('distribution/sidestore.json')
@@ -21,6 +29,11 @@ with zipfile.ZipFile(ipa) as archive:
     if len(names) != 1:
         raise ValueError('Expected one main application Info.plist')
     info = plistlib.loads(archive.read(names[0]))
+if numeric_version(tag.removeprefix('v')) != numeric_version(info['CFBundleShortVersionString']):
+    raise ValueError('Release tag and IPA version differ')
+with zipfile.ZipFile(ipa) as archive:
+    if any(n.endswith('embedded.mobileprovision') or '/_CodeSignature/' in n for n in archive.namelist()):
+        raise ValueError('Use a fresh unsigned IPA without personal signing material')
 if info['CFBundleIdentifier'] != 'io.bettercrewlink.tanuki':
     raise ValueError('Unexpected bundle identifier; use the unsigned distribution IPA')
 version = {
@@ -46,11 +59,12 @@ feed = json.loads(path.read_text()) if path.exists() else {
     }], 'news': [],
 }
 app = feed['apps'][0]
-app['versions'] = [version] + [v for v in app['versions'] if v['version'] != version['version']]
+app['versions'] = sorted([version] + [v for v in app['versions'] if v['version'] != version['version']], key=lambda v: numeric_version(v['version']), reverse=True)
+latest = app['versions'][0]
 # Legacy fields keep older SideStore source readers compatible.
-app.update(version=version['version'], versionDate=date,
-           versionDescription=version['localizedDescription'],
-           downloadURL=version['downloadURL'], size=version['size'])
+app.update(version=latest['version'], versionDate=latest['date'],
+           versionDescription=latest['localizedDescription'],
+           downloadURL=latest['downloadURL'], size=latest['size'])
 path.parent.mkdir(parents=True, exist_ok=True)
 path.write_text(json.dumps(feed, ensure_ascii=False, indent=2) + '\n')
 print(source_url)
@@ -75,7 +89,9 @@ with zipfile.ZipFile(ipa) as archive:
     if any(n.endswith('embedded.mobileprovision') or '/_CodeSignature/' in n for n in archive.namelist()):
         raise ValueError('Use a fresh unsigned IPA without personal signing material')
 previous = old_alt['apps'][0]['versions'] if old_alt else []
-alt_app['versions'] = [alt_version] + [v for v in previous if v['version'] != alt_version['version']]
+if previous and numeric_version(previous[0]['version']) > numeric_version(alt_version['version']):
+    alt_app = copy.deepcopy(old_alt['apps'][0])
+alt_app['versions'] = sorted([alt_version] + [v for v in previous if v['version'] != alt_version['version']], key=lambda v: numeric_version(v['version']), reverse=True)
 alt_feed = {
     'name': 'Tanuki BCL Mobile',
     'subtitle': 'AltStore Classic向けiOS試験版',
