@@ -6,7 +6,11 @@
 /.angular/*
 
 # Capacitor
-/ios/
+/ios/App/Pods/
+/ios/App/App/public/
+/ios/App/App/capacitor.config.json
+/ios/capacitor-cordova-ios-plugins/
+/ios/App/build/
 
 # Environment files
 /src/environments/environment.*.ts
@@ -65,3 +69,10 @@ node_modules/
 /platforms/
 # /plugins/
 UserInterfaceState.xcuserstate
+
+# Local iOS build intermediates
+/work/
+
+# Python release tooling
+__pycache__/
+*.pyc

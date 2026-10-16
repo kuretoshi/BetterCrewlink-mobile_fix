@@ -19,5 +19,10 @@
     "minSdkVersion": 24,
     "compileSdkVersion": 34,
     "targetSdkVersion": 34
+  },
+  "ios": {
+    "contentInset": "automatic",
+    "preferredContentMode": "mobile",
+    "includePlugins": []
   }
 }

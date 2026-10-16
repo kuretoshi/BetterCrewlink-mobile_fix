@@ -12,7 +12,10 @@
     "build": "ionic capacitor build android --prod",
     "lint": "ng lint",
     "check:drift": "node scripts/check-schema-drift.mjs",
-    "test:nos-direct": "node scripts/test-direct-nos-voice.mjs"
+    "test:nos-direct": "node scripts/test-direct-nos-voice.mjs",
+    "ios:configure": "node scripts/configure-ios.mjs",
+    "ios:sync": "npm run ngbuild -- --configuration=production --source-map=false && cap sync ios && npm run ios:configure",
+    "ios:open": "cap open ios"
   },
   "private": true,
   "engines": {
@@ -33,6 +36,7 @@
     "@awesome-cordova-plugins/core": "^6.16.0",
     "@capacitor/android": "^8.5.0",
     "@capacitor/core": "^8.5.0",
+    "@capacitor/ios": "^8.5.0",
     "@ionic/angular": "^8.8.17",
     "@ionic/storage": "^4.0.0",
     "@ionic/storage-angular": "^4.0.0",

@@ -85,6 +85,10 @@ GitHub Issues を使う場合はこちらです。
 
 https://github.com/kuretoshi/BetterCrewlink-mobile_fix/issues
 
+## iOS版（試験版）
+
+3.19.0にiOS対応を反映しています。SideStore用の署名無しIPAと対応ソースZIPを配布します。[iOS開発手順](docs/ios-development.md)を参照してください。同じiPhoneでAmong Usを前面に開いた状態の通話継続は実機検証が必要です。
+
 ## 開発
 
 ### 必要なもの
@@ -159,3 +163,7 @@ npm.cmd run build
 ## 免責
 
 この mod は Among Us または Innersloth LLC とは関係ありません。内容は Innersloth LLC によって承認、支援、提供されたものではありません。Among Us に関する権利は Innersloth LLC に帰属します。
+
+SideStoreの更新用配布ソースと公開手順は[こちら](docs/sidestore-source.md)を参照してください。
+
+安定版リリース時のiOS自動ビルド・配布ソース更新は[GitHub Actionsの手順](docs/ios-releases.md)を参照してください。
