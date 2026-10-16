@@ -206,7 +206,9 @@ export default class AudioController {
 			return;
 		}
 
-		this.masterElement?.setSinkId(sinkId).catch(onError);
+		// WKWebView can provide audio elements without output-device selection.
+		// In that case iOS routes audio through AVAudioSession and the system UI.
+		this.masterElement?.setSinkId?.(sinkId).catch(onError);
 	}
 
 	/** Held impostor radio overrides mic mute, mirroring desktop's setRadioTransmitting/applyTrackEnabled. */
@@ -256,7 +258,7 @@ export default class AudioController {
 		masterGain.gain.value = 1;
 		this.masterGain = masterGain;
 
-		this.useContextSink = 'setSinkId' in AudioContext.prototype;
+		this.useContextSink = 'setSinkId' in context && typeof context.setSinkId === 'function';
 		if (this.useContextSink) {
 			masterGain.connect(context.destination);
 		} else {

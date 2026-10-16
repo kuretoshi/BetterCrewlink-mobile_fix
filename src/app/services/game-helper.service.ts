@@ -1,3 +1,4 @@
+import { Capacitor } from '@capacitor/core';
 import { Injectable } from '@angular/core';
 import { IDeviceInfo } from './smallInterfaces';
 import { AndroidPermissions } from '@awesome-cordova-plugins/android-permissions/ngx';import { Platform } from '@ionic/angular';
@@ -84,7 +85,7 @@ export class GameHelperService {
 		private backgroundMode: BackgroundMode,
 		private settings: SettingsService
 	) {
-		this.IsMobile = true;//this.platform.is('cordova') || this.platform.is('android') || this.platform.is('mobile');
+		this.IsMobile = Capacitor.getPlatform() === 'android';
 		this.load();
 	}
 
@@ -126,8 +127,10 @@ export class GameHelperService {
 			// service real foreground protection, so the OS (especially
 			// battery-aggressive OEM skins) freezes the process - and the mic -
 			// shortly after the user switches to another app.
-			this.backgroundMode.setDefaults({ icon: 'ic_launcher' });
-			this.backgroundMode.enable();
+			if (this.IsMobile) {
+				this.backgroundMode.setDefaults({ icon: 'ic_launcher' });
+				this.backgroundMode.enable();
+			}
 			this.cManager.connect(
 				this.settings.getVoiceServer(),
 				this.settings.get().gamecode.toUpperCase(),
@@ -135,7 +138,12 @@ export class GameHelperService {
 				this.settings.get().selectedMicrophone.deviceId,
 				this.settings.get().natFix
 			);
-			this.showNotification();
+			void this.showNotification();
+		}).catch((error: unknown) => {
+			this.disconnect();
+			this.cManager.connectionState = ConnectionState.error;
+			this.error = error instanceof Error ? error.message : '音声の初期化に失敗しました。';
+			this.updateViews();
 		});
 		setTimeout(() => {
 			this.updateViews();
@@ -144,7 +152,7 @@ export class GameHelperService {
 
 	disconnect(disableBackgroundMode = true) {
 		if (disableBackgroundMode) {
-			this.backgroundMode.disable();
+			if (this.IsMobile) this.backgroundMode.disable();
 			if (this.IsMobile) {
 				BetterCrewlinkNativeService.disconnect();
 			}
@@ -188,7 +196,7 @@ export class GameHelperService {
 	}
 
 	async requestPermissions(): Promise<boolean> {
-		if (this.platform.is('cordova') || this.platform.is('android')) {
+		if (this.IsMobile) {
 			const PERMISSIONS_NEEDED = [
 				'android.permission.BLUETOOTH',
 				// this.androidPermissions.PERMISSION.RECORD_AUDIO,
