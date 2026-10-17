@@ -55,7 +55,7 @@ export function connectionStageLabel(
 }
 
 export function selectMicrophone(devices: IDeviceInfo[], stored: IDeviceInfo | undefined): IDeviceInfo {
-	return devices.find((device) => device.id === stored?.id) ?? devices[0] ?? {
+	return devices.find((device) => device.deviceId === stored?.deviceId) ?? devices[0] ?? {
 		id: 0,
 		label: 'default',
 		deviceId: 'default',
@@ -101,6 +101,16 @@ export class GameHelperService {
 		setTimeout(() => {
 			this.updateViews();
 		}, 1500);
+	}
+
+	/** Apply a microphone selection during a call without dropping the voice peers. */
+	async changeMicrophone(): Promise<void> {
+		const deviceId = this.settings.get().selectedMicrophone?.deviceId ?? 'default';
+		this.cManager.deviceID = deviceId;
+		if (this.cManager.connectionState === ConnectionState.disconnected && !this.cManager.audioController.stream)
+			return;
+		const track = await this.cManager.audioController.restartInput(deviceId);
+		if (track) this.cManager.replaceOutboundTrack(track);
 	}
 
 	connect() {

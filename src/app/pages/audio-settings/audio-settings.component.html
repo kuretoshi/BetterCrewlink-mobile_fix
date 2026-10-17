@@ -64,7 +64,7 @@
 					<ion-label>エコーキャンセル</ion-label>
 				</ion-col>
 				<ion-col size="5" class="settingInputCol">
-					<ion-checkbox [(ngModel)]="getSettings().echoCancellation" (ionChange)="onSettingsChange()"></ion-checkbox>
+					<ion-checkbox [(ngModel)]="getSettings().echoCancellation" (ionChange)="onInputProcessingChange()"></ion-checkbox>
 				</ion-col>
 			</ion-item>
 			<ion-item>
@@ -72,7 +72,7 @@
 					<ion-label>ノイズ抑制</ion-label>
 				</ion-col>
 				<ion-col size="5" class="settingInputCol">
-					<ion-checkbox [(ngModel)]="getSettings().noiseSuppression" (ionChange)="onSettingsChange()"></ion-checkbox>
+					<ion-checkbox [(ngModel)]="getSettings().noiseSuppression" (ionChange)="onInputProcessingChange()"></ion-checkbox>
 				</ion-col>
 			</ion-item>
 			<ion-item>
@@ -80,7 +80,7 @@
 					<ion-label>自動ゲイン調整</ion-label>
 				</ion-col>
 				<ion-col size="5" class="settingInputCol">
-					<ion-checkbox [(ngModel)]="getSettings().autoGainControl" (ionChange)="onAudioSettingChange()"></ion-checkbox>
+					<ion-checkbox [(ngModel)]="getSettings().autoGainControl" (ionChange)="onInputProcessingChange()"></ion-checkbox>
 				</ion-col>
 			</ion-item>
 			<ion-item>
@@ -91,7 +91,7 @@
 					<ion-checkbox
 						[disabled]="getSettings().autoGainControl"
 						[(ngModel)]="getSettings().microphoneGainEnabled"
-						(ionChange)="onAudioSettingChange()"
+						(ionChange)="onInputProcessingChange()"
 					></ion-checkbox>
 				</ion-col>
 			</ion-item>
@@ -117,7 +117,7 @@
 					<ion-checkbox
 						[disabled]="getSettings().autoGainControl"
 						[(ngModel)]="getSettings().micSensitivityEnabled"
-						(ionChange)="onAudioSettingChange()"
+						(ionChange)="onInputProcessingChange()"
 					></ion-checkbox>
 				</ion-col>
 			</ion-item>

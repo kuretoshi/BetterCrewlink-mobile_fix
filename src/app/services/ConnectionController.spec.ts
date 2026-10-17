@@ -38,6 +38,24 @@ function makeReadyController(): ConnectionController {
 }
 
 describe('ConnectionController peer reliability', () => {
+	it('replaces the outgoing microphone track on existing peers', () => {
+		const controller = new ConnectionController({} as SettingsService);
+		const replaceAudioTrack = jasmine.createSpy('replaceAudioTrack');
+		(controller as any).peers.set('first', fakeConnection({ replaceAudioTrack }));
+		(controller as any).peers.set('second', fakeConnection({ replaceAudioTrack }));
+		const track = { kind: 'audio' } as MediaStreamTrack;
+		controller.replaceOutboundTrack(track);
+		expect(replaceAudioTrack).toHaveBeenCalledTimes(2);
+		expect(replaceAudioTrack).toHaveBeenCalledWith(track);
+	});
+
+	it('invalidates a pending microphone capture even before the socket connects', () => {
+		const controller = new ConnectionController({} as SettingsService);
+		const disconnectAudio = spyOn(controller.audioController, 'disconnect');
+		controller.disconnect(true);
+		expect(disconnectAudio).toHaveBeenCalled();
+	});
+
 	describe('canReconnectPeer', () => {
 		it('is false before a connection attempt, mic stream, socket and gamecode are all in place', () => {
 			const controller = new ConnectionController({} as SettingsService);
