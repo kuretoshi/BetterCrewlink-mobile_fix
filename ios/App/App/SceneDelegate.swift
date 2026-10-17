@@ -8,6 +8,8 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         guard let windowScene = scene as? UIWindowScene else { return }
 
         window = UIWindow(windowScene: windowScene)
+        // Match the footer beneath the WebView, including the home-indicator area.
+        window?.backgroundColor = UIColor(red: 29.0 / 255.0, green: 26.0 / 255.0, blue: 35.0 / 255.0, alpha: 1)
         window?.rootViewController = CAPBridgeViewController()
         window?.makeKeyAndVisible()
 

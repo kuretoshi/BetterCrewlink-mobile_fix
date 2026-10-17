@@ -21,7 +21,8 @@
     "targetSdkVersion": 34
   },
   "ios": {
-    "contentInset": "automatic",
+    "backgroundColor": "#1d1a23",
+    "contentInset": "never",
     "preferredContentMode": "mobile",
     "includePlugins": []
   }

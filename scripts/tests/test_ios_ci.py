@@ -17,6 +17,13 @@ spec.loader.exec_module(ci)
 
 
 class IOSReleaseTests(unittest.TestCase):
+    def test_iphone_safe_area_is_not_applied_twice(self):
+        config = json.loads((ROOT / 'capacitor.config.json').read_text(encoding='utf-8'))
+        viewport = (ROOT / 'src/index.html').read_text(encoding='utf-8')
+        self.assertEqual(config['ios']['contentInset'], 'never')
+        self.assertEqual(config['ios']['backgroundColor'], '#1d1a23')
+        self.assertIn('viewport-fit=cover', viewport)
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.old = Path.cwd()
