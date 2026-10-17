@@ -1,41 +1,12 @@
 <div class="avatarBase">
-	@if (this.volumeOpen) {
-		<div class="volumeslider" tabindex="0" (mouseleave)="openVolume(false)" (blur)="openVolume(false)">
-			<div class="volumeslider-1">
-				<ion-range
-					class="volumeSliderThingy"
-					[(ngModel)]="settings.volume"
-					(ionChange)="onVolumeChange()"
-					color="light"
-					max="{{ MAXVOLUME }}"
-					min="0"
-					step="1"
-					pin="1"
-				>
-					<ion-icon slot="start" size="small" name="volume-high-outline"></ion-icon>
-				</ion-range>
-				<ion-button
-					size="small"
-					fill="clear"
-					[color]="settings.isMuted ? 'danger' : 'light'"
-					(click)="onMuteToggle()"
-					(pointerdown)="$event.stopPropagation()"
-				>
-					<ion-icon
-						slot="icon-only"
-						[name]="settings.isMuted ? 'volume-mute-outline' : 'volume-medium-outline'"
-					></ion-icon>
-				</ion-button>
-			</div>
-		</div>
-	}
 	<div
 		class="avatar"
 		[class.talking]="talking"
 		tabindex="0"
 		role="button"
-		(click)="openVolume()"
-		(keyup.enter)="openVolume()"
+		[attr.aria-label]="settings ? player.name + 'の音量を調整' : player.name"
+		(click)="openVolume($event)"
+		(keyup.enter)="openVolume($event)"
 	>
 		<div class="avatar avatar-2">
 			<div class="nos-body-mask" [style.mask-image]="getBodyMask()" [style.-webkit-mask-image]="getBodyMask()">
@@ -120,3 +91,46 @@
 		}
 	</div>
 </div>
+@if (settings) {
+	<ion-popover
+		[isOpen]="volumeOpen"
+		[event]="volumeEvent"
+		reference="trigger"
+		side="bottom"
+		alignment="center"
+		cssClass="player-volume-popover"
+		(didDismiss)="closeVolume()"
+	>
+		<ng-template>
+			<div class="player-volume-controls">
+				<div class="player-volume-header">
+					<span class="player-volume-name">{{ player.name }}</span>
+					<span class="player-volume-value">{{ settings.volume }}%</span>
+				</div>
+				<div class="player-volume-row">
+					<ion-range
+						[(ngModel)]="settings.volume"
+						(ionChange)="onVolumeChange()"
+						[attr.aria-label]="player.name + 'の音量'"
+						color="light"
+						[max]="MAXVOLUME"
+						min="0"
+						step="1"
+						pin="true"
+					></ion-range>
+					<ion-button
+						fill="clear"
+						[color]="settings.isMuted ? 'danger' : 'light'"
+						[attr.aria-label]="settings.isMuted ? 'ミュート解除' : 'ミュート'"
+						(click)="onMuteToggle()"
+					>
+						<ion-icon
+							slot="icon-only"
+							[name]="settings.isMuted ? 'volume-mute-outline' : 'volume-high-outline'"
+						></ion-icon>
+					</ion-button>
+				</div>
+			</div>
+		</ng-template>
+	</ion-popover>
+}

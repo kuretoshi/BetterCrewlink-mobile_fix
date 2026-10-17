@@ -29,7 +29,8 @@ export class AvatarComponent implements OnDestroy {
 	@Input() mod: ModsType = 'NONE';
 	/** NoS lobby outfits are available before its round PlayerData is published. */
 	@Input() isLobby = false;
-	volumeOpen: boolean;
+	volumeOpen = false;
+	volumeEvent?: Event;
 	readonly MAXVOLUME = 500;
 	private readonly versionSubscription: Subscription;
 	private readonly nosSubscription: Subscription;
@@ -208,11 +209,14 @@ export class AvatarComponent implements OnDestroy {
 		return png ? `url("${png}")` : undefined;
 	}
 
-	openVolume(state = !this.volumeOpen) {
-		if (!this.settings) {
-			return;
-		}
-		this.volumeOpen = state;
+	openVolume(event: Event): void {
+		if (!this.settings) return;
+		this.volumeEvent = event;
+		this.volumeOpen = true;
+	}
+
+	closeVolume(): void {
+		this.volumeOpen = false;
 	}
 
 	onVolumeChange() {

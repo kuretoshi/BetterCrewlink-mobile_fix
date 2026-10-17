@@ -60,6 +60,48 @@ function makeComponent(player: Player = makePlayer()) {
 }
 
 describe('AvatarComponent', () => {
+	it('opens volume controls outside the avatar and preserves volume and mute settings', () => {
+		const savePlayerSetting = jasmine.createSpy('savePlayerSetting');
+		TestBed.configureTestingModule({
+			declarations: [AvatarComponent],
+			imports: [FormsModule],
+			providers: [
+				{ provide: SettingsService, useValue: { savePlayerSetting } },
+				{
+					provide: CosmeticsService,
+					useValue: {
+						version$: new BehaviorSubject(0),
+						initializeHats: jasmine.createSpy('initializeHats'),
+						getCosmeticRender: jasmine.createSpy('getCosmeticRender'),
+					},
+				},
+			],
+			schemas: [NO_ERRORS_SCHEMA],
+		});
+		const fixture = TestBed.createComponent(AvatarComponent);
+		const component = fixture.componentInstance;
+		component.player = makePlayer();
+		component.settings = { volume: 100, isMuted: false };
+		fixture.detectChanges();
+
+		const avatar = fixture.nativeElement.querySelector('.avatarBase > .avatar') as HTMLElement;
+		avatar.click();
+		fixture.detectChanges();
+		expect(component.volumeOpen).toBeTrue();
+		expect(fixture.nativeElement.querySelector('ion-popover')).not.toBeNull();
+		expect(avatar.querySelector('ion-range')).toBeNull();
+
+		component.settings.volume = 85;
+		component.onVolumeChange();
+		component.onMuteToggle();
+		expect(component.settings.isMuted).toBeTrue();
+		expect(savePlayerSetting).toHaveBeenCalledTimes(2);
+		expect(savePlayerSetting).toHaveBeenCalledWith(0, component.settings);
+		component.closeVolume();
+		expect(component.volumeOpen).toBeFalse();
+		fixture.destroy();
+	});
+
 	it('aligns host NoS cosmetic PNGs with their body mask at mobile avatar sizes', () => {
 		const id = 'b'.repeat(64);
 		const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aT1sAAAAASUVORK5CYII=';

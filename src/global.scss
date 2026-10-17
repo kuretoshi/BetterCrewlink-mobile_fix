@@ -36,6 +36,61 @@
 	--ion-color-secondary-tint: #464250;
 	--ion-color-light: #dfdfdf;
 }
+
+// Ionic places popovers at the app root, outside the avatar's scoped styles.
+ion-popover.player-volume-popover {
+	--width: min(280px, calc(100vw - 32px));
+	--max-width: calc(100vw - 32px);
+	--background: #25232a;
+	--color: #ffffff;
+}
+
+.player-volume-controls {
+	padding: 10px 14px 12px;
+	color: #ffffff;
+}
+
+.player-volume-header,
+.player-volume-row {
+	display: flex;
+	align-items: center;
+}
+
+.player-volume-header {
+	justify-content: space-between;
+	gap: 12px;
+	font-size: 14px;
+}
+
+.player-volume-name {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.player-volume-value {
+	flex: none;
+	color: #dfdfdf;
+	font-variant-numeric: tabular-nums;
+}
+
+.player-volume-row {
+	gap: 8px;
+}
+
+.player-volume-row ion-range {
+	flex: 1;
+	min-width: 0;
+	padding: 0;
+}
+
+.player-volume-row ion-button {
+	flex: none;
+	width: 44px;
+	height: 44px;
+	margin: 0;
+}
 .masters {
 	background-color: #25232a;
 }
