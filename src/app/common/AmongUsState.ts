@@ -1,3 +1,4 @@
+import type { DyingVoiceState } from './DyingVoiceState';
 import { CameraLocation, MapType } from './AmongusMap';
 import type { MegaphoneState } from './MegaphoneState';
 import type { ILobbySettings } from './ISettings';
@@ -13,6 +14,7 @@ import type { TohRole, TohRoleDefinition } from './TohRole';
 // See scripts/check-schema-drift.mjs for the field-coverage check against desktop.
 
 export interface AmongUsState {
+	nosDyingVoices?: DyingVoiceState[];
 	gameState: GameState;
 	oldGameState: GameState;
 	lobbyCodeInt: number;
@@ -144,6 +146,8 @@ export interface Player {
 	nosLobbyColor?: string;
 	roleName?: string;
 	snrRole?: SnrLiveRole;
+	snrPushedFalling?: boolean;
+	snrPushOrigin?: { x: number; y: number };
 	snrHat2Id?: string;
 	snrVisor2Id?: string;
 	nosPlayer?: NosPlayerData;

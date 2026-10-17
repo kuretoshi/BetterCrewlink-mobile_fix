@@ -6,7 +6,9 @@
 /.angular/*
 
 # Capacitor
-/ios/
+/ios/App/Pods/
+/ios/App/build/
+/work/
 
 # Environment files
 /src/environments/environment.*.ts
@@ -65,3 +67,7 @@ node_modules/
 /platforms/
 # /plugins/
 UserInterfaceState.xcuserstate
+
+/node_modules.interrupted/
+
+__pycache__/

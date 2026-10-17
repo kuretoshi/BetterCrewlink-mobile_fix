@@ -19,5 +19,11 @@
 		"minSdkVersion": 24,
 		"compileSdkVersion": 34,
 		"targetSdkVersion": 34
+	},
+	"ios": {
+		"backgroundColor": "#1d1a23",
+		"contentInset": "never",
+		"preferredContentMode": "mobile",
+		"includePlugins": []
 	}
 }

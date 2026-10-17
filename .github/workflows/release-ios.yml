@@ -1,0 +1,98 @@
+name: Release iOS
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing stable release tag (for example v3.20)
+        required: true
+        type: string
+      publish:
+        description: Attach IPA and update public app sources
+        default: false
+        type: boolean
+      source_ref:
+        description: Optional source ref for a build-only test of legacy releases
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-releases
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.repository == 'kuretoshi/BetterCrewlink-mobile_fix' && (github.event_name == 'workflow_dispatch' || !github.event.release.prerelease)
+    runs-on: macos-26
+    timeout-minutes: 40
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.5.app/Contents/Developer
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
+      SOURCE_OVERRIDE: ${{ inputs.source_ref }}
+      PUBLISH: ${{ github.event_name == 'release' || inputs.publish }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.source_ref || github.event.release.tag_name || inputs.release_tag }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Prepare and validate release version
+        run: python3 scripts/ios-ci.py prepare "$RELEASE_TAG"
+      - name: Install npm 12 and dependencies
+        run: |
+          npm install --global npm@12.2.0
+          npm ci
+      - name: Build local plugin
+        run: |
+          npm ci --prefix plugins/bcl-mobile-overlay
+          npm --prefix plugins/bcl-mobile-overlay run build
+      - name: Lint and browser tests
+        run: |
+          npm run lint
+          export CHROME_BIN="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+          npm test -- --watch=false --browsers=ChromeHeadlessWebRTC
+          python3 -m unittest discover -s scripts/tests -p 'test_ios*.py'
+      - name: Build web and sync iOS
+        run: npm run ios:sync
+      - name: Build unsigned iPhone application
+        run: |
+          xcodebuild -project ios/App/App.xcodeproj -scheme App \
+            -configuration Debug -destination 'generic/platform=iOS' \
+            -derivedDataPath work/ios-ci CODE_SIGNING_ALLOWED=NO build
+      - name: Package IPA and corresponding source
+        run: python3 scripts/ios-ci.py package work/ios-ci/Build/Products/Debug-iphoneos/App.app work/ios-release
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ios-release-${{ github.run_id }}
+          path: work/ios-release/
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    needs: build
+    if: github.event_name == 'release' || inputs.publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: voice_effect
+      - uses: actions/download-artifact@v7
+        with:
+          name: ios-release-${{ github.run_id }}
+          path: work/ios-release
+      - name: Publish release assets and update both app sources
+        run: python3 scripts/ios-ci.py publish work/ios-release "$RELEASE_TAG"

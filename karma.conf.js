@@ -26,6 +26,7 @@ module.exports = function (config) {
 		autoWatch: true,
 		browsers: ['Chrome'],
 		customLaunchers: {
+			ChromeHeadlessWebRTC: { base: 'ChromeHeadless', flags: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--autoplay-policy=no-user-gesture-required'] },
 			// Headless Chrome for CI / sandboxed environments where no display is available.
 			ChromeHeadlessNoSandbox: {
 				base: 'ChromeHeadless',

@@ -1,3 +1,4 @@
+import { createDyingVoiceRecording, inDyingVoiceRange } from '../voice/dyingVoiceRecording';
 import { EventEmitter as EventEmitterO } from 'events';
 import { AmongUsState, GameState, Player } from '../common/AmongUsState';
 import { ILobbySettings, ISettings } from '../common/ISettings';
@@ -328,6 +329,7 @@ export default class AudioController {
 		const bibiriEcho = createBibiriEcho(context, gain, masterGain);
 
 		this.peers.set(peerId, {
+			dyingVoiceRecording: createDyingVoiceRecording(context, source, masterGain),
 			bibiriEcho,
 			stream,
 			dummyAudioElement,
@@ -348,6 +350,7 @@ export default class AudioController {
 		const peer = this.peers.get(peerId);
 		if (!peer) return;
 		this.peers.delete(peerId);
+		peer.dyingVoiceRecording?.disconnect();
 
 		this.teardownAudioElement(peer.dummyAudioElement);
 		peer.source.disconnect();
@@ -374,6 +377,7 @@ export default class AudioController {
 
 	silenceAllPeers(): void {
 		for (const peer of this.peers.values()) {
+			peer.dyingVoiceRecording?.cancel();
 			peer.gain.gain.value = 0;
 			if (peer.bibiriEcho) stopBibiriEcho(peer.bibiriEcho);
 		}
@@ -382,10 +386,20 @@ export default class AudioController {
 	silencePeersExcept(peerIds: string[]): void {
 		for (const [peerId, peer] of this.peers) {
 			if (!peerIds.includes(peerId)) {
+				peer.dyingVoiceRecording?.cancel();
 				peer.gain.gain.value = 0;
 				if (peer.bibiriEcho) stopBibiriEcho(peer.bibiriEcho);
 			}
 		}
+	}
+
+	setDyingVoicePlaybackVolume(peerId: string, volume: number): void {
+		this.peers.get(peerId)?.dyingVoiceRecording?.setVolume(volume);
+	}
+
+	clearDyingVoicesOutsideGame(state: AmongUsState): void {
+		if (state.mod === 'NoS' && (state.gameState === GameState.TASKS || state.gameState === GameState.DISCUSSION)) return;
+		for (const peer of this.peers.values()) peer.dyingVoiceRecording?.cancel();
 	}
 
 	setPeerGain(peerId: string, gain: number): void {
@@ -415,6 +429,12 @@ export default class AudioController {
 		const peer = this.peers.get(peerId);
 		const destination = this.masterGain;
 		if (!peer || !destination) return null;
+		const message = state.nosDyingVoices?.find(entry => entry.playerId === other.id);
+		peer.dyingVoiceRecording?.update(message,
+			state.mod === 'NoS' && (state.gameState === GameState.TASKS || state.gameState === GameState.DISCUSSION) &&
+			other.isDead && !other.disconnected && Number.isFinite(state.nosVoiceFrameTime),
+			inDyingVoiceRange(message, me, state.gameState === GameState.TASKS) && !this.audioMuted,
+			state.nosVoiceFrameTime);
 
 		// Mobile-only: a local "mute all incoming audio" toggle desktop doesn't have.
 		if (this.audioMuted) {

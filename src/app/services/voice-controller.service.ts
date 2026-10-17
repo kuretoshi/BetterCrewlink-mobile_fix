@@ -326,6 +326,7 @@ export class VoiceController {
 			connectionController.connectionState = ConnectionState.conencted;
 		}
 
+		connectionController.audioController.clearDyingVoicesOutsideGame(state);
 		this.updateMaxDistance(state, newLocalPlayer);
 		this.updatePlayerDeadStates(state, newLocalPlayer);
 		this.updatePeerAudio(state, newLocalPlayer);
@@ -389,12 +390,15 @@ export class VoiceController {
 			}
 			player.isbetter = this.mobileHostService.isKnownDesktopHost(peerId);
 			if (playerState.settings?.isMuted || playerState.settings?.volume === 0 || settings.masterVolume === 0) {
+				audioController.setDyingVoicePlaybackVolume(peerId, 0);
 				audioController.stopPeerDeathEcho(peerId);
 				audioController.setPeerGain(peerId, 0);
 				playerState.audible = false;
 				continue;
 			}
 
+			audioController.setDyingVoicePlaybackVolume(peerId,
+				settings.masterVolume / 100 * (playerState.settings?.volume ?? 100) / 100);
 			let endGain = audioController.applyVoiceAudio(
 				peerId,
 				state,

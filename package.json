@@ -1,6 +1,6 @@
 {
   "name": "better-crewlink-mobile",
-  "version": "3.16.0",
+  "version": "3.2.34",
   "author": "OhMyGuus",
   "homepage": "https://bettercrewlink.app",
   "scripts": {
@@ -12,7 +12,9 @@
     "build": "ionic capacitor build android --prod",
     "lint": "ng lint",
     "check:drift": "node scripts/check-schema-drift.mjs",
-    "test:nos-direct": "node scripts/test-direct-nos-voice.mjs"
+    "test:nos-direct": "node scripts/test-direct-nos-voice.mjs",
+    "ios:configure": "node scripts/configure-ios.mjs",
+    "ios:sync": "npm run ngbuild -- --configuration production && cap sync ios && npm run ios:configure"
   },
   "private": true,
   "engines": {
@@ -47,7 +49,8 @@
     "rxjs": "~7.8.0",
     "socket.io-client": "^4.8.3",
     "tslib": "^2.0.0",
-    "zone.js": "~0.16.2"
+    "zone.js": "~0.16.2",
+    "@capacitor/ios": "^8.5.0"
   },
   "devDependencies": {
     "@angular/build": "^22.1.3",
