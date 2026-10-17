@@ -95,14 +95,14 @@ class IOSReleaseTests(unittest.TestCase):
             info['CFBundleShortVersionString'] = version
             with zipfile.ZipFile(filename, 'w') as archive:
                 archive.writestr('Payload/App.app/Info.plist', plistlib.dumps(info))
-        for version in ['3.25.0', '3.2.34', '3.20.0']:
+        for version in ['3.25.0', '3.26.0', '3.20.0']:
             filename = 'app-' + version + '.ipa'
             ipa(version, filename)
             subprocess.run([sys.executable, str(ROOT / 'scripts/update-sidestore-source.py'),
                             filename, 'v' + version, '2026-10-16'], check=True, capture_output=True)
         for name in ['sidestore', 'altstore']:
             feed = json.loads(Path('distribution/' + name + '.json').read_text())
-            self.assertEqual(feed['apps'][0]['versions'][0]['version'], '3.2.34')
+            self.assertEqual(feed['apps'][0]['versions'][0]['version'], '3.26.0')
         before = Path('distribution/sidestore.json').read_bytes()
         result = subprocess.run([sys.executable, str(ROOT / 'scripts/update-sidestore-source.py'),
                                  filename, 'v99.0', '2026-10-16'], capture_output=True)

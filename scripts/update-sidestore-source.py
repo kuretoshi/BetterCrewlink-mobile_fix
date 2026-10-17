@@ -19,11 +19,7 @@ def numeric_version(value):
     if not re.fullmatch(r'\d+\.\d+(?:\.\d+)?', value):
         raise ValueError('Expected a numeric release version')
     parts = tuple(map(int, value.split('.')))
-    normalized = parts + (0,) * (3 - len(parts))
-    # Mobile's former 3.16..3.25 numbering predates the unified 3.2.x line.
-    if normalized[0] == 3 and normalized[1] > 2 and normalized[2] == 0:
-        return (3, 0, normalized[1])
-    return normalized
+    return parts + (0,) * (3 - len(parts))
 
 repo = 'kuretoshi/BetterCrewlink-mobile_fix'
 source_url = f'https://raw.githubusercontent.com/{repo}/voice_effect/distribution/sidestore.json'
