@@ -184,6 +184,8 @@ export class ConnectionController implements IConnectionController {
 		this.voiceRoleSources.clear();
 		this.voiceRole.reset();
 		if (this.connectionState === ConnectionState.disconnected) {
+			// A microphone permission request may still be pending before the socket connects.
+			if (disconnectAudio) this.audioController.disconnect();
 			return;
 		}
 		this.connectionState = ConnectionState.disconnected;
@@ -286,6 +288,11 @@ export class ConnectionController implements IConnectionController {
 			const peer = this.peers.get(peerId);
 			if (peer?.writable) peer.send(payload);
 		}
+	}
+
+	/** Keep existing peer connections when the selected microphone changes. */
+	public replaceOutboundTrack(track: MediaStreamTrack): void {
+		for (const peer of this.peers.values()) peer.replaceAudioTrack(track);
 	}
 
 	/** Starts listening for peer joins and announces us to the real lobby room, once the local player is known. */

@@ -12,6 +12,7 @@ import type { TohRole, TohRoleDefinition } from './TohRole';
 // against the pinned desktop release.
 
 export interface AmongUsState {
+	nosLimitSpeechMutedPlayerIds?: number[];
 	gameState: GameState;
 	oldGameState: GameState;
 	lobbyCodeInt: number;
@@ -122,6 +123,7 @@ export interface AmongUsState {
 	nosRadios?: NosRadioData[];
 	nosAddonIds?: string[];
 	nosMegaphones?: MegaphoneState[];
+	nosDyingVoices?: import('./DyingVoiceState').DyingVoiceState[];
 	nosPortableMegaphones?: { playerId: number; extraRange: number }[];
 	nosBibiriEchoes?: { playerId: number; unixMs: number }[];
 	/** Host clock for voice events; phone and PC clocks need not agree. */

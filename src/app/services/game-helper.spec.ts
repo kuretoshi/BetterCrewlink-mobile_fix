@@ -55,7 +55,11 @@ describe('selectMicrophone', () => {
 	});
 
 	it('falls back to the first available microphone when the stored one is gone', () => {
-		expect(selectMicrophone([first, second], { ...second, id: 3 })).toBe(first);
+		expect(selectMicrophone([first, second], { ...second, deviceId: 'missing' })).toBe(first);
+	});
+
+	it('uses the device ID rather than the enumeration index after devices reorder', () => {
+		expect(selectMicrophone([first, second], { ...second, id: 1 })).toBe(second);
 	});
 
 	it('uses the default device when no microphones are available', () => {

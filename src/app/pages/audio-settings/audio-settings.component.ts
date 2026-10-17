@@ -2,6 +2,7 @@ import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrateg
 import { GameHelperService } from '../../services/game-helper.service';
 import { IDeviceInfo } from '../../services/smallInterfaces';
 import { SettingsService } from '../../services/settings.service';
+import { captureMicrophone } from '../../services/AudioController.service';
 import {
 	createVoiceDisguiseEffect,
 	disconnectVoiceDisguiseEffect,
@@ -27,6 +28,7 @@ export class AudioSettingsComponent implements OnInit, OnDestroy {
 	private testSource?: MediaStreamAudioSourceNode;
 	private testGain?: GainNode;
 	private testEffect?: VoiceDisguiseEffect;
+	private testRequestToken = 0;
 
 	constructor(
 		public gameHelper: GameHelperService,
@@ -42,7 +44,13 @@ export class AudioSettingsComponent implements OnInit, OnDestroy {
 		this.settings.save();
 	}
 
-	/** Audio-processing settings can take effect live on an already-open mic chain. */
+	/** Capture and processing toggles change the input graph and need a fresh track. */
+	onInputProcessingChange(): void {
+		this.onSettingsChange();
+		void this.gameHelper.changeMicrophone();
+	}
+
+	/** Gain and sensitivity values can change without rebuilding the input graph. */
 	onAudioSettingChange() {
 		this.onSettingsChange();
 		this.gameHelper.cManager.audioController.updateMicrophoneSettings(this.settings.get());
@@ -57,32 +65,48 @@ export class AudioSettingsComponent implements OnInit, OnDestroy {
 	async toggleVoiceEffectTest() {
 		if (this.isVoiceEffectTestRunning) return this.stopVoiceEffectTest();
 		this.stopVoiceEffectTest();
+		const token = this.testRequestToken;
 		this.voiceEffectTestError = '';
 		try {
 			const settings = this.getSettings();
-			this.testStream = await navigator.mediaDevices.getUserMedia({
-				video: false,
-				audio: {
-					deviceId: settings.selectedMicrophone?.deviceId || 'default',
+			const deviceId = settings.selectedMicrophone?.deviceId;
+			const { stream, usedDefault } = await captureMicrophone(deviceId, {
+					deviceId: deviceId && deviceId.toLowerCase() !== 'default' ? { exact: deviceId } : undefined,
 					autoGainControl: false,
 					echoCancellation: true,
 					noiseSuppression: true,
-				},
 			});
+			if (token !== this.testRequestToken) {
+				stream.getTracks().forEach((track) => track.stop());
+				return;
+			}
+			if (usedDefault) {
+				settings.selectedMicrophone = { id: 0, label: 'default', deviceId: 'default', kind: 'audioinput' };
+				void this.settings.save();
+			}
+			this.testStream = stream;
 			const AudioContextCtor = window.webkitAudioContext || window.AudioContext;
 			this.testContext = new AudioContextCtor();
+			void this.testContext.resume().catch(() => {
+				if (token !== this.testRequestToken) return;
+				this.stopVoiceEffectTest();
+				this.voiceEffectTestError = 'マイクテストを開始できませんでした';
+				this.changeDetectorRef.markForCheck();
+			});
 			this.testSource = this.testContext.createMediaStreamSource(this.testStream);
 			this.testGain = this.testContext.createGain();
 			this.testEffect = createVoiceDisguiseEffect(this.testContext, settings.voiceEffectStrength);
 			this.isVoiceEffectTestRunning = true;
 			this.connectTestPreview();
 		} catch {
+			if (token !== this.testRequestToken) return;
 			this.stopVoiceEffectTest();
 			this.voiceEffectTestError = 'マイクテストを開始できませんでした';
 		}
 	}
 
 	stopVoiceEffectTest() {
+		this.testRequestToken++;
 		this.isVoiceEffectTestRunning = false;
 		try { this.testSource?.disconnect(); } catch { /* already disconnected */ }
 		try { this.testGain?.disconnect(); } catch { /* already disconnected */ }
@@ -118,7 +142,7 @@ export class AudioSettingsComponent implements OnInit, OnDestroy {
 
 	compareFn(e1: IDeviceInfo | undefined, e2: IDeviceInfo | undefined): boolean {
 		if (!e1 || !e2) return e1 === e2;
-		return e1.id === e2.id;
+		return e1.deviceId === e2.deviceId;
 	}
 
 	ngOnInit() {

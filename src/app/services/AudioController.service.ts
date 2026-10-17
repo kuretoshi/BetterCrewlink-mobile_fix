@@ -21,6 +21,7 @@ import {
 import { createBibiriEcho, updateBibiriEcho, stopBibiriEcho, disconnectBibiriEcho } from '../voice/bibiriEcho';
 
 import { createMegaphoneRecording } from '../voice/megaphoneRecording';
+import { createDyingVoiceRecording, inDyingVoiceRange } from '../voice/dyingVoiceRecording';
 
 const REVERB_URL = 'assets/sounds/reverb.ogx';
 
@@ -41,6 +42,7 @@ export default class AudioController {
 	radioTransmitting = false;
 	private radioPending = false;
 	private jammed = false;
+	private limitSpeechMuted = false;
 	public events: EventEmitterO = new EventEmitterO();
 
 	// Single shared context + master bus for everything this controller plays, mirroring
@@ -54,6 +56,7 @@ export default class AudioController {
 	private useContextSink = false;
 	private convolverBuffer: AudioBuffer | null = null;
 	private sourceFilterReady = false;
+	private inputToken = 0;
 	private peers = new Map<string, PeerAudioNodes>();
 	// Input chain (desktop's createInputChain): raw mic stream -> optional microphoneGain ->
 	// optional processed MediaStreamDestination. `stream` above is the last stage's output.
@@ -74,6 +77,7 @@ export default class AudioController {
 			return;
 		}
 
+		const token = ++this.inputToken;
 		this.ensureOutputBus();
 		try {
 			await prepareSourceFilter(this.context);
@@ -81,19 +85,52 @@ export default class AudioController {
 		} catch (error) {
 			console.warn('NoS source-filter audio is unavailable', error);
 		}
+		if (token !== this.inputToken) return;
+		await this.createInputChain(token, this.connectionController.deviceID);
+		if (token === this.inputToken && this.stream)
+			this.connectionController.updateConnectingStage(ConnectingStage.startingMicrophone);
+	}
 
+	/** Replaces the live capture chain; only the latest microphone request may win. */
+	async restartInput(deviceId: string): Promise<MediaStreamTrack | undefined> {
+		if (!this.context) return undefined;
+		const token = ++this.inputToken;
+		this.teardownInputChain();
+		try {
+			await this.createInputChain(token, deviceId);
+		} catch (error) {
+			console.warn('Failed to switch microphone', error);
+			return undefined;
+		}
+		if (token !== this.inputToken) return undefined;
+		return this.stream?.getAudioTracks()[0];
+	}
+
+	private async createInputChain(token: number, deviceId: string): Promise<void> {
+		const context = this.context;
+		if (!context || token !== this.inputToken) return;
 		const settings = this.settingsService.get();
-		const audio: MediaTrackConstraintSet = {
-			deviceId: this.connectionController.deviceID,
-			autoGainControl: settings.autoGainControl,
-			echoCancellation: settings.echoCancellation,
-			noiseSuppression: settings.noiseSuppression,
-		};
-		const inputStream = await navigator.mediaDevices.getUserMedia({ video: false, audio });
+		let inputStream: MediaStream;
+		let usedDefault: boolean;
+		try {
+			({ stream: inputStream, usedDefault } = await captureMicrophone(deviceId, microphoneConstraints(deviceId, settings)));
+		} catch (error) {
+			if (token === this.inputToken) throw error;
+			return;
+		}
+		if (token !== this.inputToken) {
+			inputStream.getTracks().forEach((track) => track.stop());
+			return;
+		}
 		this.inputStream = inputStream;
 		this.stream = inputStream;
+		if (usedDefault) {
+			console.warn('Selected microphone is unavailable; using the system default');
+			this.connectionController.deviceID = 'default';
+			settings.selectedMicrophone = { id: 0, label: 'default', deviceId: 'default', kind: 'audioinput' };
+			void this.settingsService.save();
+		}
 
-		const context = this.context;
 		const inputSource = context.createMediaStreamSource(inputStream);
 		this.inputSource = inputSource;
 		this.localMegaphoneRecording = createMegaphoneRecording(
@@ -150,7 +187,7 @@ export default class AudioController {
 				if (this.microphoneGain) {
 					const current = this.settingsService.get();
 					if (current.micSensitivityEnabled && !current.autoGainControl) {
-						this.microphoneGain.gain.value = current.microphoneGainEnabled ? current.microphoneGain / 100 : 1;
+						openMicrophoneGate(this.microphoneGain, current.microphoneGainEnabled ? current.microphoneGain / 100 : 1);
 					}
 				}
 				this.localTalking = true;
@@ -161,7 +198,7 @@ export default class AudioController {
 				if (this.microphoneGain) {
 					const current = this.settingsService.get();
 					if (current.micSensitivityEnabled && !current.autoGainControl) {
-						this.microphoneGain.gain.value = 0;
+						closeMicrophoneGate(this.microphoneGain);
 					}
 				}
 				this.localTalking = false;
@@ -177,7 +214,6 @@ export default class AudioController {
 		this.audioListener = audioListener;
 
 		this.applyTrackEnabled();
-		this.connectionController.updateConnectingStage(ConnectingStage.startingMicrophone);
 	}
 
 	/** Applies live changes to mic gain/sensitivity without tearing the input chain down. */
@@ -240,7 +276,7 @@ export default class AudioController {
 	private applyTrackEnabled(): void {
 		const track = this.stream?.getAudioTracks()[0];
 		if (!track) return;
-		track.enabled = !this.jammed && !this.radioPending &&
+		track.enabled = !this.limitSpeechMuted && !this.jammed && !this.radioPending &&
 			(this.radioTransmitting || (!this.microphoneMuted && !this.audioMuted));
 	}
 
@@ -357,6 +393,7 @@ export default class AudioController {
 
 		this.peers.set(peerId, {
 			megaphoneRecording: createMegaphoneRecording(context, source, masterGain),
+			dyingVoiceRecording: createDyingVoiceRecording(context, source, masterGain),
 			bibiriEcho,
 			stream,
 			dummyAudioElement,
@@ -378,6 +415,7 @@ export default class AudioController {
 		if (!peer) return;
 		this.peers.delete(peerId);
 		peer.megaphoneRecording?.disconnect();
+		peer.dyingVoiceRecording?.disconnect();
 
 		this.teardownAudioElement(peer.dummyAudioElement);
 		peer.source.disconnect();
@@ -406,6 +444,7 @@ export default class AudioController {
 		this.localMegaphoneRecording?.cancel();
 		for (const peer of this.peers.values()) peer.megaphoneRecording?.cancel();
 		for (const peer of this.peers.values()) {
+			peer.dyingVoiceRecording?.cancel();
 			peer.gain.gain.value = 0;
 			if (peer.bibiriEcho) stopBibiriEcho(peer.bibiriEcho);
 		}
@@ -414,6 +453,7 @@ export default class AudioController {
 	silencePeersExcept(peerIds: string[]): void {
 		for (const [peerId, peer] of this.peers) {
 			if (!peerIds.includes(peerId)) {
+				peer.dyingVoiceRecording?.cancel();
 				peer.megaphoneRecording?.cancel();
 				peer.gain.gain.value = 0;
 				if (peer.bibiriEcho) stopBibiriEcho(peer.bibiriEcho);
@@ -449,6 +489,17 @@ export default class AudioController {
 		const peer = this.peers.get(peerId);
 		const destination = this.masterGain;
 		if (!peer || !destination) return null;
+		const message = state.nosDyingVoices?.find(entry => entry.playerId === other.id);
+		peer.dyingVoiceRecording?.update(message,
+			state.mod === 'NoS' && (state.gameState === GameState.TASKS || state.gameState === GameState.DISCUSSION) &&
+			other.isDead && !other.disconnected && Number.isFinite(state.nosVoiceFrameTime),
+			inDyingVoiceRange(message, me, state.gameState === GameState.TASKS) && !this.audioMuted,
+			state.nosVoiceFrameTime);
+		if (state.mod === 'NoS' && state.nosLimitSpeechMutedPlayerIds?.includes(other.id)) {
+			this.stopPeerDeathEcho(peerId);
+			peer.gain.gain.value = 0;
+			return 0;
+		}
 		peer.megaphoneRecording?.update(
 			state.nosMegaphones?.find((entry) => entry.playerId === other.id),
 			state.mod === 'NoS' && state.gameState === GameState.TASKS && !other.disconnected && !this.audioMuted,
@@ -543,18 +594,44 @@ export default class AudioController {
 	}
 
 	setMegaphonePlaybackVolume(peerId: string, volume: number): void {
+		this.peers.get(peerId)?.dyingVoiceRecording?.setVolume(volume);
 		this.peers.get(peerId)?.megaphoneRecording?.setVolume(volume);
 	}
 	updateMegaphoneState(state: AmongUsState, local?: Player): void {
+		if (state.mod !== 'NoS' || (state.gameState !== GameState.TASKS && state.gameState !== GameState.DISCUSSION))
+			for (const peer of this.peers.values()) peer.dyingVoiceRecording?.cancel();
+		const restricted =
+			state.mod === 'NoS' &&
+			(state.gameState === GameState.TASKS || state.gameState === GameState.DISCUSSION) &&
+			!!local &&
+			!!state.nosLimitSpeechMutedPlayerIds?.includes(local.id);
+		if (restricted !== this.limitSpeechMuted) {
+			this.limitSpeechMuted = restricted;
+			this.applyTrackEnabled();
+		}
+		if (restricted) this.localMegaphoneRecording?.cancel();
 		this.localMegaphoneRecording?.update(
 			state.nosMegaphones?.find((entry) => entry.playerId === local?.id),
-			state.mod === 'NoS' && state.gameState === GameState.TASKS && !!local && !local.disconnected && !this.audioMuted,
+			state.mod === 'NoS' &&
+				state.gameState === GameState.TASKS &&
+				!!local &&
+				!local.disconnected &&
+				!this.limitSpeechMuted &&
+				!this.audioMuted,
 			this.settingsService.get().masterVolume / 100
 		);
 		if (state.mod !== 'NoS' || state.gameState !== GameState.TASKS)
 			for (const peer of this.peers.values()) peer.megaphoneRecording?.cancel();
 	}
 	disconnect() {
+		this.inputToken++;
+		this.teardownInputChain();
+		for (const peerId of Array.from(this.peers.keys())) {
+			this.removePeer(peerId);
+		}
+	}
+
+	private teardownInputChain(): void {
 		this.localMegaphoneRecording?.disconnect();
 		this.localMegaphoneRecording = undefined;
 		if (this.voiceRoleTimer) clearInterval(this.voiceRoleTimer);
@@ -578,9 +655,6 @@ export default class AudioController {
 			this.inputStream = undefined;
 		}
 		this.stream = undefined;
-		for (const peerId of Array.from(this.peers.keys())) {
-			this.removePeer(peerId);
-		}
 	}
 
 	async requestPermissions() {
@@ -609,6 +683,54 @@ export default class AudioController {
 				};
 			});
 	}
+}
+
+export function microphoneConstraints(
+	deviceId: string | undefined,
+	settings: Pick<ISettings, 'autoGainControl' | 'echoCancellation' | 'noiseSuppression'>
+): MediaTrackConstraints {
+	return {
+		deviceId: deviceId && deviceId.toLowerCase() !== 'default' ? { exact: deviceId } : undefined,
+		channelCount: 2,
+		autoGainControl: settings.autoGainControl,
+		echoCancellation: settings.echoCancellation,
+		noiseSuppression: settings.noiseSuppression,
+	};
+}
+
+export async function captureMicrophone(
+	deviceId: string | undefined,
+	constraints: MediaTrackConstraints
+): Promise<{ stream: MediaStream; usedDefault: boolean }> {
+	try {
+		return { stream: await navigator.mediaDevices.getUserMedia({ video: false, audio: constraints }), usedDefault: false };
+	} catch (error) {
+		const name = error instanceof Error ? error.name : '';
+		if (!deviceId || deviceId.toLowerCase() === 'default' ||
+			(name !== 'OverconstrainedError' && name !== 'NotFoundError')) throw error;
+		const defaultConstraints = { ...constraints, deviceId: undefined };
+		return {
+			stream: await navigator.mediaDevices.getUserMedia({ video: false, audio: defaultConstraints }),
+			usedDefault: true,
+		};
+	}
+}
+
+const MICROPHONE_RELEASE_SECONDS = 0.02;
+
+export function openMicrophoneGate(node: GainNode, level: number): void {
+	const now = node.context.currentTime;
+	node.gain.cancelScheduledValues(now);
+	node.gain.setValueAtTime(level, now);
+}
+
+export function closeMicrophoneGate(node: GainNode): void {
+	const current = node.gain.value;
+	if (current === 0) return;
+	const now = node.context.currentTime;
+	node.gain.cancelScheduledValues(now);
+	node.gain.setValueAtTime(current, now);
+	node.gain.linearRampToValueAtTime(0, now + MICROPHONE_RELEASE_SECONDS);
 }
 
 function updatePeerVoiceEffect(peer: PeerAudioNodes, context: AudioContext, effect: VoiceEffectSetting): void {

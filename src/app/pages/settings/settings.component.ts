@@ -31,9 +31,14 @@ export class SettingsComponent implements OnInit, OnDestroy {
 		console.log('Settings changed:', this.settings.get());
 	}
 
+	onMicrophoneChange(): void {
+		this.onSettingsChange();
+		void this.gameHelper.changeMicrophone();
+	}
+
 	compareFn(e1: IDeviceInfo | undefined, e2: IDeviceInfo | undefined): boolean {
 		if (!e1 || !e2) return e1 === e2;
-		return e1.id === e2.id;
+		return e1.deviceId === e2.deviceId;
 	}
 
 	// async test() {
