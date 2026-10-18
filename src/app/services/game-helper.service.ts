@@ -187,27 +187,31 @@ export class GameHelperService {
 		this.overlayPermissionMissing = false;
 	}
 
-	async requestPermissions(): Promise<boolean> {
-		if (this.platform.is('cordova') || this.platform.is('android')) {
-			const PERMISSIONS_NEEDED = [
-				'android.permission.BLUETOOTH',
-				// this.androidPermissions.PERMISSION.RECORD_AUDIO,
-				// this.androidPermissions.PERMISSION.INTERNET,
-			];
+	private async requestBluetoothPermissions(): Promise<boolean> {
+		if (!this.platform.is('cordova') && !this.platform.is('android')) return true;
+		const PERMISSIONS_NEEDED = [
+			'android.permission.BLUETOOTH',
+			// this.androidPermissions.PERMISSION.RECORD_AUDIO,
+			// this.androidPermissions.PERMISSION.INTERNET,
+		];
 
-			try {
-				await this.androidPermissions.requestPermissions(PERMISSIONS_NEEDED);
-				for (const permission of PERMISSIONS_NEEDED) {
-					const permissionResponse = await this.androidPermissions.checkPermission(permission);
-					if (!permissionResponse.hasPermission) {
-						return true;
-					}
+		try {
+			await this.androidPermissions.requestPermissions(PERMISSIONS_NEEDED);
+			for (const permission of PERMISSIONS_NEEDED) {
+				const permissionResponse = await this.androidPermissions.checkPermission(permission);
+				if (!permissionResponse.hasPermission) {
+					return false;
 				}
-			} catch {
-				//	this.error = 'Bluetooth audio permission denied';
-				return true;
 			}
+		} catch {
+			//	this.error = 'Bluetooth audio permission denied';
+			return false;
 		}
+		return true;
+	}
+
+	async requestPermissions(): Promise<boolean> {
+		if (!(await this.requestBluetoothPermissions())) return true;
 
 		try {
 			await this.cManager.audioController.requestPermissions();

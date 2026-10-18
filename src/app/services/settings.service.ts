@@ -136,11 +136,15 @@ export class SettingsService {
 
 		if (value instanceof Map) {
 			for (const [key, playerSetting] of value) setEntry(key, playerSetting);
-		} else if (Array.isArray(value)) {
+			return map;
+		}
+		if (Array.isArray(value)) {
 			for (const entry of value) {
 				if (Array.isArray(entry) && entry.length === 2) setEntry(entry[0], entry[1]);
 			}
-		} else if (typeof value === 'object') {
+			return map;
+		}
+		if (typeof value === 'object') {
 			for (const key of Object.keys(value)) setEntry(key, (value as Record<string, unknown>)[key]);
 		}
 		return map;
@@ -151,6 +155,15 @@ export class SettingsService {
 			this.loadPromise = this.doLoad();
 		}
 		return this.loadPromise;
+	}
+
+	private applyLoadedSettings(loadedSettings: Partial<ISettings> | null | undefined): void {
+		if (!loadedSettings) return;
+		for (const key of Object.keys(this.settings)) {
+			if (key === 'playerSettings' || !(key in loadedSettings)) continue;
+			this.settings[key] = loadedSettings[key];
+		}
+		this.settings.playerSettings = this.deserializePlayerSettings(loadedSettings.playerSettings);
 	}
 
 	private async doLoad(): Promise<void> {
@@ -166,13 +179,7 @@ export class SettingsService {
 
 		try {
 			const loadedSettings = await this.storage.get('settings');
-			if (loadedSettings) {
-				for (const key of Object.keys(this.settings)) {
-					if (key === 'playerSettings' || !(key in loadedSettings)) continue;
-					this.settings[key] = loadedSettings[key];
-				}
-				this.settings.playerSettings = this.deserializePlayerSettings(loadedSettings.playerSettings);
-			}
+			this.applyLoadedSettings(loadedSettings);
 		} catch (error) {
 			console.warn('Failed to read stored settings; using defaults:', error);
 		}
