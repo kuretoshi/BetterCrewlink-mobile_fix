@@ -1,3 +1,4 @@
+import { createInterviewerRecording } from '../voice/interviewerRecording';
 import { createDyingVoiceRecording, inDyingVoiceRange } from '../voice/dyingVoiceRecording';
 import { EventEmitter as EventEmitterO } from 'events';
 import { AmongUsState, GameState, Player } from '../common/AmongUsState';
@@ -55,6 +56,9 @@ export default class AudioController {
 	private peers = new Map<string, PeerAudioNodes>();
 	// Input chain (desktop's createInputChain): raw mic stream -> optional microphoneGain ->
 	// optional processed MediaStreamDestination. `stream` above is the last stage's output.
+	private interviewer?: ReturnType<typeof createInterviewerRecording>;
+	private interviewMic?: { stream: MediaStream; source: MediaStreamAudioSourceNode };
+	private interviewMuted = new Set<string>();
 	private inputStream?: MediaStream;
 	private voiceRoleTimer?: ReturnType<typeof setInterval>;
 	private voiceRoleAnalyser?: AnalyserNode;
@@ -218,7 +222,10 @@ export default class AudioController {
 	}
 
 	private ensureOutputBus() {
-		if (this.context) return;
+		if (this.context) {
+			if (this.masterGain) this.interviewer ??= createInterviewerRecording(this.context, this.masterGain);
+			return;
+		}
 
 		const AudioContextCtor = window.webkitAudioContext || window.AudioContext;
 		const context = new AudioContextCtor();
@@ -230,6 +237,7 @@ export default class AudioController {
 		const masterGain = context.createGain();
 		masterGain.gain.value = 1;
 		this.masterGain = masterGain;
+		this.interviewer = createInterviewerRecording(context, masterGain);
 
 		this.useContextSink = 'setSinkId' in AudioContext.prototype;
 		if (this.useContextSink) {
@@ -268,6 +276,7 @@ export default class AudioController {
 	changeMuteState(microphoneMuted: boolean, audioMuted: boolean) {
 		this.microphoneMuted = microphoneMuted;
 		this.audioMuted = audioMuted;
+		if (audioMuted) this.interviewer?.silence();
 
 		if (this.audioMuted) {
 			this.silenceAllPeers();
@@ -347,6 +356,8 @@ export default class AudioController {
 	}
 
 	removePeer(peerId: string): void {
+		this.interviewer?.removeInput(peerId);
+		this.interviewMuted.delete(peerId);
 		const peer = this.peers.get(peerId);
 		if (!peer) return;
 		this.peers.delete(peerId);
@@ -375,7 +386,8 @@ export default class AudioController {
 		element.remove();
 	}
 
-	silenceAllPeers(): void {
+	silenceAllPeers(clearRecordings = false): void {
+		if (clearRecordings) this.interviewer?.clear(); else this.interviewer?.silence();
 		for (const peer of this.peers.values()) {
 			peer.dyingVoiceRecording?.cancel();
 			peer.gain.gain.value = 0;
@@ -394,10 +406,27 @@ export default class AudioController {
 	}
 
 	setDyingVoicePlaybackVolume(peerId: string, volume: number): void {
+		if (volume > 0) this.interviewMuted.delete(peerId); else this.interviewMuted.add(peerId);
 		this.peers.get(peerId)?.dyingVoiceRecording?.setVolume(volume);
 	}
 
+
+	private updateInterviewer(state: AmongUsState): void {
+		const local = this.connectionController.localPLayer;
+		if (local && this.stream && this.context) {
+			if (this.interviewMic?.stream !== this.stream) {
+				this.interviewMic?.source.disconnect();
+				this.interviewMic = { stream: this.stream, source: this.context.createMediaStreamSource(this.stream) };
+			}
+			this.interviewer?.setInput('local', this.interviewMic.source, local.id, () => !this.microphoneMuted && !this.audioMuted && !this.jammed && !!this.stream?.getAudioTracks()[0]?.enabled);
+		}
+		this.interviewer?.update(state.nosInterviews ?? [], state.mod === 'NoS' &&
+			(state.gameState === GameState.TASKS || state.gameState === GameState.DISCUSSION),
+			state.gameState === GameState.DISCUSSION, this.audioMuted ? 0 : this.settingsService.get().masterVolume / 100, state.nosVoiceFrameTime);
+	}
+
 	clearDyingVoicesOutsideGame(state: AmongUsState): void {
+		this.updateInterviewer(state);
 		if (state.mod === 'NoS' && (state.gameState === GameState.TASKS || state.gameState === GameState.DISCUSSION)) return;
 		for (const peer of this.peers.values()) peer.dyingVoiceRecording?.cancel();
 	}
@@ -429,6 +458,7 @@ export default class AudioController {
 		const peer = this.peers.get(peerId);
 		const destination = this.masterGain;
 		if (!peer || !destination) return null;
+		this.interviewer?.setInput(peerId, peer.source, other.id, () => !this.audioMuted && !other.disconnected && !this.interviewMuted.has(peerId));
 		const message = state.nosDyingVoices?.find(entry => entry.playerId === other.id);
 		peer.dyingVoiceRecording?.update(message,
 			state.mod === 'NoS' && (state.gameState === GameState.TASKS || state.gameState === GameState.DISCUSSION) &&
@@ -524,6 +554,8 @@ export default class AudioController {
 	}
 
 	disconnect() {
+		this.interviewer?.disconnect();
+		this.interviewer = undefined;
 		if (this.voiceRoleTimer) clearInterval(this.voiceRoleTimer);
 		this.voiceRoleTimer = undefined;
 		this.voiceRoleAnalyser?.disconnect();
@@ -531,6 +563,9 @@ export default class AudioController {
 		this.audioListener?.destroy();
 		this.audioListener = undefined;
 
+		this.interviewer?.removeInput('local');
+		this.interviewMic?.source.disconnect();
+		this.interviewMic = undefined;
 		this.inputSource?.disconnect();
 		this.inputSource = undefined;
 

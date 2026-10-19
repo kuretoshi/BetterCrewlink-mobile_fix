@@ -262,7 +262,7 @@ export class VoiceController {
 	}
 
 	private muteAll(): void {
-		this.connectionController.audioController.silenceAllPeers();
+		this.connectionController.audioController.silenceAllPeers(true);
 	}
 
 	private onGameState(state: AmongUsState): void {
