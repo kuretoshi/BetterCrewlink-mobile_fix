@@ -4,7 +4,7 @@ import { ILobbySettings, ISettings } from '../common/ISettings';
 import { PlayerSettingsMap } from '../services/smallInterfaces';
 import type { NosPlayerData } from '../common/NosSnapshot';
 import { defaultLobbySettings } from './types';
-import { calculateVoiceAudio, VoiceAudioInput } from './spatialAudio';
+import { calculateVoiceAudio, VoiceAudioInput, voiceHearingDistance } from './spatialAudio';
 import { selectVoiceEffect, shouldApplyRainbowStarEcho } from './voiceEffectRules';
 
 function makePlayer(overrides: Partial<Player> = {}): Player {
@@ -126,6 +126,33 @@ function run(overrides: Partial<VoiceAudioInput> = {}) {
 		...overrides,
 	});
 }
+
+describe('NoS neutral voice hearing distance', () => {
+	const lobby = makeLobbySettings({ maxDistance: 5.32, visionHearing: true });
+	const state = makeState({ mod: 'NoS', map: MapType.AIRSHIP, lightRadius: 30 });
+
+	it('uses the lobby voice range for both NoS neutral classifications', () => {
+		expect(voiceHearingDistance(state, lobby, makePlayer({ isThirdParty: true }))).toBe(5.32);
+		expect(voiceHearingDistance(state, lobby, makePlayer({
+			nosPlayer: makeNosPlayer({ isNeutral: true, isCrewmate: false }),
+		}))).toBe(5.32);
+	});
+
+	it('keeps the crew vision range, impostor lobby range, and other-mod behavior', () => {
+		expect(voiceHearingDistance(state, lobby, makePlayer())).toBe(30.5);
+		expect(voiceHearingDistance(state, lobby, makePlayer({ isImpostor: true }))).toBe(5.32);
+		expect(voiceHearingDistance(makeState({ mod: 'SUPER_NEW_ROLES', lightRadius: 30 }), lobby,
+		makePlayer({ isThirdParty: true }))).toBe(30.5);
+	});
+
+	it('does not hear an Archive-to-Cockpit-scale conversation through a large neutral sight radius', () => {
+		const me = makePlayer({ id: 1, isLocal: true, isThirdParty: true, x: 0, y: 0 });
+		const other = makePlayer({ id: 2, clientId: 2, x: 20, y: 0 });
+		const maxDistance = voiceHearingDistance(state, lobby, me);
+		expect(run({ state, me, other, activeLobbySettings: lobby, maxDistance }).gain).toBe(0);
+		expect(run({ state, me, other: { ...other, x: 4 }, activeLobbySettings: lobby, maxDistance }).gain).toBe(1);
+	});
+});
 
 describe('calculateVoiceAudio', () => {
 	for (const gameState of [GameState.TASKS, GameState.DISCUSSION]) {

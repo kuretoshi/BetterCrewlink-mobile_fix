@@ -25,6 +25,7 @@ import {
 import { HeldNosRadio, resolveNosRadioKind, isNosRadioEnabled } from '../common/nosRadio';
 import { compareAppVersions, mismatchedAppVersions, requiredAppVersion } from '../common/appVersion';
 import { environment } from '../../environments/environment';
+import { voiceHearingDistance } from '../voice/spatialAudio';
 
 const radioOnAudio = new Audio('assets/sounds/radio_on.wav');
 radioOnAudio.volume = 0.02;
@@ -348,11 +349,9 @@ export class VoiceController {
 	}
 
 	private updateMaxDistance(state: AmongUsState, myPlayer: Player): void {
-		const lobbySettings = this.connectionController.lobbySettings;
-		let maxDistance = lobbySettings.maxDistance;
-		if (lobbySettings.visionHearing && !isPlayerImpostor(state.mod, myPlayer)) maxDistance = state.lightRadius + 0.5;
-		if (maxDistance <= 0.6) maxDistance = 1;
-		this.connectionController.audioController.setMaxDistance(maxDistance);
+		this.connectionController.audioController.setMaxDistance(
+			voiceHearingDistance(state, this.connectionController.lobbySettings, myPlayer)
+		);
 	}
 
 	private computeLatchedDead(current: boolean, isNowDead: boolean, myPlayer: Player): boolean {
