@@ -1,3 +1,4 @@
+import { voiceJammingFor } from '../common/VoiceJammingState';
 import { Injectable } from '@angular/core';
 import { AmongUsState, GameState, numberStringMap, Player } from '../common/AmongUsState';
 import { ILobbySettings } from '../common/ISettings';
@@ -305,8 +306,9 @@ export class VoiceController {
 		connectionController.localPLayer = newLocalPlayer;
 		connectionController.audioController.setJammed(
 			state.mod === 'NoS' &&
-				connectionController.lobbySettings.nosFixerJammingVoiceBlock !== false &&
-				newLocalPlayer.nosPlayer?.isJammed === true
+				((connectionController.lobbySettings.nosFixerJammingVoiceBlock !== false &&
+					newLocalPlayer.nosPlayer?.isJammed === true) ||
+					voiceJammingFor(state, newLocalPlayer.id)?.muted === true)
 		);
 		this.syncNosRadioReports(state, newLocalPlayer);
 		this.syncAppVersion(state, newLocalPlayer);
@@ -396,8 +398,10 @@ export class VoiceController {
 				continue;
 			}
 
-			audioController.setDyingVoicePlaybackVolume(peerId,
-				settings.masterVolume / 100 * (playerState.settings?.volume ?? 100) / 100);
+			audioController.setDyingVoicePlaybackVolume(
+				peerId,
+				((settings.masterVolume / 100) * (playerState.settings?.volume ?? 100)) / 100
+			);
 			let endGain = audioController.applyVoiceAudio(
 				peerId,
 				state,

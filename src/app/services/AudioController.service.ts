@@ -1,3 +1,4 @@
+import { applyVoiceJamming } from '../common/VoiceJammingState';
 import { createInterviewerRecording } from '../voice/interviewerRecording';
 import { createDyingVoiceRecording, inDyingVoiceRange } from '../voice/dyingVoiceRecording';
 import { EventEmitter as EventEmitterO } from 'events';
@@ -118,7 +119,11 @@ export default class AudioController {
 				!this.audioMuted &&
 				!this.jammed;
 			const rms = Math.min(1, Math.sqrt(sum / samples.length));
-			this.events.emit('voiceRoleSample', voiceRoleLevel(rms, this.settingsService.get().nosRoleMicrophoneSensitivity), active);
+			this.events.emit(
+				'voiceRoleSample',
+				voiceRoleLevel(rms, this.settingsService.get().nosRoleMicrophoneSensitivity),
+				active
+			);
 		}, 50);
 
 		// Desktop's createInputChain: only wire a manual gain stage when a mic setting asks for
@@ -387,7 +392,8 @@ export default class AudioController {
 	}
 
 	silenceAllPeers(clearRecordings = false): void {
-		if (clearRecordings) this.interviewer?.clear(); else this.interviewer?.silence();
+		if (clearRecordings) this.interviewer?.clear();
+		else this.interviewer?.silence();
 		for (const peer of this.peers.values()) {
 			peer.dyingVoiceRecording?.cancel();
 			peer.gain.gain.value = 0;
@@ -406,10 +412,10 @@ export default class AudioController {
 	}
 
 	setDyingVoicePlaybackVolume(peerId: string, volume: number): void {
-		if (volume > 0) this.interviewMuted.delete(peerId); else this.interviewMuted.add(peerId);
+		if (volume > 0) this.interviewMuted.delete(peerId);
+		else this.interviewMuted.add(peerId);
 		this.peers.get(peerId)?.dyingVoiceRecording?.setVolume(volume);
 	}
-
 
 	private updateInterviewer(state: AmongUsState): void {
 		const local = this.connectionController.localPLayer;
@@ -418,16 +424,26 @@ export default class AudioController {
 				this.interviewMic?.source.disconnect();
 				this.interviewMic = { stream: this.stream, source: this.context.createMediaStreamSource(this.stream) };
 			}
-			this.interviewer?.setInput('local', this.interviewMic.source, local.id, () => !this.microphoneMuted && !this.audioMuted && !this.jammed && !!this.stream?.getAudioTracks()[0]?.enabled);
+			this.interviewer?.setInput(
+				'local',
+				this.interviewMic.source,
+				local.id,
+				() => !this.microphoneMuted && !this.audioMuted && !this.jammed && !!this.stream?.getAudioTracks()[0]?.enabled
+			);
 		}
-		this.interviewer?.update(state.nosInterviews ?? [], state.mod === 'NoS' &&
-			(state.gameState === GameState.TASKS || state.gameState === GameState.DISCUSSION),
-			state.gameState === GameState.DISCUSSION, this.audioMuted ? 0 : this.settingsService.get().masterVolume / 100, state.nosVoiceFrameTime);
+		this.interviewer?.update(
+			state.nosInterviews ?? [],
+			state.mod === 'NoS' && (state.gameState === GameState.TASKS || state.gameState === GameState.DISCUSSION),
+			state.gameState === GameState.DISCUSSION,
+			this.audioMuted ? 0 : this.settingsService.get().masterVolume / 100,
+			state.nosVoiceFrameTime
+		);
 	}
 
 	clearDyingVoicesOutsideGame(state: AmongUsState): void {
 		this.updateInterviewer(state);
-		if (state.mod === 'NoS' && (state.gameState === GameState.TASKS || state.gameState === GameState.DISCUSSION)) return;
+		if (state.mod === 'NoS' && (state.gameState === GameState.TASKS || state.gameState === GameState.DISCUSSION))
+			return;
 		for (const peer of this.peers.values()) peer.dyingVoiceRecording?.cancel();
 	}
 
@@ -458,13 +474,23 @@ export default class AudioController {
 		const peer = this.peers.get(peerId);
 		const destination = this.masterGain;
 		if (!peer || !destination) return null;
-		this.interviewer?.setInput(peerId, peer.source, other.id, () => !this.audioMuted && !other.disconnected && !this.interviewMuted.has(peerId));
-		const message = state.nosDyingVoices?.find(entry => entry.playerId === other.id);
-		peer.dyingVoiceRecording?.update(message,
-			state.mod === 'NoS' && (state.gameState === GameState.TASKS || state.gameState === GameState.DISCUSSION) &&
-			other.isDead && !other.disconnected && Number.isFinite(state.nosVoiceFrameTime),
+		this.interviewer?.setInput(
+			peerId,
+			peer.source,
+			other.id,
+			() => !this.audioMuted && !other.disconnected && !this.interviewMuted.has(peerId)
+		);
+		const message = state.nosDyingVoices?.find((entry) => entry.playerId === other.id);
+		peer.dyingVoiceRecording?.update(
+			message,
+			state.mod === 'NoS' &&
+				(state.gameState === GameState.TASKS || state.gameState === GameState.DISCUSSION) &&
+				other.isDead &&
+				!other.disconnected &&
+				Number.isFinite(state.nosVoiceFrameTime),
 			inDyingVoiceRange(message, me, state.gameState === GameState.TASKS) && !this.audioMuted,
-			state.nosVoiceFrameTime);
+			state.nosVoiceFrameTime
+		);
 
 		// Mobile-only: a local "mute all incoming audio" toggle desktop doesn't have.
 		if (this.audioMuted) {
@@ -497,6 +523,7 @@ export default class AudioController {
 		});
 
 		pan.maxDistance = result.panMaxDistance ?? this.maxDistance;
+		applyVoiceJamming(state, other.id, result);
 
 		if (result.muffle) {
 			muffle.type = result.muffle.type;
