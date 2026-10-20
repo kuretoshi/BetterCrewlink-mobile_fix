@@ -4,6 +4,10 @@
 
 元プロジェクトは [BetterCrewLink](https://github.com/OhMyGuus/BetterCrewLink) と [CrewLink](https://github.com/ottomated/CrewLink) の流れを引き継いでいます。Among Us、Innersloth、CrewLink、BetterCrewLink の公式プロジェクトとは別の非公式版です。
 
+## 3.31
+
+PC版3.2.39および.NET版3.2.39-net-beta.1との音声通信互換バージョンを通知します。モバイル版3.30がPC版3.2.24相当と通知していたため、対応ホストとの間でも古い版として表示される問題を修正しました。PC版の全機能をモバイルへ移植したことを意味するものではありません。
+
 ## 3.29
 
 PC版3.2.37のNoS第三陣営の通話距離修正を取り込みました。「視界内のプレイヤーの声だけが聞こえる」が有効でも、NoS第三陣営の通常会話はロビー設定の音声距離を使います。クルーの視界連動、インポスターの音声距離、他MOD、ラジオ等の専用音声は維持します。Web・Android・iOSは共通の音声判定を使用します。PC版3.2.37の全機能を移植した版ではありません。
