@@ -2,10 +2,11 @@ import { ChangeDetectorRef, Component } from '@angular/core';
 import { GameHelperService } from '../../services/game-helper.service';
 import { SettingsService } from '../../services/settings.service';
 import { AudioSettingsComponent } from '../audio-settings/audio-settings.component';
+import { VoiceEffectPreviewKind } from '../audio-settings/voiceEffectPreview';
 
 interface VoiceEffectRow {
+	key: VoiceEffectPreviewKind;
 	label: string;
-	strength: number;
 }
 
 @Component({
@@ -29,29 +30,30 @@ export class VoiceEffectsComponent extends AudioSettingsComponent {
 
 	voiceEffectRows(): VoiceEffectRow[] {
 		const state = this.gameHelper.cManager.currentGameState;
-		const settings = this.gameHelper.cManager.lobbySettings;
-		if (!state || !settings) return [];
-		const row = (label: string, configured: number | undefined): VoiceEffectRow => ({
-			label,
-			strength: Number.isFinite(configured) ? Math.min(100, Math.max(0, configured!)) : 100,
-		});
+		if (!state) return [];
+		const row = (key: VoiceEffectPreviewKind, label: string): VoiceEffectRow => ({ key, label });
 		if (state.mod === 'SUPER_NEW_ROLES')
-			return [row('ジャンボ', settings.snrJumboVoiceEffectStrength)];
+			return [row('snrJumboVoiceEffectStrength', 'ジャンボ')];
 		if (state.mod !== 'NoS') return [];
 		const rows = [
-			row('サイズ変化', settings.nosSizeVoiceEffectStrength),
-			row('ろくろ首', settings.nosRokurokubiVoiceEffectStrength),
-			row('バーサーカー', settings.nosBerserkerVoiceEffectStrength),
+			row('nosSizeVoiceEffectStrength', 'サイズ変化'),
+			row('nosRokurokubiVoiceEffectStrength', 'ろくろ首'),
+			row('nosBerserkerVoiceEffectStrength', 'バーサーカー'),
 		];
 		if (state.nosAddonIds?.includes('tanuki.bcl.roles')) {
-			rows.push(row('ボイスジャミンガー', settings.nosVoiceJammingEffectStrength));
-			rows.push(row('メガホン充電中の声', settings.nosMegaphoneEffectStrength));
-			rows.push(row('ビビリ死亡時のエコー', settings.nosBibiriEchoStrength));
+			rows.push(row('nosVoiceJammingEffectStrength', 'ボイスジャミンガー'));
+			rows.push(row('nosMegaphoneEffectStrength', 'メガホン充電中の声'));
+			rows.push(row('nosBibiriEchoStrength', 'ビビリ死亡時のエコー'));
 		}
 		if (state.nosAddonIds?.includes('UchuAddon')) {
-			rows.push(row('シトラス', settings.nosCitrusVoiceEffectStrength));
-			rows.push(row('虹色スターのエコー', settings.nosRainbowStarEchoStrength));
+			rows.push(row('nosCitrusVoiceEffectStrength', 'シトラス感染時の強さ'));
+			rows.push(row('nosRainbowStarEchoStrength', '虹色スターのエコー'));
 		}
 		return rows;
+	}
+
+	onStrengthChange(key: VoiceEffectPreviewKind, value: number) {
+		this.getSettings()[key] = value;
+		this.onVoiceEffectChange();
 	}
 }

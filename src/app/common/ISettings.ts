@@ -88,4 +88,13 @@ export interface ISettings {
 	nosRoleMicrophoneSensitivity?: number;
 	/** Strength of the Mushroom Mixup/Camouflage voice disguise (0 disables it). */
 	voiceEffectStrength: number;
+	snrJumboVoiceEffectStrength: number;
+	nosSizeVoiceEffectStrength: number;
+	nosRokurokubiVoiceEffectStrength: number;
+	nosBerserkerVoiceEffectStrength: number;
+	nosCitrusVoiceEffectStrength: number;
+	nosRainbowStarEchoStrength: number;
+	nosVoiceJammingEffectStrength: number;
+	nosMegaphoneEffectStrength: number;
+	nosBibiriEchoStrength: number;
 }

@@ -2,12 +2,7 @@ import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrateg
 import { GameHelperService } from '../../services/game-helper.service';
 import { IDeviceInfo } from '../../services/smallInterfaces';
 import { SettingsService } from '../../services/settings.service';
-import {
-	createVoiceDisguiseEffect,
-	disconnectVoiceDisguiseEffect,
-	updateVoiceDisguiseEffect,
-	VoiceDisguiseEffect,
-} from '../../services/voiceEffect';
+import { createVoiceEffectPreview, VoiceEffectPreview, VoiceEffectPreviewKind } from './voiceEffectPreview';
 
 @Component({
 	selector: 'app-audio-settings',
@@ -22,11 +17,14 @@ export class AudioSettingsComponent implements OnInit, OnDestroy {
 	voiceEffectTestEnabled = true;
 	voiceEffectTestVolume = 70;
 	voiceEffectTestError = '';
+	selectedVoiceEffect: VoiceEffectPreviewKind = 'voiceEffectStrength';
 	private testContext?: AudioContext;
 	private testStream?: MediaStream;
 	private testSource?: MediaStreamAudioSourceNode;
 	private testGain?: GainNode;
-	private testEffect?: VoiceDisguiseEffect;
+	private testEffect?: VoiceEffectPreview;
+	private testEffectKind?: VoiceEffectPreviewKind;
+	private testGeneration = 0;
 
 	constructor(
 		public gameHelper: GameHelperService,
@@ -50,17 +48,23 @@ export class AudioSettingsComponent implements OnInit, OnDestroy {
 
 	onVoiceEffectChange() {
 		this.onSettingsChange();
-		if (this.testEffect) updateVoiceDisguiseEffect(this.testEffect, this.getSettings().voiceEffectStrength);
+		if (this.testEffect && this.testEffectKind !== this.selectedVoiceEffect) {
+			this.stopVoiceEffectTest();
+			void this.toggleVoiceEffectTest();
+			return;
+		}
+		this.testEffect?.update(this.getSettings()[this.selectedVoiceEffect] ?? 100);
 		this.connectTestPreview();
 	}
 
 	async toggleVoiceEffectTest() {
 		if (this.isVoiceEffectTestRunning) return this.stopVoiceEffectTest();
 		this.stopVoiceEffectTest();
+		const generation = this.testGeneration;
 		this.voiceEffectTestError = '';
 		try {
 			const settings = this.getSettings();
-			this.testStream = await navigator.mediaDevices.getUserMedia({
+			const stream = await navigator.mediaDevices.getUserMedia({
 				video: false,
 				audio: {
 					deviceId: settings.selectedMicrophone?.deviceId || 'default',
@@ -69,24 +73,38 @@ export class AudioSettingsComponent implements OnInit, OnDestroy {
 					noiseSuppression: true,
 				},
 			});
+			if (generation !== this.testGeneration) {
+				stream.getTracks().forEach((track) => track.stop());
+				return;
+			}
 			const AudioContextCtor = window.webkitAudioContext || window.AudioContext;
-			this.testContext = new AudioContextCtor();
-			this.testSource = this.testContext.createMediaStreamSource(this.testStream);
-			this.testGain = this.testContext.createGain();
-			this.testEffect = createVoiceDisguiseEffect(this.testContext, settings.voiceEffectStrength);
+			const context = new AudioContextCtor();
+			this.testStream = stream;
+			this.testContext = context;
+			this.testSource = context.createMediaStreamSource(stream);
+			this.testGain = context.createGain();
+			const effect = await createVoiceEffectPreview(context, this.selectedVoiceEffect, settings[this.selectedVoiceEffect] ?? 100);
+			if (generation !== this.testGeneration) {
+				effect.dispose();
+				return;
+			}
+			this.testEffect = effect;
+			this.testEffectKind = this.selectedVoiceEffect;
 			this.isVoiceEffectTestRunning = true;
 			this.connectTestPreview();
 		} catch {
+			if (generation !== this.testGeneration) return;
 			this.stopVoiceEffectTest();
 			this.voiceEffectTestError = 'マイクテストを開始できませんでした';
 		}
 	}
 
 	stopVoiceEffectTest() {
+		this.testGeneration++;
 		this.isVoiceEffectTestRunning = false;
 		try { this.testSource?.disconnect(); } catch { /* already disconnected */ }
 		try { this.testGain?.disconnect(); } catch { /* already disconnected */ }
-		if (this.testEffect) disconnectVoiceDisguiseEffect(this.testEffect);
+		this.testEffect?.dispose();
 		void this.testContext?.close();
 		this.testStream?.getTracks().forEach((track) => track.stop());
 		this.testContext = undefined;
@@ -94,6 +112,7 @@ export class AudioSettingsComponent implements OnInit, OnDestroy {
 		this.testSource = undefined;
 		this.testGain = undefined;
 		this.testEffect = undefined;
+		this.testEffectKind = undefined;
 	}
 
 	private connectTestPreview() {
@@ -102,7 +121,7 @@ export class AudioSettingsComponent implements OnInit, OnDestroy {
 		try { this.testEffect.output.disconnect(); } catch { /* already disconnected */ }
 		try { this.testGain.disconnect(); } catch { /* already disconnected */ }
 		this.testGain.gain.value = this.voiceEffectTestVolume / 100;
-		if (this.voiceEffectTestEnabled && this.getSettings().voiceEffectStrength > 0) {
+		if (this.voiceEffectTestEnabled && this.getSettings()[this.selectedVoiceEffect] > 0) {
 			this.testSource.connect(this.testEffect.input);
 			this.testEffect.output.connect(this.testGain);
 		} else {

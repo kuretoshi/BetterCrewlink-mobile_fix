@@ -87,6 +87,15 @@ function makeSettings(overrides: Partial<ISettings> = {}): ISettings {
 		micSensitivity: 0.15,
 		micSensitivityEnabled: false,
 		voiceEffectStrength: 100,
+		snrJumboVoiceEffectStrength: 100,
+		nosSizeVoiceEffectStrength: 100,
+		nosRokurokubiVoiceEffectStrength: 100,
+		nosBerserkerVoiceEffectStrength: 100,
+		nosCitrusVoiceEffectStrength: 100,
+		nosRainbowStarEchoStrength: 100,
+		nosVoiceJammingEffectStrength: 100,
+		nosMegaphoneEffectStrength: 100,
+		nosBibiriEchoStrength: 100,
 		...overrides,
 	};
 }
@@ -505,8 +514,8 @@ describe('NoS 3.2.21 voice effects', () => {
 	const state = makeState({ mod: 'NoS' });
 	const settings = makeSettings();
 	const lobby = makeLobbySettings();
-	const effectFor = (other: Player, changes: Partial<AmongUsState> = {}, options: Partial<ILobbySettings> = {}) =>
-		selectVoiceEffect({ ...state, ...changes }, settings, { ...lobby, ...options }, me, other, -1);
+	const effectFor = (other: Player, changes: Partial<AmongUsState> = {}, options: Partial<ILobbySettings> = {}, personal: Partial<ISettings> = {}) =>
+		selectVoiceEffect({ ...state, ...changes }, { ...settings, ...personal }, { ...lobby, ...options }, me, other, -1);
 
 	it('applies size pitch and formant independently with smooth squash', () => {
 		const small = effectFor(makePlayer({ nosPlayer: makeNosPlayer({ bodyRateX: 0.8, bodyRateY: 0.5 }) }));
@@ -514,10 +523,10 @@ describe('NoS 3.2.21 voice effects', () => {
 		expect(small?.sourceFilter?.formant).toBeCloseTo(1.25);
 		const squash = effectFor(makePlayer({ nosPlayer: makeNosPlayer({ bodyRateX: 1, bodyRateY: 0.5 }) }));
 		expect(squash?.sourceFilter?.squash).toBeGreaterThan(0);
-		const half = effectFor(makePlayer({ nosPlayer: makeNosPlayer({ bodyRateX: 0.8, bodyRateY: 0.5 }) }), {}, { nosSizeVoiceEffectStrength: 50 });
+		const half = effectFor(makePlayer({ nosPlayer: makeNosPlayer({ bodyRateX: 0.8, bodyRateY: 0.5 }) }), {}, { nosSizeVoiceEffectStrength: 0 }, { nosSizeVoiceEffectStrength: 50 });
 		expect(half?.sourceFilter?.pitch).toBeCloseTo(1 + ((small?.sourceFilter?.pitch ?? 1) - 1) / 2);
 		expect(half?.sourceFilter?.formant).toBeCloseTo(1.125);
-		expect(effectFor(makePlayer({ nosPlayer: makeNosPlayer({ bodyRateX: 0.8, bodyRateY: 0.5 }) }), {}, { nosSizeVoiceEffectStrength: 0 })).toBeNull();
+		expect(effectFor(makePlayer({ nosPlayer: makeNosPlayer({ bodyRateX: 0.8, bodyRateY: 0.5 }) }), {}, {}, { nosSizeVoiceEffectStrength: 0 })).toBeNull();
 		expect(effectFor(makePlayer({ nosPlayer: makeNosPlayer({ bodyRateX: 0.8, bodyRateY: 0.5 }) }), {}, { nosSizeVoiceEffect: false })).toBeNull();
 	});
 
@@ -527,7 +536,7 @@ describe('NoS 3.2.21 voice effects', () => {
 			nosPlayer: makeNosPlayer({ bodyType: 2 }),
 		});
 		expect(effectFor(other)?.berserker).toBeTrue();
-		expect(effectFor(other, {}, { nosBerserkerVoiceEffectStrength: 40 })?.strength).toBe(40);
+		expect(effectFor(other, {}, { nosBerserkerVoiceEffectStrength: 0 }, { nosBerserkerVoiceEffectStrength: 40 })?.strength).toBe(40);
 		expect(effectFor(other, {}, { nosBerserkerVoiceEffect: false })).toBeNull();
 		expect(effectFor({ ...other, nosPlayer: makeNosPlayer({ bodyType: 1 }) })).toBeNull();
 	});
@@ -545,9 +554,8 @@ describe('NoS 3.2.21 voice effects', () => {
 		expect(effectFor(other, { gameState: GameState.DISCUSSION })?.direction).toBe('up');
 		expect(effectFor(other, { gameState: GameState.LOBBY })).toBeNull();
 		expect(effectFor(other, {}, { nosCitrusVoiceEffect: false })).toBeNull();
-		expect(effectFor(other, {}, { nosCitrusVoiceEffectStrength: 35 })?.strength).toBe(35);
-		expect(effectFor(other, {}, { nosCitrusVoiceEffectStrength: 0 })).toBeNull();
-		expect(effectFor(other, {}, { nosCitrusVoiceEffectStrength: undefined })?.strength).toBe(100);
+		expect(effectFor(other, {}, { nosCitrusVoiceEffectStrength: 0 }, { nosCitrusVoiceEffectStrength: 35 })?.strength).toBe(35);
+		expect(effectFor(other, {}, {}, { nosCitrusVoiceEffectStrength: 0 })).toBeNull();
 	});
 
 	it('enables Rainbow Star echo only for a live star in tasks or discussion', () => {
@@ -558,7 +566,7 @@ describe('NoS 3.2.21 voice effects', () => {
 		expect(shouldApplyRainbowStarEcho({ ...state, gameState: GameState.DISCUSSION }, other, lobby)).toBeTrue();
 		expect(shouldApplyRainbowStarEcho(state, { ...other, isDead: true }, lobby)).toBeFalse();
 		expect(shouldApplyRainbowStarEcho(state, other, { ...lobby, nosRainbowStarEcho: false })).toBeFalse();
-		expect(shouldApplyRainbowStarEcho(state, other, { ...lobby, nosRainbowStarEchoStrength: 0 })).toBeFalse();
+		expect(shouldApplyRainbowStarEcho(state, other, lobby, { ...settings, nosRainbowStarEchoStrength: 0 })).toBeFalse();
 	});
 
 	it('preserves camouflage and mushroom voice disguises outside NoS', () => {
