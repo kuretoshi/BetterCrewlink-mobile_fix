@@ -318,7 +318,7 @@ describe('VoiceController impostor radio', () => {
 		expect(voiceController.versionWarning).toBe('');
 		(voiceController as any).onPeerData('hostSocket', { type: 'app-version', lobbyCode: 'OTHER', version: '99.0.0' });
 		expect(voiceController.versionWarning).toBe('');
-		(voiceController as any).onPeerData('hostSocket', { type: 'app-version', lobbyCode: 'VER123', version: '3.2.40' });
+		(voiceController as any).onPeerData('hostSocket', { type: 'app-version', lobbyCode: 'VER123', version: '3.2.41' });
 		expect(voiceController.versionWarning).toBe('');
 
 		(voiceController as any).onPeerData('hostSocket', { type: 'app-version', lobbyCode: 'VER123', version: '99.0.0' });
