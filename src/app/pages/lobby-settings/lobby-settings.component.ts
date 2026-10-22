@@ -66,6 +66,7 @@ export class LobbySettingsComponent implements OnInit, OnDestroy {
 		const settings = this.lobbySettings;
 		if (!settings) return [];
 		const toggles = [
+			{ label: 'ボイスエフェクトを有効化', value: settings.voiceEffectEnabled },
 			{ label: '視界連動の聞こえる範囲', value: settings.visionHearing },
 			{ label: '壁による音声遮断', value: settings.wallsBlockAudio },
 			{ label: '監視カメラ越しに聞く', value: settings.hearThroughCameras },
@@ -96,12 +97,12 @@ export class LobbySettingsComponent implements OnInit, OnDestroy {
 				{ label: 'NoS サイズ連動ボイスエフェクト', value: settings.nosSizeVoiceEffect },
 				{ label: 'NoS バーサーカーの声', value: settings.nosBerserkerVoiceEffect },
 				{ label: 'NoS ろくろ首の声', value: settings.nosRokurokubiVoiceEffect },
-				{ label: 'NoS レインボースターのエコー', value: settings.nosRainbowStarEcho },
 				{ label: 'NoS Fixer妨害中の音声遮断', value: settings.nosFixerJammingVoiceBlock },
 				{ label: 'NoS Fixer妨害中のローパス', value: settings.nosFixerJammingLowpass }
 			);
 			if (this.gameHelper.cManager.currentGameState?.nosAddonIds?.includes('UchuAddon')) {
 				toggles.push({ label: 'NoS シトラスの声', value: settings.nosCitrusVoiceEffect });
+				toggles.push({ label: 'NoS レインボースターのエコー', value: settings.nosRainbowStarEcho });
 			}
 		} else if (mod === 'TOH4E' && settings.tohGhostRoles === undefined) {
 			toggles.push({ label: 'TOH4E 旧設定（対象キラー共通）', value: settings.tohNeutralKillerHaunting });

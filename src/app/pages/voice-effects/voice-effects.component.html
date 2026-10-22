@@ -37,7 +37,7 @@
 			@for (effect of voiceEffectRows(); track effect.label) {
 				<ion-item color="secondary">
 					<ion-col size="7" class="settingLabelCol"><ion-label>{{ effect.label }}</ion-label></ion-col>
-					<ion-col size="5"><ion-label>{{ effect.enabled ? effect.strength + '%' : 'オフ' }}</ion-label></ion-col>
+					<ion-col size="5"><ion-label>{{ effect.strength }}%</ion-label></ion-col>
 				</ion-item>
 			}
 			<ion-item color="secondary"><ion-label class="ion-text-wrap">MOD固有の強さはPCホストが管理します。</ion-label></ion-item>

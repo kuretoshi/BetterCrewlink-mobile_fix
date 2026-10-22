@@ -4,6 +4,10 @@
 
 元プロジェクトは [BetterCrewLink](https://github.com/OhMyGuus/BetterCrewLink) と [CrewLink](https://github.com/ottomated/CrewLink) の流れを引き継いでいます。Among Us、Innersloth、CrewLink、BetterCrewLink の公式プロジェクトとは別の非公式版です。
 
+## 3.34
+
+NoSとSNRのボイスエフェクト項目は、それぞれのMOD検出時に表示します。NoSのタヌキ丼アドオンを検出した場合だけ、ボイスジャミンガー・メガホン・ビビリの強さを表示します。有効／無効はロビー設定、強さはボイスエフェクトに表示し、PCホストがゲーム中に更新した値も受信します。モバイルではホスト設定は閲覧専用です。PC版3.2.42と.NET版3.2.42-net-beta.1との通信互換バージョンを通知します。
+
 ## 3.33
 
 ボイスエフェクトをオーディオから独立した設定項目に移し、キノコカオス・変装、SNRジャンボ、NoSの役職・状態ごとの強さを確認できます。ホストのロビー設定は閲覧専用です。PC版3.2.41と.NET版3.2.41-net-beta.1との通信互換バージョンを通知します。
