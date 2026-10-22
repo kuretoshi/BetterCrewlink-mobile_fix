@@ -4,6 +4,10 @@
 
 元プロジェクトは [BetterCrewLink](https://github.com/OhMyGuus/BetterCrewLink) と [CrewLink](https://github.com/ottomated/CrewLink) の流れを引き継いでいます。Among Us、Innersloth、CrewLink、BetterCrewLink の公式プロジェクトとは別の非公式版です。
 
+## 3.33
+
+ボイスエフェクトをオーディオから独立した設定項目に移し、キノコカオス・変装、SNRジャンボ、NoSの役職・状態ごとの強さを確認できます。ホストのロビー設定は閲覧専用です。PC版3.2.41と.NET版3.2.41-net-beta.1との通信互換バージョンを通知します。
+
 ## 3.32
 
 NoS UchuAddonのシトラス感染時ボイスチェンジャーの強さを、PC/.NETホストのロビー設定に合わせて0～100%で反映します。モバイル版のロビー設定画面にもホストの値を表示します。0%は効果なし、100%は従来の強さです。PC版3.2.40と.NET版3.2.40-net-beta.1との音声通信互換バージョンを通知します。
