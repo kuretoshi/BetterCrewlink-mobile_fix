@@ -28,6 +28,11 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
 			icon: 'volume-high',
 		},
 		{
+			title: 'ボイスエフェクト',
+			url: '/voice-effects',
+			icon: 'musical-notes',
+		},
+		{
 			title: '接続設定',
 			url: '/settings',
 			icon: 'settings',

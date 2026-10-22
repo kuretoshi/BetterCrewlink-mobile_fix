@@ -13,7 +13,7 @@ import VAD from './vad';
 import { voiceRoleLevel } from './voice-role-level';
 import { selectVoiceEffect, shouldApplyRainbowStarEcho, type VoiceEffectSetting } from '../voice/voiceEffectRules';
 import { createVoiceDisguiseEffect, updateVoiceDisguiseEffect } from './voiceEffect';
-import { createBerserkerEffect } from '../voice/berserkerEffect';
+import { createBerserkerEffect, updateBerserkerEffect } from '../voice/berserkerEffect';
 import {
 	prepareSourceFilter,
 	createSourceFilterEffect,
@@ -502,11 +502,13 @@ export default class AudioController {
 			updateBibiriEcho(
 				peer.bibiriEcho,
 				state.mod === 'NoS' &&
+				(activeLobbySettings?.nosBibiriEchoStrength ?? 100) > 0 &&
 					!other.disconnected &&
 					(state.gameState === GameState.TASKS || state.gameState === GameState.DISCUSSION),
 				other.isDead,
 				state.nosBibiriEchoes?.find((e) => e.playerId === other.id)?.unixMs,
-				state.nosVoiceFrameTime
+				state.nosVoiceFrameTime,
+				activeLobbySettings?.nosBibiriEchoStrength ?? 100
 			);
 		const { pan, muffle } = peer;
 		const result = calculateVoiceAudio({
@@ -563,10 +565,13 @@ export default class AudioController {
 		const wantStarEcho = result.gain > 0 && shouldApplyRainbowStarEcho(state, other, activeLobbySettings);
 		if (wantStarEcho && !peer.starEcho && this.context) {
 			peer.starEcho = createRadioEcho(this.context);
-			peer.starEcho.dry.gain.value = 0.94;
-			peer.starEcho.wet.gain.value = 0.08;
 			peer.starEcho.delay.delayTime.value = 0.075;
 			peer.starEcho.feedback.gain.value = 0.08;
+		}
+		if (peer.starEcho && wantStarEcho) {
+			const amount = Math.min(1, Math.max(0, (activeLobbySettings?.nosRainbowStarEchoStrength ?? 100) / 100));
+			peer.starEcho.dry.gain.value = 1 - 0.06 * amount;
+			peer.starEcho.wet.gain.value = 0.08 * amount;
 		}
 		rebuildEffectChain(peer, destination, wantReverb, wantMuffle, !!effect, wantRadioEcho, wantStarEcho);
 
@@ -643,6 +648,8 @@ export default class AudioController {
 function updatePeerVoiceEffect(peer: PeerAudioNodes, context: AudioContext, effect: VoiceEffectSetting): void {
 	if (effect.berserker) {
 		peer.voiceEffect ??= createBerserkerEffect(context);
+		if ('kind' in peer.voiceEffect && peer.voiceEffect.kind === 'berserker')
+			updateBerserkerEffect(peer.voiceEffect, effect.strength);
 		return;
 	}
 	if (effect.sourceFilter) {

@@ -12,6 +12,7 @@ import { SettingsComponent } from './pages/settings/settings.component';
 import { GameComponent } from './pages/game/game.component';
 import { LobbySettingsComponent } from './pages/lobby-settings/lobby-settings.component';
 import { AudioSettingsComponent } from './pages/audio-settings/audio-settings.component';
+import { VoiceEffectsComponent } from './pages/voice-effects/voice-effects.component';
 import { FormsModule } from '@angular/forms';
 import { GlobalFooterComponent } from './compontents/global-footer/global-footer.component';
 import { GlobalHeaderComponent } from './compontents/global-header/global-header.component';
@@ -28,6 +29,7 @@ import { BackgroundMode } from '@awesome-cordova-plugins/background-mode/ngx';
 		GameComponent,
 		LobbySettingsComponent,
 		AudioSettingsComponent,
+		VoiceEffectsComponent,
 	],
 	imports: [
 		BrowserModule,

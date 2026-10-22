@@ -514,6 +514,10 @@ describe('NoS 3.2.21 voice effects', () => {
 		expect(small?.sourceFilter?.formant).toBeCloseTo(1.25);
 		const squash = effectFor(makePlayer({ nosPlayer: makeNosPlayer({ bodyRateX: 1, bodyRateY: 0.5 }) }));
 		expect(squash?.sourceFilter?.squash).toBeGreaterThan(0);
+		const half = effectFor(makePlayer({ nosPlayer: makeNosPlayer({ bodyRateX: 0.8, bodyRateY: 0.5 }) }), {}, { nosSizeVoiceEffectStrength: 50 });
+		expect(half?.sourceFilter?.pitch).toBeCloseTo(1 + ((small?.sourceFilter?.pitch ?? 1) - 1) / 2);
+		expect(half?.sourceFilter?.formant).toBeCloseTo(1.125);
+		expect(effectFor(makePlayer({ nosPlayer: makeNosPlayer({ bodyRateX: 0.8, bodyRateY: 0.5 }) }), {}, { nosSizeVoiceEffectStrength: 0 })).toBeNull();
 		expect(effectFor(makePlayer({ nosPlayer: makeNosPlayer({ bodyRateX: 0.8, bodyRateY: 0.5 }) }), {}, { nosSizeVoiceEffect: false })).toBeNull();
 	});
 
@@ -523,6 +527,7 @@ describe('NoS 3.2.21 voice effects', () => {
 			nosPlayer: makeNosPlayer({ bodyType: 2 }),
 		});
 		expect(effectFor(other)?.berserker).toBeTrue();
+		expect(effectFor(other, {}, { nosBerserkerVoiceEffectStrength: 40 })?.strength).toBe(40);
 		expect(effectFor(other, {}, { nosBerserkerVoiceEffect: false })).toBeNull();
 		expect(effectFor({ ...other, nosPlayer: makeNosPlayer({ bodyType: 1 }) })).toBeNull();
 	});
@@ -553,6 +558,7 @@ describe('NoS 3.2.21 voice effects', () => {
 		expect(shouldApplyRainbowStarEcho({ ...state, gameState: GameState.DISCUSSION }, other, lobby)).toBeTrue();
 		expect(shouldApplyRainbowStarEcho(state, { ...other, isDead: true }, lobby)).toBeFalse();
 		expect(shouldApplyRainbowStarEcho(state, other, { ...lobby, nosRainbowStarEcho: false })).toBeFalse();
+		expect(shouldApplyRainbowStarEcho(state, other, { ...lobby, nosRainbowStarEchoStrength: 0 })).toBeFalse();
 	});
 
 	it('preserves camouflage and mushroom voice disguises outside NoS', () => {

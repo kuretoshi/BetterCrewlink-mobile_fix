@@ -114,15 +114,6 @@ export class LobbySettingsComponent implements OnInit, OnDestroy {
 		return this.gameHelper.cManager.currentGameState?.mod === 'TOH4E';
 	}
 
-	get citrusStrength(): number | undefined {
-		const state = this.gameHelper.cManager.currentGameState;
-		if (state?.mod !== 'NoS' || !state.nosAddonIds?.includes('UchuAddon')) return undefined;
-		const configured = this.lobbySettings?.nosCitrusVoiceEffectStrength;
-		return typeof configured === 'number' && Number.isFinite(configured)
-			? Math.min(100, Math.max(0, configured))
-			: 100;
-	}
-
 	ghostRoleGroups(): GhostRoleGroup[] {
 		const catalog = this.gameHelper.cManager.currentGameState?.tohRoleCatalog;
 		const settings = this.lobbySettings;
