@@ -540,6 +540,9 @@ describe('NoS 3.2.21 voice effects', () => {
 		expect(effectFor(other, { gameState: GameState.DISCUSSION })?.direction).toBe('up');
 		expect(effectFor(other, { gameState: GameState.LOBBY })).toBeNull();
 		expect(effectFor(other, {}, { nosCitrusVoiceEffect: false })).toBeNull();
+		expect(effectFor(other, {}, { nosCitrusVoiceEffectStrength: 35 })?.strength).toBe(35);
+		expect(effectFor(other, {}, { nosCitrusVoiceEffectStrength: 0 })).toBeNull();
+		expect(effectFor(other, {}, { nosCitrusVoiceEffectStrength: undefined })?.strength).toBe(100);
 	});
 
 	it('enables Rainbow Star echo only for a live star in tasks or discussion', () => {

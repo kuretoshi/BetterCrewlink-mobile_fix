@@ -22,6 +22,7 @@ export interface ILobbySettings {
 	nosBerserkerVoiceEffect: boolean;
 	nosRokurokubiVoiceEffect: boolean;
 	nosCitrusVoiceEffect: boolean;
+	nosCitrusVoiceEffectStrength: number;
 	nosRainbowStarEcho: boolean;
 	nosFixerJammingVoiceBlock: boolean;
 	nosFixerJammingLowpass: boolean;

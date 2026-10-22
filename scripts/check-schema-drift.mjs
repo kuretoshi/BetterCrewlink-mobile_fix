@@ -128,21 +128,28 @@ function checkFieldsSuperset(label, desktopFields, mobileFields, allowedExtra) {
 }
 
 /** Compares two extracted object-literal bodies by value, ignoring formatting/key order. */
-function checkObjectDeepEqual(label, desktopBlockText, mobileBlockText) {
-	const desktopValue = JSON.stringify(canonicalize(parseObjectLiteral(desktopBlockText)));
-	const mobileValue = JSON.stringify(canonicalize(parseObjectLiteral(mobileBlockText)));
+function checkObjectDeepEqual(label, desktopBlockText, mobileBlockText, allowedExtra = {}) {
+	const desktopObject = parseObjectLiteral(desktopBlockText);
+	const mobileObject = parseObjectLiteral(mobileBlockText);
+	for (const [key, expected] of Object.entries(allowedExtra)) {
+		if (key in desktopObject) continue;
+		if (mobileObject[key] !== expected) errors.push(`${label}: ${key} must default to ${expected}.`);
+		delete mobileObject[key];
+	}
+	const desktopValue = JSON.stringify(canonicalize(desktopObject));
+	const mobileValue = JSON.stringify(canonicalize(mobileObject));
 	if (desktopValue !== mobileValue) {
 		errors.push(`${label}: mobile's values no longer match desktop's.`);
 	}
 }
 
-// --- ILobbySettings (must match exactly, no mobile-only fields) ---
+// --- ILobbySettings (newer shared fields are listed until the pinned baseline advances) ---
 {
 	const desktopSrc = desktopFile('src/common/ISettings.d.ts');
 	const mobileSrc = mobileFile('src/app/common/ISettings.ts');
 	const desktopFieldsList = fieldNames(extractBlock(desktopSrc, /export interface ILobbySettings/));
 	const mobileFieldsList = fieldNames(extractBlock(mobileSrc, /export interface ILobbySettings/));
-	checkFieldsExact('ILobbySettings', desktopFieldsList, mobileFieldsList);
+	checkFieldsSuperset('ILobbySettings', desktopFieldsList, mobileFieldsList, ['nosCitrusVoiceEffectStrength']);
 }
 
 // --- AmongUsState (must match exactly) ---
@@ -154,7 +161,7 @@ function checkObjectDeepEqual(label, desktopBlockText, mobileBlockText) {
 		mergedInterfaceFields(desktopSrc, 'AmongUsState'),
 		mergedInterfaceFields(mobileSrc, 'AmongUsState'),
 		// Pending NoS addon support, newer than the pinned desktop baseline.
-		['mushroomMixupSabotaged', 'nosMegaphones', 'nosPortableMegaphones', 'nosBibiriEchoes', 'nosVoiceFrameTime', 'nosDyingVoices', 'nosInterviews']
+		['mushroomMixupSabotaged', 'nosMegaphones', 'nosPortableMegaphones', 'nosBibiriEchoes', 'nosVoiceFrameTime', 'nosDyingVoices', 'nosInterviews', 'nosVoiceJamming']
 	);
 
 	// --- Player (mobile may add its own `isbetter` flag; nothing else) ---
@@ -208,7 +215,8 @@ function checkObjectDeepEqual(label, desktopBlockText, mobileBlockText) {
 	checkObjectDeepEqual(
 		'defaultLobbySettings',
 		extractBlock(desktopDefaultsSrc, /export const defaultLobbySettings/),
-		extractBlock(mobileSrc, /export const defaultLobbySettings/)
+		extractBlock(mobileSrc, /export const defaultLobbySettings/),
+		{ nosCitrusVoiceEffectStrength: 100 }
 	);
 	checkObjectDeepEqual(
 		'DEFAULT_ICE_CONFIG',
