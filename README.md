@@ -4,6 +4,10 @@
 
 元プロジェクトは [BetterCrewLink](https://github.com/OhMyGuus/BetterCrewLink) と [CrewLink](https://github.com/ottomated/CrewLink) の流れを引き継いでいます。Among Us、Innersloth、CrewLink、BetterCrewLink の公式プロジェクトとは別の非公式版です。
 
+## 3.38
+
+PC版3.2.46、.NET版3.2.46-net-beta.1との通信互換バージョンを通知します。音声処理と設定内容は3.37と同じです。
+
 ## 3.35
 
 ボイスエフェクトごとの強さを個人設定として保存し、ゲーム中も調整できます。対応エフェクトを選んでマイクから試せる「エフェクトテスト」を独立した区画に設けました。有効／無効は引き続きロビー設定で管理します。PC版3.2.43と.NET版3.2.43-net-beta.1との通信互換バージョンを通知します。
