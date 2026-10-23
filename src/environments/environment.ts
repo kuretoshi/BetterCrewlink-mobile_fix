@@ -6,10 +6,10 @@ export const environment = {
 	production: false,
 	// Single source of truth for the app version (also reported in the gameinfo payload).
 	// Keep in sync with android/app/build.gradle's versionName when bumping.
-	appVersion: '3.36',
+	appVersion: '3.37',
 	// Voice-protocol compatibility advertised to desktop peers; this does not imply
 	// that every desktop-only feature is available on mobile.
-	desktopCompatVersion: '3.2.44',
+	desktopCompatVersion: '3.2.45',
 };
 
 /*
