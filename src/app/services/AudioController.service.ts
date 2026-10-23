@@ -1,3 +1,4 @@
+import { connectReverbMix, createReverbMix, reverbLevels } from '../voice/reverbMix';
 import { applyVoiceJamming } from '../common/VoiceJammingState';
 import { createInterviewerRecording } from '../voice/interviewerRecording';
 import { createDyingVoiceRecording, inDyingVoiceRange } from '../voice/dyingVoiceRecording';
@@ -373,6 +374,7 @@ export default class AudioController {
 		peer.pan.disconnect();
 		peer.gain.disconnect();
 		peer.reverb?.disconnect();
+		if (peer.reverbMix) for (const node of Object.values(peer.reverbMix)) node.disconnect();
 		peer.muffle?.disconnect();
 		if (peer.voiceEffect) disconnectProcessingEffect(peer.voiceEffect);
 		disconnectRadioEcho(peer.radioEcho);
@@ -534,6 +536,12 @@ export default class AudioController {
 		}
 
 		const wantReverb = result.reverb === null ? peer.reverbConnected : result.reverb;
+		if (wantReverb && this.context) {
+			peer.reverbMix ??= createReverbMix(this.context);
+			const levels = reverbLevels(result.reverbStrength);
+			peer.reverbMix.dry.gain.value = levels.dry;
+			peer.reverbMix.wet.gain.value = levels.wet;
+		}
 		const wantMuffle = result.muffle === null ? peer.muffleConnected : result.muffle !== false;
 		const wantRadioEcho = result.radioEcho;
 		let effect =
@@ -672,7 +680,7 @@ function updatePeerVoiceEffect(peer: PeerAudioNodes, context: AudioContext, effe
 		);
 }
 
-function rebuildEffectChain(
+export function rebuildEffectChain(
 	peer: PeerAudioNodes,
 	destination: AudioNode,
 	wantReverb: boolean,
@@ -708,13 +716,19 @@ function rebuildEffectChain(
 
 	const chain: AudioNode[] = [peer.gain];
 	if (wantMuffle) chain.push(peer.muffle);
-	if (wantReverb) chain.push(peer.reverb);
+	if (peer.reverbMix) for (const node of Object.values(peer.reverbMix)) node.disconnect();
 
 	try {
 		for (let index = 0; index < chain.length - 1; index++) {
 			chain[index].connect(chain[index + 1]);
 		}
 		let tail = chain[chain.length - 1];
+		if (wantReverb && peer.reverbMix) {
+			tail = connectReverbMix(tail, peer.reverb, peer.reverbMix);
+		} else if (wantReverb) {
+			tail.connect(peer.reverb);
+			tail = peer.reverb;
+		}
 		if (wantVoiceEffect && peer.voiceEffect) {
 			tail.connect(peer.voiceEffect.input);
 			tail = peer.voiceEffect.output;

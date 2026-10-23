@@ -28,6 +28,7 @@ const DEFAULTSETTINGS: Omit<ISettings, 'playerSettings'> = {
 	micSensitivityEnabled: false,
 	nosRoleMicrophoneSensitivity: 100,
 	voiceEffectStrength: 100,
+	snrPushReverbStrength: 100,
 	snrJumboVoiceEffectStrength: 100,
 	nosSizeVoiceEffectStrength: 100,
 	nosRokurokubiVoiceEffectStrength: 100,

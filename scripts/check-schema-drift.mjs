@@ -150,7 +150,7 @@ function checkObjectDeepEqual(label, desktopBlockText, mobileBlockText, allowedE
 	const desktopFieldsList = fieldNames(extractBlock(desktopSrc, /export interface ILobbySettings/));
 	const mobileFieldsList = fieldNames(extractBlock(mobileSrc, /export interface ILobbySettings/));
 	checkFieldsSuperset('ILobbySettings', desktopFieldsList, mobileFieldsList, [
-		'nosCitrusVoiceEffectStrength', 'snrJumboVoiceEffectStrength', 'nosSizeVoiceEffectStrength',
+		'snrPushReverb', 'nosCitrusVoiceEffectStrength', 'snrJumboVoiceEffectStrength', 'nosSizeVoiceEffectStrength',
 		'nosRokurokubiVoiceEffectStrength', 'nosBerserkerVoiceEffectStrength', 'nosRainbowStarEchoStrength',
 		'nosVoiceJammingEffectStrength', 'nosMegaphoneEffectStrength', 'nosBibiriEchoStrength'
 	]);
@@ -220,7 +220,7 @@ function checkObjectDeepEqual(label, desktopBlockText, mobileBlockText, allowedE
 		'defaultLobbySettings',
 		extractBlock(desktopDefaultsSrc, /export const defaultLobbySettings/),
 		extractBlock(mobileSrc, /export const defaultLobbySettings/),
-		{ nosCitrusVoiceEffectStrength: 100, snrJumboVoiceEffectStrength: 100,
+		{ snrPushReverb: true, nosCitrusVoiceEffectStrength: 100, snrJumboVoiceEffectStrength: 100,
 			nosSizeVoiceEffectStrength: 100, nosRokurokubiVoiceEffectStrength: 100,
 			nosBerserkerVoiceEffectStrength: 100, nosRainbowStarEchoStrength: 100,
 			nosVoiceJammingEffectStrength: 100, nosMegaphoneEffectStrength: 100, nosBibiriEchoStrength: 100 }

@@ -1,9 +1,11 @@
+import { connectReverbMix, createReverbMix, reverbLevels } from '../../voice/reverbMix';
 import { createVoiceDisguiseEffect, disconnectVoiceDisguiseEffect, updateVoiceDisguiseEffect } from '../../services/voiceEffect';
 import { createBerserkerEffect, disconnectBerserkerEffect, updateBerserkerEffect } from '../../voice/berserkerEffect';
 import { createSourceFilterEffect, disconnectProcessingEffect, prepareSourceFilter, updateSourceFilterEffect } from '../../voice/sourceFilterEffect';
 import type { SourceFilterParameters } from '../../voice/sourceFilterEffect';
 
 export type VoiceEffectPreviewKind =
+	| 'snrPushReverbStrength'
 	| 'voiceEffectStrength'
 	| 'snrJumboVoiceEffectStrength'
 	| 'nosSizeVoiceEffectStrength'
@@ -65,6 +67,16 @@ export async function createVoiceEffectPreview(
 	strength: number
 ): Promise<VoiceEffectPreview> {
 	let preview: VoiceEffectPreview;
+	if (kind === 'snrPushReverbStrength') {
+		const input = context.createGain();
+		const convolver = context.createConvolver();
+		convolver.buffer = await context.decodeAudioData(await (await fetch('assets/sounds/reverb.ogx')).arrayBuffer());
+		const mix = createReverbMix(context);
+		connectReverbMix(input, convolver, mix);
+		const update = (value: number) => { const levels = reverbLevels(value); mix.dry.gain.value = levels.dry; mix.wet.gain.value = levels.wet; };
+		update(strength);
+		return { input, output: mix.output, update, dispose: () => [input, convolver, ...Object.values(mix)].forEach((node) => node.disconnect()) };
+	}
 	const filter = filterSamples[kind];
 	if (filter) {
 		await prepareSourceFilter(context);

@@ -65,6 +65,7 @@ function makeState(overrides: Partial<AmongUsState> = {}): AmongUsState {
 
 function makeSettings(overrides: Partial<ISettings> = {}): ISettings {
 	return {
+		snrPushReverbStrength: 100,
 		voiceServerOption: 1,
 		customVoiceServer: '',
 		username: '',
@@ -164,6 +165,20 @@ describe('NoS neutral voice hearing distance', () => {
 });
 
 describe('calculateVoiceAudio', () => {
+	it('keeps SNR falling speech audible while independently controlling reverb', () => {
+		const state = makeState({ mod: 'SUPER_NEW_ROLES' });
+		const other = makePlayer({ id: 2, clientId: 2, x: 100, isDead: true,
+			snrPushedFalling: true, snrPushOrigin: { x: 1, y: 0 } });
+		const enabled = run({ state, other, settings: makeSettings({ snrPushReverbStrength: 25 }) });
+		expect(enabled.gain).toBeGreaterThan(0);
+		expect(enabled.reverb).toBeTrue();
+		expect(enabled.reverbStrength).toBe(25);
+		const disabled = run({ state, other, activeLobbySettings: makeLobbySettings({ snrPushReverb: false }) });
+		expect(disabled.reverb).toBeFalse();
+		expect(disabled.gain).toBe(enabled.gain);
+		const ended = run({ state, other: { ...other, snrPushedFalling: false } });
+		expect(ended.gain).toBe(0);
+	});
 	for (const gameState of [GameState.TASKS, GameState.DISCUSSION]) {
 		for (const isDead of [false, true]) {
 			it(`uses the NoS impostor mask instead of role or ghost bypass, phase=${gameState}, dead=${isDead}`, () => {

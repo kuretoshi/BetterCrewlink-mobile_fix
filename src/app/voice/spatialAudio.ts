@@ -35,11 +35,21 @@ export interface VoiceAudioResult {
 	panMaxDistance: number | null;
 	muffle: MuffleSetting | false | null;
 	reverb: boolean | null;
+	reverbStrength?: number;
 	radioEcho: boolean;
 }
 
 function distance(panPos: [number, number]): number {
 	return Math.sqrt(panPos[0] * panPos[0] + panPos[1] * panPos[1]);
+}
+
+function isFalling(state: AmongUsState, player: Player): boolean {
+	return state.mod === 'SUPER_NEW_ROLES' && state.gameState === GameState.TASKS &&
+		player.snrPushedFalling === true && player.isDead && !player.disconnected && !player.isDummy;
+}
+
+function fallingVoicePlayer(state: AmongUsState, player: Player): Player {
+	return isFalling(state, player) ? { ...player, ...player.snrPushOrigin, isDead: false } : player;
 }
 
 export function voiceHearingDistance(state: AmongUsState, lobby: ILobbySettings, me: Player): number {
@@ -75,8 +85,8 @@ function cameraPanPosition(state: AmongUsState, other: Player): [number, number]
 export function calculateVoiceAudio(input: VoiceAudioInput): VoiceAudioResult {
 	const { state, settings, activeLobbySettings, impostorRadioClientId } = input;
 	const useNosPositions = state.mod === 'NoS' && activeLobbySettings.nosVoicePositions === true;
-	const localPlayer = withImpostorClassification(state.mod, input.me);
-	const remotePlayer = withImpostorClassification(state.mod, input.other);
+	const localPlayer = fallingVoicePlayer(state, withImpostorClassification(state.mod, input.me));
+	const remotePlayer = fallingVoicePlayer(state, withImpostorClassification(state.mod, input.other));
 	const me =
 		useNosPositions && state.nosLocalMicPosition ? { ...localPlayer, ...state.nosLocalMicPosition } : localPlayer;
 	const other =
@@ -270,6 +280,10 @@ export function calculateVoiceAudio(input: VoiceAudioInput): VoiceAudioResult {
 
 	if (!other.isDead || state.gameState !== GameState.TASKS || !canHearGhosts || me.isDead) {
 		result.reverb = false;
+	}
+	if (isFalling(state, input.other)) {
+		result.reverb = activeLobbySettings.snrPushReverb !== false;
+		result.reverbStrength = settings.snrPushReverbStrength ?? 100;
 	}
 
 	if (activeLobbySettings.deadOnly) {

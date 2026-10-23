@@ -33,7 +33,7 @@ export class VoiceEffectsComponent extends AudioSettingsComponent {
 		if (!state) return [];
 		const row = (key: VoiceEffectPreviewKind, label: string): VoiceEffectRow => ({ key, label });
 		if (state.mod === 'SUPER_NEW_ROLES')
-			return [row('snrJumboVoiceEffectStrength', 'ジャンボ')];
+			return [row('snrJumboVoiceEffectStrength', 'ジャンボ'), row('snrPushReverbStrength', '突き落とし時の残響')];
 		if (state.mod !== 'NoS') return [];
 		const rows = [
 			row('nosSizeVoiceEffectStrength', 'サイズ変化'),

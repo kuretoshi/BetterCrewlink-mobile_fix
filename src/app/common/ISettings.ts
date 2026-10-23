@@ -9,6 +9,7 @@ export interface ILobbySettings {
 	visionHearing: boolean;
 	haunting: boolean;
 	snrJumboVoice: boolean;
+	snrPushReverb: boolean;
 	snrJumboVoiceEffectStrength: number;
 	jackalHaunting: boolean;
 	jackalHearOutsideVents: boolean;
@@ -88,6 +89,7 @@ export interface ISettings {
 	nosRoleMicrophoneSensitivity?: number;
 	/** Strength of the Mushroom Mixup/Camouflage voice disguise (0 disables it). */
 	voiceEffectStrength: number;
+	snrPushReverbStrength: number;
 	snrJumboVoiceEffectStrength: number;
 	nosSizeVoiceEffectStrength: number;
 	nosRokurokubiVoiceEffectStrength: number;

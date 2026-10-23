@@ -81,6 +81,7 @@ export class LobbySettingsComponent implements OnInit, OnDestroy {
 		const mod = this.gameHelper.cManager.currentGameState?.mod;
 		if (mod === 'SUPER_NEW_ROLES') {
 			toggles.push(
+				{ label: 'SNR 突き落とし時の残響', value: settings.snrPushReverb !== false },
 				{ label: 'SNR ジャンボの声', value: settings.snrJumboVoice },
 				{ label: 'ジャッカルの幽霊音声', value: settings.jackalHaunting },
 				{ label: 'ジャッカル無線', value: settings.jackalRadioEnabled },

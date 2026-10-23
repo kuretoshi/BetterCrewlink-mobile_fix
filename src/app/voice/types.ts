@@ -10,6 +10,7 @@ export interface PeerAudioNodes {
 	gain: GainNode;
 	pan: PannerNode;
 	reverb: ConvolverNode;
+	reverbMix?: { dry: GainNode; wet: GainNode; output: GainNode };
 	muffle: BiquadFilterNode;
 	source: MediaStreamAudioSourceNode;
 	reverbConnected: boolean;
@@ -35,6 +36,7 @@ export const defaultLobbySettings: ILobbySettings = {
 	maxDistance: 5.32,
 	haunting: false,
 	snrJumboVoice: false,
+	snrPushReverb: true,
 	snrJumboVoiceEffectStrength: 100,
 	jackalHaunting: false,
 	jackalHearOutsideVents: false,

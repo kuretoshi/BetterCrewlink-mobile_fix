@@ -9,6 +9,7 @@ import { SettingsService } from './settings.service';
 import { AmongUsState, GameState, Player } from '../common/AmongUsState';
 import { CameraLocation, MapType } from '../common/AmongusMap';
 import { defaultLobbySettings } from '../voice/types';
+import { environment } from '../../environments/environment';
 
 /** A real (not faked) MediaStream - AudioContext.createMediaStreamSource requires an actual instance. */
 function createSilentStream(): MediaStream {
@@ -318,7 +319,7 @@ describe('VoiceController impostor radio', () => {
 		expect(voiceController.versionWarning).toBe('');
 		(voiceController as any).onPeerData('hostSocket', { type: 'app-version', lobbyCode: 'OTHER', version: '99.0.0' });
 		expect(voiceController.versionWarning).toBe('');
-		(voiceController as any).onPeerData('hostSocket', { type: 'app-version', lobbyCode: 'VER123', version: '3.2.43' });
+		(voiceController as any).onPeerData('hostSocket', { type: 'app-version', lobbyCode: 'VER123', version: environment.desktopCompatVersion });
 		expect(voiceController.versionWarning).toBe('');
 
 		(voiceController as any).onPeerData('hostSocket', { type: 'app-version', lobbyCode: 'VER123', version: '99.0.0' });
