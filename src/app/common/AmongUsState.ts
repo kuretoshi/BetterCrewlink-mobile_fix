@@ -15,6 +15,7 @@ import type { TohRole, TohRoleDefinition } from './TohRole';
 
 export interface AmongUsState {
 	nosVoiceJamming?: import('./VoiceJammingState').VoiceJammingState[];
+	nosHeroTransforms?: import('./HeroTransformState').HeroTransformState[];
 	nosInterviews?: import('./InterviewState').InterviewState[];
 	nosDyingVoices?: DyingVoiceState[];
 	gameState: GameState;

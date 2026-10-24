@@ -667,7 +667,7 @@ export class VoiceController {
 				.filter((peerId): peerId is string => Boolean(peerId));
 			this.connectionController.sendToPeers(
 				targets,
-				JSON.stringify({ type: 'app-version', lobbyCode: state.lobbyCode, version: environment.desktopCompatVersion })
+				JSON.stringify({ type: 'app-version', lobbyCode: state.lobbyCode, version: environment.desktopCompatVersion, platform: this.settingsService.IsMobile ? 'mobile' : 'web' })
 			);
 			this.versionSentAt = Date.now();
 		}
