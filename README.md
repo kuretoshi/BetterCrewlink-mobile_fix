@@ -4,6 +4,10 @@
 
 元プロジェクトは [BetterCrewLink](https://github.com/OhMyGuus/BetterCrewLink) と [CrewLink](https://github.com/ottomated/CrewLink) の流れを引き継いでいます。Among Us、Innersloth、CrewLink、BetterCrewLink の公式プロジェクトとは別の非公式版です。
 
+## 3.40
+
+フッターの支援ボタンからKo-fiとGitHub Sponsorsを選べるようにしました。PC版3.2.48／.NET版3.2.48-net-beta.1との通信互換バージョンを通知します。
+
 ## 3.39
 
 タヌキ丼0.1.0-β16のヒーロー変身中は、衣装変更を理由とするボイスエフェクトを適用しません。「NGワード」と「変身」の音声認識をホストへ任せられるよう、Web・モバイルの参加方法を通知します。PC版3.2.47／.NET版3.2.47-net-beta.1と合わせて使用してください。Web・モバイル端末自体には音声認識モデルを追加していません。

@@ -10,18 +10,22 @@ describe('GlobalFooterComponent', () => {
 		}).compileComponents();
 	});
 
-	it('shows four unique TanukiBCL footer links in desktop order', () => {
+	it('shows the support picker alongside the other footer links', () => {
 		const fixture = TestBed.createComponent(GlobalFooterComponent);
 		fixture.detectChanges();
 
-		const links = Array.from(fixture.nativeElement.querySelectorAll('.footer-link')) as HTMLAnchorElement[];
-		expect(links.length).toBe(4);
+		const links = Array.from(fixture.nativeElement.querySelectorAll('a.footer-link')) as HTMLAnchorElement[];
+		expect(links.length).toBe(3);
 		expect(links.map((link) => link.getAttribute('href'))).toEqual([
 			'https://github.com/kuretoshi/BetterCrewLink/tree/voice_fixed',
 			'https://discord.gg/jEyDrpBsmJ',
-			'https://ko-fi.com/kuretoshi',
 			'https://x.com/tanukibcl?s=11',
 		]);
+		const supportButton = fixture.nativeElement.querySelector('#support-site-button') as HTMLButtonElement;
+		expect(supportButton.getAttribute('aria-label')).toBe('支援先を選ぶ');
+		expect(supportButton.getAttribute('type')).toBe('button');
+		const supportMenu = fixture.nativeElement.querySelector('ion-popover[trigger="support-site-button"]') as HTMLElement;
+		expect(supportMenu).toBeTruthy();
 		for (const link of links) {
 			expect(link.getAttribute('aria-label')).toBeTruthy();
 			expect(link.getAttribute('rel')).toBe('noopener noreferrer');
