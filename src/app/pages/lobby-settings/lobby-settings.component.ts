@@ -82,6 +82,7 @@ export class LobbySettingsComponent implements OnInit, OnDestroy {
 		if (mod === 'SUPER_NEW_ROLES') {
 			toggles.push(
 				{ label: 'SNR 突き落とし時の残響', value: settings.snrPushReverb !== false },
+				{ label: 'SNR 復活可能時間中のバスカーの声をインポスターに聞かせない', value: settings.snrBuskerReviveHideVoice === true },
 				{ label: 'SNR ジャンボの声', value: settings.snrJumboVoice },
 				{ label: 'ジャッカルの幽霊音声', value: settings.jackalHaunting },
 				{ label: 'ジャッカル無線', value: settings.jackalRadioEnabled },
@@ -94,6 +95,7 @@ export class LobbySettingsComponent implements OnInit, OnDestroy {
 		} else if (mod === 'NoS') {
 			toggles.push(
 				{ label: 'NoS 第三陣営キラーの幽霊音声', value: settings.nosNeutralKillerHaunting },
+				{ label: 'NoS 復活可能時間中のバスカーの声をインポスターに聞かせない', value: settings.nosBuskerReviveHideVoice === true },
 				{ label: 'NoS の音声位置', value: settings.nosVoicePositions },
 				{ label: 'NoS サイズ連動ボイスエフェクト', value: settings.nosSizeVoiceEffect },
 				{ label: 'NoS バーサーカーの声', value: settings.nosBerserkerVoiceEffect },

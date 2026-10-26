@@ -10,6 +10,7 @@ export interface ILobbySettings {
 	haunting: boolean;
 	snrJumboVoice: boolean;
 	snrPushReverb: boolean;
+	snrBuskerReviveHideVoice: boolean;
 	snrJumboVoiceEffectStrength: number;
 	jackalHaunting: boolean;
 	jackalHearOutsideVents: boolean;
@@ -19,6 +20,7 @@ export interface ILobbySettings {
 	sidekickHearOutsideVents: boolean;
 	sidekickTalkInVents: boolean;
 	nosNeutralKillerHaunting: boolean;
+	nosBuskerReviveHideVoice: boolean;
 	nosVoicePositions: boolean;
 	nosSizeVoiceEffect: boolean;
 	nosSizeVoiceEffectStrength: number;

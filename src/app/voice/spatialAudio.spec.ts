@@ -165,6 +165,26 @@ describe('NoS neutral voice hearing distance', () => {
 });
 
 describe('calculateVoiceAudio', () => {
+	it('hides only an active SNR or NoS Busker from living impostors when enabled', () => {
+		const me = makePlayer({ id: 1, clientId: 1, isImpostor: true });
+		for (const mod of ['SUPER_NEW_ROLES', 'NoS'] as const) {
+			const activeLobbySettings = makeLobbySettings({ haunting: true,
+				snrBuskerReviveHideVoice: true, nosBuskerReviveHideVoice: true });
+			const other = makePlayer({ id: 2, clientId: 2, x: 1, isDead: true,
+				...(mod === 'NoS'
+					? { nosRole: { roleId: 1, roleName: 'busker', displayName: 'Busker', runtimeClass: 'Busker.Ability',
+						buskerReviveRemaining: 5 } }
+					: { snrRole: { role: { name: 'Busker', value: 1 }, modifier: null, ghostRole: null,
+						buskerReviveRemaining: 5 } }) });
+			const state = makeState({ mod });
+			expect(run({ state, me, other, activeLobbySettings }).gain).toBe(0);
+			const roleKey = mod === 'NoS' ? 'nosRole' : 'snrRole';
+			const expired = makePlayer({ ...other, [roleKey]: { ...other[roleKey], buskerReviveRemaining: 0 } });
+			expect(run({ state, me, other: expired, activeLobbySettings }).gain).toBeGreaterThan(0);
+			expect(run({ state, me, other, activeLobbySettings: makeLobbySettings({ haunting: true }) }).gain)
+				.toBeGreaterThan(0);
+		}
+	});
 	it('keeps SNR falling speech audible while independently controlling reverb', () => {
 		const state = makeState({ mod: 'SUPER_NEW_ROLES' });
 		const other = makePlayer({ id: 2, clientId: 2, x: 100, isDead: true,
