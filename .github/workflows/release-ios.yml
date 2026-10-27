@@ -73,6 +73,12 @@ jobs:
             -derivedDataPath work/ios-ci CODE_SIGNING_ALLOWED=NO build
       - name: Package IPA and corresponding source
         run: python3 scripts/ios-ci.py package work/ios-ci/Build/Products/Debug-iphoneos/App.app work/ios-release
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ios-release-${{ github.run_id }}
+          path: work/ios-release/
+          if-no-files-found: error
+          retention-days: 14
       - name: Preview iPhone Duo on Apple Silicon
         if: github.event_name == 'workflow_dispatch' && inputs.duo_preview
         run: python3 scripts/preview-iphone-duo.py
@@ -83,12 +89,6 @@ jobs:
           name: iphone-duo-preview-${{ github.run_id }}
           path: work/duo-preview/
           if-no-files-found: warn
-          retention-days: 14
-      - uses: actions/upload-artifact@v7
-        with:
-          name: ios-release-${{ github.run_id }}
-          path: work/ios-release/
-          if-no-files-found: error
           retention-days: 14
 
   publish:
