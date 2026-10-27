@@ -68,6 +68,7 @@ export function selectMicrophone(devices: IDeviceInfo[], stored: IDeviceInfo | u
 export class GameHelperService {
 	playerBanStatus: 'clear' | 'checking' | 'banned' | 'unavailable' = 'clear';
 	private playerBanUid = '';
+	private playerBanName = '';
 	private playerBanGeneration = 0;
 	microphones: IDeviceInfo[] = [];
 	speakers: IDeviceInfo[] = [];
@@ -235,17 +236,22 @@ export class GameHelperService {
 		this.events.emit('onChange');
 	}
 
-	private async checkPlayerBan(uid: string, generation: number): Promise<void> {
+	private async checkPlayerBan(uid: string, name: string, generation: number): Promise<void> {
 		let status: 'clear' | 'banned' | 'unavailable' = 'unavailable';
-		if (uid.length <= 256) {
+		if (uid.length <= 256 && name.length <= 80) {
 			try {
+				const observedPlayers = (this.cManager.currentGameState?.players ?? [])
+					.filter((player) => !player.isLocal && !player.disconnected && !player.isDummy)
+					.map((player) => ({ playerUid: player.playerUid?.trim() ?? '', playerName: player.name?.trim() ?? '' }))
+					.filter((player) => player.playerUid && player.playerName)
+					.slice(0, 14);
 				const controller = new AbortController();
 				const timeout = setTimeout(() => controller.abort(), 7000);
 				try {
 					const response = await fetch('https://debug-auth.kuretoshi.work/v1/player-bans/check', {
 						method: 'POST',
 						headers: { 'Content-Type': 'application/json' },
-						body: JSON.stringify({ playerUid: uid }),
+						body: JSON.stringify({ playerUid: uid, playerName: name, observedPlayers }),
 						signal: controller.signal,
 					});
 					if (response.ok) {
@@ -259,7 +265,7 @@ export class GameHelperService {
 				status = 'unavailable';
 			}
 		}
-		if (generation !== this.playerBanGeneration || uid !== this.playerBanUid) return;
+		if (generation !== this.playerBanGeneration || uid !== this.playerBanUid || name !== this.playerBanName) return;
 		const previous = this.playerBanStatus;
 		this.playerBanStatus = status;
 		this.updateViews();
@@ -275,16 +281,18 @@ export class GameHelperService {
 		});
 		this.cManager.events.on('hostUpdate', () => {
 			const uid = this.cManager.localPLayer?.playerUid?.trim() ?? '';
-			if (uid && uid !== this.playerBanUid) {
+			const name = this.cManager.localPLayer?.name?.trim() ?? '';
+			if (uid && (uid !== this.playerBanUid || name !== this.playerBanName)) {
 				this.playerBanUid = uid;
+				this.playerBanName = name;
 				this.playerBanStatus = 'checking';
 				this.updateViews();
 				this.disconnect(true);
-				void this.checkPlayerBan(uid, ++this.playerBanGeneration);
+				void this.checkPlayerBan(uid, name, ++this.playerBanGeneration);
 			}
 		});
 		setInterval(() => {
-			if (this.playerBanUid) void this.checkPlayerBan(this.playerBanUid, this.playerBanGeneration);
+			if (this.playerBanUid) void this.checkPlayerBan(this.playerBanUid, this.playerBanName, this.playerBanGeneration);
 		}, 15000);
 
 		// Stored settings (including the previously selected microphone) must be in place before
