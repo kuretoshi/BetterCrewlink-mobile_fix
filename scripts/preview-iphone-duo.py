@@ -12,11 +12,18 @@ from pathlib import Path
 out = Path('work/duo-preview')
 out.mkdir(parents=True, exist_ok=True)
 
-def run(*args):
-    return subprocess.check_output(args, text=True).strip()
+def command(*args, capture=False, timeout=300):
+    print('+ ' + ' '.join(str(arg) for arg in args), flush=True)
+    result = subprocess.run(args, text=True, stdout=subprocess.PIPE if capture else None,
+                            check=True, timeout=timeout)
+    return result.stdout.strip() if capture else None
 
-report = {'xcode': run('xcodebuild', '-version')}
+def run(*args):
+    return command(*args, capture=True)
+
+report = {}
 try:
+    report['xcode'] = run('xcodebuild', '-version')
     available = json.loads(run('xcrun', 'simctl', 'list', 'devices', 'available', '--json'))
     matches = [(runtime, device) for runtime, devices in available['devices'].items()
                for device in devices if device['name'] == 'iPhone Duo' and 'iOS-27-1' in runtime]
@@ -26,16 +33,16 @@ try:
     udid = device['udid']
     report.update(runtime=runtime, device=device)
     if device['state'] != 'Booted':
-        subprocess.run(['xcrun', 'simctl', 'boot', udid], check=True)
-    subprocess.run(['xcrun', 'simctl', 'bootstatus', udid, '-b'], check=True)
-    subprocess.run(['xcodebuild', '-project', 'ios/App/App.xcodeproj', '-scheme', 'App',
+        command('xcrun', 'simctl', 'boot', udid)
+    command('xcrun', 'simctl', 'bootstatus', udid, '-b')
+    command('xcodebuild', '-project', 'ios/App/App.xcodeproj', '-scheme', 'App',
                     '-configuration', 'Debug', '-destination', f'platform=iOS Simulator,id={udid}',
-                    '-derivedDataPath', 'work/duo-simulator', 'CODE_SIGNING_ALLOWED=NO', 'build'], check=True)
+                    '-derivedDataPath', 'work/duo-simulator', 'CODE_SIGNING_ALLOWED=NO', 'build', timeout=600)
     app = Path('work/duo-simulator/Build/Products/Debug-iphonesimulator/App.app')
-    subprocess.run(['xcrun', 'simctl', 'install', udid, str(app)], check=True)
+    command('xcrun', 'simctl', 'install', udid, str(app))
     report['launch'] = run('xcrun', 'simctl', 'launch', udid, 'io.bettercrewlink.tanuki')
     time.sleep(5)
-    subprocess.run(['xcrun', 'simctl', 'io', udid, 'screenshot', str(out / 'iphone-duo-startup.png')], check=True)
+    command('xcrun', 'simctl', 'io', udid, 'screenshot', str(out / 'iphone-duo-startup.png'))
     report['result'] = 'Launched; initial display captured. Folding and voice are untested.'
 except Exception as error:
     report['error'] = str(error)
