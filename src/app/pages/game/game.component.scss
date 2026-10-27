@@ -1,5 +1,6 @@
 .connectedView {
-	max-width: 480px;
+	max-width: 840px;
+	container-type: inline-size;
 	margin: 0 auto;
 	padding: 12px 10px 28px;
 }
@@ -109,7 +110,7 @@
 	align-items: start;
 	column-gap: 12px;
 	row-gap: 18px;
-	max-width: 390px;
+	max-width: 100%;
 	margin: 18px auto 0;
 }
 
@@ -179,4 +180,25 @@
 .statusNotice-error {
 	border-color: #a33a45;
 	background: #581e24;
+}
+
+// Grow columns with the inner display's usable width, not a device-name check.
+@container (min-width: 600px) {
+	.playersGrid {
+		grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+	}
+}
+
+@container app-layout (max-width: 360px) {
+	.localPlayerRow {
+		grid-template-columns: 70px minmax(0, 1fr) 40px;
+		gap: 8px;
+	}
+	.localAvatar {
+		width: 70px;
+	}
+	.playersGrid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		max-width: 300px;
+	}
 }
