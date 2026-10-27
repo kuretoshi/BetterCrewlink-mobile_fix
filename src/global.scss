@@ -42,7 +42,8 @@
 
 .alert-wrapper {
 	width: 100% !important;
-	max-width: 20vw !important;
+	max-width: min(28rem, calc(100vw - var(--ion-safe-area-left, 0px) - var(--ion-safe-area-right, 0px) - 32px)) !important;
+	min-width: 0 !important;
 }
 
 .ion-page > ion-content {
@@ -53,9 +54,10 @@
 	position: absolute;
 	top: var(--app-header-height, 56px);
 	bottom: var(--app-footer-height, 80px);
-	left: 0;
-	right: 0;
+	left: var(--ion-safe-area-left, 0px);
+	right: var(--ion-safe-area-right, 0px);
 	height: auto;
+	container: app-layout / inline-size;
 }
 
 #main-content .ion-page {
