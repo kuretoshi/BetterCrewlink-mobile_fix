@@ -42,7 +42,10 @@ try:
     command('xcrun', 'simctl', 'install', udid, str(app))
     report['launch'] = run('xcrun', 'simctl', 'launch', udid, 'io.bettercrewlink.tanuki')
     time.sleep(5)
-    command('xcrun', 'simctl', 'io', udid, 'screenshot', str(out / 'iphone-duo-startup.png'))
+    # The iOS 27.1 Duo simulator exposes both displays; an unspecified capture fails.
+    for display in ('1', '3'):
+        command('xcrun', 'simctl', 'io', udid, 'screenshot', f'--display={display}',
+                str(out / f'iphone-duo-display-{display}.png'))
     report['result'] = 'Launched; initial display captured. Folding and voice are untested.'
 except Exception as error:
     report['error'] = str(error)
