@@ -66,6 +66,9 @@ export function selectMicrophone(devices: IDeviceInfo[], stored: IDeviceInfo | u
 	providedIn: 'root',
 })
 export class GameHelperService {
+	playerBanStatus: 'clear' | 'checking' | 'banned' | 'unavailable' = 'clear';
+	private playerBanUid = '';
+	private playerBanGeneration = 0;
 	microphones: IDeviceInfo[] = [];
 	speakers: IDeviceInfo[] = [];
 	IsMobile = false;
@@ -89,6 +92,7 @@ export class GameHelperService {
 	}
 
 	reconnect() {
+		if (this.playerBanStatus !== 'clear') return;
 		this.cManager.disconnect(false);
 		this.cManager.connect(
 			this.settings.getVoiceServer(),
@@ -103,6 +107,7 @@ export class GameHelperService {
 	}
 
 	connect() {
+		if (this.playerBanStatus !== 'clear') return;
 		this.disconnect(false);
 		this.error = undefined;
 
@@ -230,12 +235,57 @@ export class GameHelperService {
 		this.events.emit('onChange');
 	}
 
+	private async checkPlayerBan(uid: string, generation: number): Promise<void> {
+		let status: 'clear' | 'banned' | 'unavailable' = 'unavailable';
+		if (uid.length <= 256) {
+			try {
+				const controller = new AbortController();
+				const timeout = setTimeout(() => controller.abort(), 7000);
+				try {
+					const response = await fetch('https://debug-auth.kuretoshi.work/v1/player-bans/check', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ playerUid: uid }),
+						signal: controller.signal,
+					});
+					if (response.ok) {
+						const result = await response.json();
+						status = result.banned === true ? 'banned' : result.banned === false ? 'clear' : 'unavailable';
+					}
+				} finally {
+					clearTimeout(timeout);
+				}
+			} catch {
+				status = 'unavailable';
+			}
+		}
+		if (generation !== this.playerBanGeneration || uid !== this.playerBanUid) return;
+		const previous = this.playerBanStatus;
+		this.playerBanStatus = status;
+		this.updateViews();
+		if (status === 'clear' && previous !== 'clear') this.connect();
+		else if (status !== 'clear') this.disconnect(true);
+	}
+
 	load() {
 		console.log('load??');
 
 		this.cManager.events.on('onChange', () => {
 			this.updateViews();
 		});
+		this.cManager.events.on('hostUpdate', () => {
+			const uid = this.cManager.localPLayer?.playerUid?.trim() ?? '';
+			if (uid && uid !== this.playerBanUid) {
+				this.playerBanUid = uid;
+				this.playerBanStatus = 'checking';
+				this.updateViews();
+				this.disconnect(true);
+				void this.checkPlayerBan(uid, ++this.playerBanGeneration);
+			}
+		});
+		setInterval(() => {
+			if (this.playerBanUid) void this.checkPlayerBan(this.playerBanUid, this.playerBanGeneration);
+		}, 15000);
 
 		// Stored settings (including the previously selected microphone) must be in place before
 		// devices are enumerated and a default is picked - otherwise the fresh device list's

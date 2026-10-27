@@ -1,4 +1,9 @@
 <ion-app>
+	@if (gameHelper.playerBanStatus !== 'clear') {
+		<div class="player-ban-screen">
+			<h2>{{ gameHelper.playerBanStatus === 'banned' ? 'BANされているため使用できません。' : gameHelper.playerBanStatus === 'checking' ? '利用資格を確認しています…' : '利用資格を確認できません。しばらくしてから再試行します。' }}</h2>
+		</div>
+	}
 	<ion-menu contentId="main-content">
 		<ion-content color="secondary">
 			<ion-list id="inbox-list" style="background-color: #25232a">

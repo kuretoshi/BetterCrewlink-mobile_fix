@@ -1,5 +1,6 @@
-import { AfterViewInit, Component, ElementRef, OnDestroy, OnInit, ViewChild, ChangeDetectionStrategy } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, OnDestroy, OnInit, ViewChild, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { SettingsService } from './services/settings.service';
+import { GameHelperService } from './services/game-helper.service';
 import { environment } from '../environments/environment';
 @Component({
 	selector: 'app-root',
@@ -43,7 +44,10 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
 	@ViewChild('appFooterEl', { read: ElementRef }) private appFooterEl: ElementRef<HTMLElement>;
 	private layoutResizeObserver: ResizeObserver;
 
-	constructor(private settingsService: SettingsService) {}
+	constructor(private settingsService: SettingsService, public gameHelper: GameHelperService,
+		private changes: ChangeDetectorRef) {
+		this.gameHelper.events.on('onChange', () => this.changes.markForCheck());
+	}
 
 	async ngOnInit() {
 		console.log('AppComponent initialized');
