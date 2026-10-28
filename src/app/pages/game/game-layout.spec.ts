@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { IonicModule } from '@ionic/angular';
 import { GameComponent } from './game.component';
 import { GameHelperService } from '../../services/game-helper.service';
 
@@ -9,6 +10,7 @@ describe('Game adaptive layout', () => {
 	let fixture: ComponentFixture<GameComponent>;
 	beforeEach(async () => {
 		await TestBed.configureTestingModule({
+			imports: [IonicModule.forRoot()],
 			declarations: [GameComponent],
 			schemas: [CUSTOM_ELEMENTS_SCHEMA],
 			providers: [{ provide: GameHelperService, useValue: {
@@ -23,13 +25,20 @@ describe('Game adaptive layout', () => {
 			} }],
 		}).compileComponents();
 		fixture = TestBed.createComponent(GameComponent);
-		Object.assign(fixture.nativeElement.style, { display: 'block', container: 'app-layout / inline-size' });
+		Object.assign(fixture.nativeElement.style, { display: 'block', width: '890px', container: 'app-layout / inline-size' });
 		fixture.detectChanges();
+		const content = fixture.nativeElement.querySelector('ion-content') as HTMLElement & {
+			componentOnReady?: () => Promise<unknown>;
+		};
+		await customElements.whenDefined('ion-content');
+		await content.componentOnReady?.();
 	});
 	afterEach(() => fixture.destroy());
 
 	async function resize(width: number): Promise<number> {
 		fixture.nativeElement.style.width = `${width}px`;
+		await fixture.whenStable();
+		await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 		await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 		const host: HTMLElement = fixture.nativeElement;
 		expect(host.scrollWidth).toBeLessThanOrEqual(host.clientWidth + 1);

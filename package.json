@@ -11,6 +11,7 @@
     "dev": "ionic serve --external --ssl --configuration=development",
     "build": "ionic capacitor build android --prod",
     "lint": "ng lint",
+    "check:nesting": "node scripts/check-nesting.mjs",
     "check:drift": "node scripts/check-schema-drift.mjs",
     "test:nos-direct": "node scripts/test-direct-nos-voice.mjs",
     "ios:configure": "node scripts/configure-ios.mjs",
