@@ -684,6 +684,20 @@ describe('VoiceController getRenderablePlayers', () => {
 		expect(players[0].connectionState).toBe('disconnected');
 	});
 
+	it('shows a death on the first meeting update while keeping task deaths hidden', () => {
+		const remote = makePlayer({ id: 2, clientId: 2, isDead: true });
+		const { voiceController, connectionController, me } = setup([remote]);
+		const state = connectionController.currentGameState;
+		connectionController.oldGameState = makeState({ gameState: GameState.TASKS });
+
+		(voiceController as any).updatePlayerDeadStates(state, me);
+		expect(voiceController.getRenderablePlayers()[0].isDead).toBeFalse();
+
+		state.gameState = GameState.DISCUSSION;
+		(voiceController as any).updatePlayerDeadStates(state, me);
+		expect(voiceController.getRenderablePlayers()[0].isDead).toBeTrue();
+	});
+
 	it('sorts players by colorId', () => {
 		const lime = makePlayer({ id: 2, clientId: 2, colorId: 9 });
 		const red = makePlayer({ id: 3, clientId: 3, colorId: 0 });

@@ -346,7 +346,7 @@ export class VoiceController {
 		for (const player of state.players) {
 			if (player.clientId === myPlayer.clientId) continue;
 			const playerState = this.getOrCreatePlayerState(player.clientId);
-			playerState.isDead = this.computeLatchedDead(playerState.isDead, player.isDead, myPlayer);
+			playerState.isDead = this.computeLatchedDead(playerState.isDead, player.isDead, myPlayer, state.gameState);
 		}
 	}
 
@@ -356,16 +356,15 @@ export class VoiceController {
 		);
 	}
 
-	private computeLatchedDead(current: boolean, isNowDead: boolean, myPlayer: Player): boolean {
-		const connectionController = this.connectionController;
+	private computeLatchedDead(current: boolean, isNowDead: boolean, myPlayer: Player, gameState: GameState): boolean {
 		if (current && !isNowDead) {
 			return false;
 		}
 		if (
 			isNowDead &&
 			(myPlayer.isDead ||
-				connectionController.oldGameState?.gameState === GameState.DISCUSSION ||
-				connectionController.oldGameState?.gameState === GameState.LOBBY)
+				gameState === GameState.DISCUSSION ||
+				gameState === GameState.LOBBY)
 		) {
 			return true;
 		}
