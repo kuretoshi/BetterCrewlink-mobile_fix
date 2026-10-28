@@ -250,22 +250,7 @@ export class GameHelperService {
 					.filter((player) => player.playerUid && player.playerName)
 					.slice(0, 29);
 				const friendCode = this.cManager.localPLayer?.friendCode?.trim() ?? '';
-				const controller = new AbortController();
-				const timeout = setTimeout(() => controller.abort(), 7000);
-				try {
-					const response = await fetch('https://debug-auth.kuretoshi.work/v1/player-bans/check', {
-						method: 'POST',
-						headers: { 'Content-Type': 'application/json' },
-						body: JSON.stringify({ playerUid: uid, playerName: name, friendCode, observedPlayers }),
-						signal: controller.signal,
-					});
-					if (response.ok) {
-						const result = await response.json();
-						status = result.banned === true ? 'banned' : result.banned === false ? 'clear' : 'unavailable';
-					}
-				} finally {
-					clearTimeout(timeout);
-				}
+				status = await this.fetchPlayerBanStatus(uid, name, friendCode, observedPlayers);
 			} catch {
 				status = 'unavailable';
 			}
@@ -276,6 +261,29 @@ export class GameHelperService {
 		this.updateViews();
 		if (status === 'clear' && previous !== 'clear') this.connect();
 		else if (status !== 'clear') this.disconnect(true);
+	}
+
+	private async fetchPlayerBanStatus(
+		uid: string,
+		name: string,
+		friendCode: string,
+		observedPlayers: { playerUid: string; playerName: string; friendCode: string }[]
+	): Promise<'clear' | 'banned' | 'unavailable'> {
+		const controller = new AbortController();
+		const timeout = setTimeout(() => controller.abort(), 7000);
+		try {
+			const response = await fetch('https://debug-auth.kuretoshi.work/v1/player-bans/check', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ playerUid: uid, playerName: name, friendCode, observedPlayers }),
+				signal: controller.signal,
+			});
+			if (!response.ok) return 'unavailable';
+			const result = await response.json();
+			return result.banned === true ? 'banned' : result.banned === false ? 'clear' : 'unavailable';
+		} finally {
+			clearTimeout(timeout);
+		}
 	}
 
 	load() {
