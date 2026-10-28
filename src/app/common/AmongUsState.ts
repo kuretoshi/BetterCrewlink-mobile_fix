@@ -155,6 +155,8 @@ export interface Player {
 	snrVisor2Id?: string;
 	nosPlayer?: NosPlayerData;
 	nosRole?: NosRole;
+	/** Relayed by the desktop host from the Busker player's own NoS snapshot. */
+	nosIsPseudocide?: boolean;
 	/** Old hosts send local URLs; updated hosts send nos-web:// SHA-256 asset references. */
 	nosCosmetics?: Partial<Record<'skin' | 'hat' | 'hatBack' | 'visor' | 'bodyMask', string>>;
 	tohRole?: TohRole;

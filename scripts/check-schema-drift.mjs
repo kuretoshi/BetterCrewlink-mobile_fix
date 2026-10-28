@@ -150,7 +150,8 @@ function checkObjectDeepEqual(label, desktopBlockText, mobileBlockText, allowedE
 	const desktopFieldsList = fieldNames(extractBlock(desktopSrc, /export interface ILobbySettings/));
 	const mobileFieldsList = fieldNames(extractBlock(mobileSrc, /export interface ILobbySettings/));
 	checkFieldsSuperset('ILobbySettings', desktopFieldsList, mobileFieldsList, [
-		'snrPushReverb', 'nosCitrusVoiceEffectStrength', 'snrJumboVoiceEffectStrength', 'nosSizeVoiceEffectStrength',
+		'snrPushReverb', 'snrBuskerReviveHideVoice', 'nosBuskerReviveHideVoice',
+		'nosCitrusVoiceEffectStrength', 'snrJumboVoiceEffectStrength', 'nosSizeVoiceEffectStrength',
 		'nosRokurokubiVoiceEffectStrength', 'nosBerserkerVoiceEffectStrength', 'nosRainbowStarEchoStrength',
 		'nosVoiceJammingEffectStrength', 'nosMegaphoneEffectStrength', 'nosBibiriEchoStrength'
 	]);
@@ -165,7 +166,7 @@ function checkObjectDeepEqual(label, desktopBlockText, mobileBlockText, allowedE
 		mergedInterfaceFields(desktopSrc, 'AmongUsState'),
 		mergedInterfaceFields(mobileSrc, 'AmongUsState'),
 		// Pending NoS addon support, newer than the pinned desktop baseline.
-		['mushroomMixupSabotaged', 'nosMegaphones', 'nosPortableMegaphones', 'nosBibiriEchoes', 'nosVoiceFrameTime', 'nosDyingVoices', 'nosInterviews', 'nosVoiceJamming']
+		['mushroomMixupSabotaged', 'nosMegaphones', 'nosPortableMegaphones', 'nosBibiriEchoes', 'nosVoiceFrameTime', 'nosDyingVoices', 'nosInterviews', 'nosVoiceJamming', 'nosHeroTransforms']
 	);
 
 	// --- Player (mobile may add its own `isbetter` flag; nothing else) ---
@@ -173,7 +174,7 @@ function checkObjectDeepEqual(label, desktopBlockText, mobileBlockText, allowedE
 		'Player',
 		mergedInterfaceFields(desktopSrc, 'Player'),
 		mergedInterfaceFields(mobileSrc, 'Player'),
-		['isbetter']
+		['isbetter', 'nosIsPseudocide']
 	);
 
 	// --- GameState enum ---
@@ -220,7 +221,8 @@ function checkObjectDeepEqual(label, desktopBlockText, mobileBlockText, allowedE
 		'defaultLobbySettings',
 		extractBlock(desktopDefaultsSrc, /export const defaultLobbySettings/),
 		extractBlock(mobileSrc, /export const defaultLobbySettings/),
-		{ snrPushReverb: true, nosCitrusVoiceEffectStrength: 100, snrJumboVoiceEffectStrength: 100,
+		{ snrPushReverb: true, snrBuskerReviveHideVoice: false, nosBuskerReviveHideVoice: false,
+			nosCitrusVoiceEffectStrength: 100, snrJumboVoiceEffectStrength: 100,
 			nosSizeVoiceEffectStrength: 100, nosRokurokubiVoiceEffectStrength: 100,
 			nosBerserkerVoiceEffectStrength: 100, nosRainbowStarEchoStrength: 100,
 			nosVoiceJammingEffectStrength: 100, nosMegaphoneEffectStrength: 100, nosBibiriEchoStrength: 100 }

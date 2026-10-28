@@ -6,7 +6,6 @@ export interface NosRole {
 	bodyType?: number;
 	isBerserking?: boolean;
 	isRainbowStar?: boolean | null;
-	buskerReviveRemaining?: number | null;
 }
 
 export function formatNosRole(role: NosRole): string {

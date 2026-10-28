@@ -173,14 +173,34 @@ describe('calculateVoiceAudio', () => {
 			const other = makePlayer({ id: 2, clientId: 2, x: 1, isDead: true,
 				...(mod === 'NoS'
 					? { nosRole: { roleId: 1, roleName: 'busker', displayName: 'Busker', runtimeClass: 'Busker.Ability',
-						buskerReviveRemaining: 5 } }
+						}, nosIsPseudocide: true }
 					: { snrRole: { role: { name: 'Busker', value: 1 }, modifier: null, ghostRole: null,
-						buskerReviveRemaining: 5 } }) });
+						buskerPseudocideActive: true } }) });
 			const state = makeState({ mod });
 			expect(run({ state, me, other, activeLobbySettings }).gain).toBe(0);
-			const roleKey = mod === 'NoS' ? 'nosRole' : 'snrRole';
-			const expired = makePlayer({ ...other, [roleKey]: { ...other[roleKey], buskerReviveRemaining: 0 } });
+			const expired = mod === 'NoS'
+				? makePlayer({ ...other, nosIsPseudocide: false })
+				: makePlayer({ ...other, snrRole: { ...other.snrRole!, buskerPseudocideActive: false } });
 			expect(run({ state, me, other: expired, activeLobbySettings }).gain).toBeGreaterThan(0);
+			if (mod === 'NoS') {
+				expect(run({ state, me, other: { ...other, nosIsPseudocide: false }, activeLobbySettings }).gain)
+					.toBeGreaterThan(0);
+				expect(run({ state, me, other: { ...other, nosIsPseudocide: undefined }, activeLobbySettings }).gain)
+					.toBeGreaterThan(0);
+				expect(run({ state, me, other: { ...expired, isDead: false, nosIsPseudocide: true },
+					activeLobbySettings }).gain).toBe(0);
+			}
+			if (mod === 'SUPER_NEW_ROLES') {
+				expect(run({ state, me, other: { ...other,
+					snrRole: { ...other.snrRole!, buskerPseudocideActive: false } }, activeLobbySettings }).gain)
+					.toBeGreaterThan(0);
+				expect(run({ state, me, other: { ...other,
+					snrRole: { ...other.snrRole!, buskerPseudocideActive: undefined } }, activeLobbySettings }).gain)
+					.toBeGreaterThan(0);
+				expect(run({ state, me, other: { ...expired, isDead: false,
+					snrRole: { ...expired.snrRole!, buskerPseudocideActive: true } }, activeLobbySettings }).gain)
+					.toBe(0);
+			}
 			expect(run({ state, me, other, activeLobbySettings: makeLobbySettings({ haunting: true }) }).gain)
 				.toBeGreaterThan(0);
 		}

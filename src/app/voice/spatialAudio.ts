@@ -116,11 +116,13 @@ export function calculateVoiceAudio(input: VoiceAudioInput): VoiceAudioResult {
 	}
 	if (
 		state.gameState === GameState.TASKS &&
-		me.isImpostor && other.isDead &&
+		me.isImpostor &&
 		((state.mod === 'SUPER_NEW_ROLES' && activeLobbySettings.snrBuskerReviveHideVoice === true &&
-			other.snrRole?.role.name === 'Busker' && (other.snrRole.buskerReviveRemaining ?? 0) > 0) ||
+			other.snrRole?.role.name === 'Busker' &&
+			other.snrRole.buskerPseudocideActive === true) ||
 			(state.mod === 'NoS' && activeLobbySettings.nosBuskerReviveHideVoice === true &&
-				other.nosRole?.roleName === 'busker' && (other.nosRole.buskerReviveRemaining ?? 0) > 0))
+				other.nosRole?.roleName === 'busker' &&
+				other.nosIsPseudocide === true))
 	) return result;
 
 	let panPos: [number, number] = [other.x - me.x, other.y - me.y];
