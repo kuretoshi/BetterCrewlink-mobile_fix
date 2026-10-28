@@ -242,16 +242,21 @@ export class GameHelperService {
 			try {
 				const observedPlayers = (this.cManager.currentGameState?.players ?? [])
 					.filter((player) => !player.isLocal && !player.disconnected && !player.isDummy)
-					.map((player) => ({ playerUid: player.playerUid?.trim() ?? '', playerName: player.name?.trim() ?? '' }))
+					.map((player) => ({
+						playerUid: player.playerUid?.trim() ?? '',
+						playerName: player.name?.trim() ?? '',
+						friendCode: player.friendCode?.trim() ?? '',
+					}))
 					.filter((player) => player.playerUid && player.playerName)
-					.slice(0, 14);
+					.slice(0, 29);
+				const friendCode = this.cManager.localPLayer?.friendCode?.trim() ?? '';
 				const controller = new AbortController();
 				const timeout = setTimeout(() => controller.abort(), 7000);
 				try {
 					const response = await fetch('https://debug-auth.kuretoshi.work/v1/player-bans/check', {
 						method: 'POST',
 						headers: { 'Content-Type': 'application/json' },
-						body: JSON.stringify({ playerUid: uid, playerName: name, observedPlayers }),
+						body: JSON.stringify({ playerUid: uid, playerName: name, friendCode, observedPlayers }),
 						signal: controller.signal,
 					});
 					if (response.ok) {
