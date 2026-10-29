@@ -4,6 +4,27 @@
 import { SettingsService } from './settings.service';
 import { PlayerSettingsMap, VoiceServerOption } from './smallInterfaces';
 
+describe('Persisted app player layout', () => {
+	it('defaults old settings, saves and restores the selected layout, and rejects unknown values', async () => {
+		const platform = { is: () => false } as never;
+		let stored: unknown = {};
+		const storage = { create: async () => undefined, get: async () => stored,
+			set: async (_key: string, value: unknown) => { stored = value; } } as never;
+		const original = new SettingsService(storage, platform);
+		await original.load();
+		expect(original.get().appPlayerLayout).toBe('standard');
+		original.get().appPlayerLayout = 'aliveAboveGhosts';
+		await original.save();
+		const reloaded = new SettingsService(storage, platform);
+		await reloaded.load();
+		expect(reloaded.get().appPlayerLayout).toBe('aliveAboveGhosts');
+		stored = { appPlayerLayout: 'unknown' };
+		const invalid = new SettingsService(storage, platform);
+		await invalid.load();
+		expect(invalid.get().appPlayerLayout).toBe('standard');
+	});
+});
+
 function makeStorage(initialValue?: unknown) {
 	return {
 		create: jasmine.createSpy('create').and.returnValue(Promise.resolve()),

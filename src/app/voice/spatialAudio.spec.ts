@@ -65,6 +65,7 @@ function makeState(overrides: Partial<AmongUsState> = {}): AmongUsState {
 
 function makeSettings(overrides: Partial<ISettings> = {}): ISettings {
 	return {
+		appPlayerLayout: 'standard',
 		snrPushReverbStrength: 100,
 		voiceServerOption: 1,
 		customVoiceServer: '',

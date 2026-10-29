@@ -43,7 +43,7 @@
 			@case (2) {
 				<ng-container id="connectedPg">
 					<div class="connectedView">
-						@if (getMod() === 'NoS') {
+						@if (hasTanukiAddon()) {
 							<div class="statusNotice" role="status">
 								<p>NoS役職のマイク連携（ホスト中継・ベータ）</p>
 								<p>通常の参加後に自動接続します。ホスト側に対応版ベタクルとアドオンが必要です。</p>
@@ -147,21 +147,26 @@
 							</ion-row>
 						}
 						<div class="playersGrid">
-							@for (item of getPlayers(); track item.player.clientId) {
-								<div class="playerCell">
-									<app-avatar
-										[settings]="item.settings"
-										[isDead]="item.isDead"
-										[player]="item.player"
-										[connectionState]="item.connectionState"
-										[talking]="item.talking && item.audible"
-										[mod]="getMod()"
-										[isLobby]="isLobby()"
-									></app-avatar>
-									<span class="playerName" [title]="item.player.appearanceName || item.player.name">{{
-										item.player.appearanceName || item.player.name
-									}}</span>
-								</div>
+							@for (group of getPlayerGroups(); track group.key) {
+								@if (group.label) {
+									<div class="playerGroupHeader" role="heading" aria-level="2">{{ group.label }}</div>
+								}
+								@for (item of group.players; track item.player.clientId) {
+									<div class="playerCell">
+										<app-avatar
+											[settings]="item.settings"
+											[isDead]="item.isDead"
+											[player]="item.player"
+											[connectionState]="item.connectionState"
+											[talking]="item.talking && item.audible"
+											[mod]="getMod()"
+											[isLobby]="isLobby()"
+										></app-avatar>
+										<span class="playerName" [title]="item.player.appearanceName || item.player.name">{{
+											item.player.appearanceName || item.player.name
+										}}</span>
+									</div>
+								}
 							}
 						</div>
 					</div>

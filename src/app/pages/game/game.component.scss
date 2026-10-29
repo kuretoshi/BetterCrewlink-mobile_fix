@@ -202,3 +202,12 @@
 		max-width: 300px;
 	}
 }
+.playerGroupHeader {
+	grid-column: 1 / -1;
+	width: 100%;
+	padding-bottom: 6px;
+	border-bottom: 1px solid #716777;
+	color: #d1c6d6;
+	font-size: 14px;
+	text-align: left;
+}

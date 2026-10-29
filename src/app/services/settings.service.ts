@@ -5,6 +5,7 @@ import { Platform } from '@ionic/angular';
 import { Storage } from '@ionic/storage';
 
 const DEFAULTSETTINGS: Omit<ISettings, 'playerSettings'> = {
+	appPlayerLayout: 'standard',
 	gamecode: '',
 	voiceServerOption: VoiceServerOption.BETTERCREWLINK,
 	customVoiceServer: 'https://bettercrewl.ink',
@@ -174,6 +175,7 @@ export class SettingsService {
 			this.settings[key] = loadedSettings[key];
 		}
 		this.settings.playerSettings = this.deserializePlayerSettings(loadedSettings.playerSettings);
+		if (this.settings.appPlayerLayout !== 'aliveAboveGhosts') this.settings.appPlayerLayout = 'standard';
 	}
 
 	private async doLoad(): Promise<void> {

@@ -4,7 +4,7 @@ import { AmongUsState, GameState, Player } from '../common/AmongUsState';
 
 describe('NoS Web/mobile microphone pairing', () => {
 	const player = { id: 7, clientId: 42, isDead: false, disconnected: false } as Player;
-	const state = { mod: 'NoS', gameState: GameState.TASKS, lobbyCode: 'ABCDEF', players: [player] } as AmongUsState;
+	const state = { mod: 'NoS', nosAddonIds: ['tanuki.bcl.roles'], gameState: GameState.TASKS, lobbyCode: 'ABCDEF', players: [player] } as AmongUsState;
 	const client = { playerId: 7, clientId: 42 };
 	let pc: RemoteVoiceRoleInput;
 	let phone: VoiceRoleClient;

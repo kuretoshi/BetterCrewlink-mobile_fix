@@ -4,6 +4,10 @@
 
 元プロジェクトは [BetterCrewLink](https://github.com/OhMyGuus/BetterCrewLink) と [CrewLink](https://github.com/ottomated/CrewLink) の流れを引き継いでいます。Among Us、Innersloth、CrewLink、BetterCrewLink の公式プロジェクトとは別の非公式版です。
 
+## 3.47
+
+接続設定の「画面レイアウト」で、生存者と霊界を分ける表示に切り替えられます。タヌキ丼が未検出の間は追加役職用の音声処理を初期化せず、録音処理も録音中だけ動かします。PC版3.2.56／.NET版3.2.56-net-beta.1と互換バージョンを揃えました。
+
 ## 3.40
 
 フッターの支援ボタンからKo-fiとGitHub Sponsorsを選べるようにしました。PC版3.2.48／.NET版3.2.48-net-beta.1との通信互換バージョンを通知します。

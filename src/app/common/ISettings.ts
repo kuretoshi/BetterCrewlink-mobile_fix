@@ -63,6 +63,7 @@ export interface ILobbySettings {
  * (ghostVolumeAsImpostor, crewVolumeAsGhost, masterVolume, enableSpatialAudio).
  */
 export interface ISettings {
+	appPlayerLayout: 'standard' | 'aliveAboveGhosts';
 	voiceServerOption: VoiceServerOption;
 	customVoiceServer: string;
 	username: string;

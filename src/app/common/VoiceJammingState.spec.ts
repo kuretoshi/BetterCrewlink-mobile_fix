@@ -6,7 +6,7 @@ import { selectVoiceEffect } from '../voice/voiceEffectRules';
 describe('Voice Jamminger host relay', () => {
 	const effect: VoiceJammingState = { playerId: 2, muted: true, lowpass: false, pitch: 1.5 };
 	const meeting = {
-		mod: 'NoS',
+		mod: 'NoS', nosAddonIds: ['tanuki.bcl.roles'],
 		gameState: GameState.DISCUSSION,
 		nosVoiceJamming: [effect],
 	} as AmongUsState;

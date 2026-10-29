@@ -1,5 +1,6 @@
 import { connectReverbMix, createReverbMix, reverbLevels } from '../voice/reverbMix';
 import { applyVoiceJamming } from '../common/VoiceJammingState';
+import { hasTanukiAddon } from '../common/tanukiAddon';
 import { createInterviewerRecording } from '../voice/interviewerRecording';
 import { createDyingVoiceRecording, inDyingVoiceRange } from '../voice/dyingVoiceRecording';
 import { EventEmitter as EventEmitterO } from 'events';
@@ -99,33 +100,7 @@ export default class AudioController {
 		const context = this.context;
 		const inputSource = context.createMediaStreamSource(inputStream);
 		this.inputSource = inputSource;
-		const analyser = context.createAnalyser();
-		analyser.fftSize = 2048;
-		analyser.smoothingTimeConstant = 0;
-		inputSource.connect(analyser);
-		this.voiceRoleAnalyser = analyser;
-		const samples = new Float32Array(analyser.fftSize);
-		this.voiceRoleTimer = setInterval(() => {
-			analyser.getFloatTimeDomainData(samples);
-			let sum = 0;
-			for (const sample of samples) sum += sample * sample;
-			const track = this.inputStream?.getAudioTracks()[0];
-			const active =
-				!!track &&
-				track.enabled &&
-				track.readyState === 'live' &&
-				!track.muted &&
-				context.state === 'running' &&
-				!this.microphoneMuted &&
-				!this.audioMuted &&
-				!this.jammed;
-			const rms = Math.min(1, Math.sqrt(sum / samples.length));
-			this.events.emit(
-				'voiceRoleSample',
-				voiceRoleLevel(rms, this.settingsService.get().nosRoleMicrophoneSensitivity),
-				active
-			);
-		}, 50);
+		this.syncTanukiAddon(this.connectionController.currentGameState);
 
 		// Desktop's createInputChain: only wire a manual gain stage when a mic setting asks for
 		// one and AGC isn't already doing it; the processed stream becomes what peers receive.
@@ -229,7 +204,7 @@ export default class AudioController {
 
 	private ensureOutputBus() {
 		if (this.context) {
-			if (this.masterGain) this.interviewer ??= createInterviewerRecording(this.context, this.masterGain);
+			this.syncTanukiAddon(this.connectionController.currentGameState);
 			return;
 		}
 
@@ -243,7 +218,7 @@ export default class AudioController {
 		const masterGain = context.createGain();
 		masterGain.gain.value = 1;
 		this.masterGain = masterGain;
-		this.interviewer = createInterviewerRecording(context, masterGain);
+		this.syncTanukiAddon(this.connectionController.currentGameState);
 
 		this.useContextSink = 'setSinkId' in AudioContext.prototype;
 		if (this.useContextSink) {
@@ -341,11 +316,8 @@ export default class AudioController {
 		source.connect(pan);
 		pan.connect(gain);
 		gain.connect(masterGain);
-		const bibiriEcho = createBibiriEcho(context, gain, masterGain);
 
 		this.peers.set(peerId, {
-			dyingVoiceRecording: createDyingVoiceRecording(context, source, masterGain),
-			bibiriEcho,
 			stream,
 			dummyAudioElement,
 			gain,
@@ -359,6 +331,7 @@ export default class AudioController {
 			radioEchoConnected: false,
 			source,
 		});
+		this.syncTanukiAddon(this.connectionController.currentGameState);
 	}
 
 	removePeer(peerId: string): void {
@@ -443,6 +416,8 @@ export default class AudioController {
 	}
 
 	clearDyingVoicesOutsideGame(state: AmongUsState): void {
+		this.syncTanukiAddon(state);
+		if (!hasTanukiAddon(state)) return;
 		this.updateInterviewer(state);
 		if (state.mod === 'NoS' && (state.gameState === GameState.TASKS || state.gameState === GameState.DISCUSSION))
 			return;
@@ -476,23 +451,25 @@ export default class AudioController {
 		const peer = this.peers.get(peerId);
 		const destination = this.masterGain;
 		if (!peer || !destination) return null;
-		this.interviewer?.setInput(
-			peerId,
-			peer.source,
-			other.id,
-			() => !this.audioMuted && !other.disconnected && !this.interviewMuted.has(peerId)
-		);
-		const message = state.nosDyingVoices?.find((entry) => entry.playerId === other.id);
-		peer.dyingVoiceRecording?.update(
-			message,
-			state.mod === 'NoS' &&
-				(state.gameState === GameState.TASKS || state.gameState === GameState.DISCUSSION) &&
-				other.isDead &&
-				!other.disconnected &&
-				Number.isFinite(state.nosVoiceFrameTime),
-			inDyingVoiceRange(message, me, state.gameState === GameState.TASKS) && !this.audioMuted,
-			state.nosVoiceFrameTime
-		);
+		if (hasTanukiAddon(state)) {
+			this.interviewer?.setInput(
+				peerId,
+				peer.source,
+				other.id,
+				() => !this.audioMuted && !other.disconnected && !this.interviewMuted.has(peerId)
+			);
+			const message = state.nosDyingVoices?.find((entry) => entry.playerId === other.id);
+			peer.dyingVoiceRecording?.update(
+				message,
+				state.mod === 'NoS' &&
+					(state.gameState === GameState.TASKS || state.gameState === GameState.DISCUSSION) &&
+					other.isDead &&
+					!other.disconnected &&
+					Number.isFinite(state.nosVoiceFrameTime),
+				inDyingVoiceRange(message, me, state.gameState === GameState.TASKS) && !this.audioMuted,
+				state.nosVoiceFrameTime
+			);
+		}
 
 		// Mobile-only: a local "mute all incoming audio" toggle desktop doesn't have.
 		if (this.audioMuted) {
@@ -500,11 +477,11 @@ export default class AudioController {
 			return 0;
 		}
 
-		if (peer.bibiriEcho)
+		if (hasTanukiAddon(state) && peer.bibiriEcho)
 			updateBibiriEcho(
 				peer.bibiriEcho,
 				state.mod === 'NoS' &&
-				(settings.nosBibiriEchoStrength ?? 100) > 0 &&
+					(settings.nosBibiriEchoStrength ?? 100) > 0 &&
 					!other.disconnected &&
 					(state.gameState === GameState.TASKS || state.gameState === GameState.DISCUSSION),
 				other.isDead,
@@ -593,7 +570,75 @@ export default class AudioController {
 		return result.gain;
 	}
 
+	private syncTanukiAddon(state: AmongUsState | undefined): void {
+		if (!hasTanukiAddon(state)) {
+			this.stopTanukiAddon();
+			return;
+		}
+		const context = this.context,
+			destination = this.masterGain;
+		if (!context || !destination) return;
+		this.interviewer ??= createInterviewerRecording(context, destination);
+		const inputSource = this.inputSource;
+		if (inputSource && !this.voiceRoleAnalyser) {
+			const analyser = context.createAnalyser();
+			analyser.fftSize = 2048;
+			analyser.smoothingTimeConstant = 0;
+			inputSource.connect(analyser);
+			this.voiceRoleAnalyser = analyser;
+			const samples = new Float32Array(analyser.fftSize);
+			this.voiceRoleTimer = setInterval(() => {
+				if (this.voiceRoleAnalyser !== analyser || !hasTanukiAddon(this.connectionController.currentGameState)) return;
+				analyser.getFloatTimeDomainData(samples);
+				let sum = 0;
+				for (const sample of samples) sum += sample * sample;
+				const track = this.inputStream?.getAudioTracks()[0];
+				const active =
+					!!track &&
+					track.enabled &&
+					track.readyState === 'live' &&
+					!track.muted &&
+					context.state === 'running' &&
+					!this.microphoneMuted &&
+					!this.audioMuted &&
+					!this.jammed;
+				const rms = Math.min(1, Math.sqrt(sum / samples.length));
+				this.events.emit(
+					'voiceRoleSample',
+					voiceRoleLevel(rms, this.settingsService.get().nosRoleMicrophoneSensitivity),
+					active
+				);
+			}, 50);
+		}
+		for (const peer of this.peers.values()) {
+			peer.dyingVoiceRecording ??= createDyingVoiceRecording(context, peer.source, destination);
+			peer.bibiriEcho ??= createBibiriEcho(context, peer.gain, destination);
+		}
+	}
+
+	private stopTanukiAddon(): void {
+		if (this.voiceRoleTimer !== undefined) clearInterval(this.voiceRoleTimer);
+		this.voiceRoleTimer = undefined;
+		if (this.voiceRoleAnalyser) this.inputSource?.disconnect(this.voiceRoleAnalyser);
+		this.voiceRoleAnalyser?.disconnect();
+		this.voiceRoleAnalyser = undefined;
+		this.interviewer?.disconnect();
+		this.interviewer = undefined;
+		this.interviewMic?.source.disconnect();
+		this.interviewMic = undefined;
+		for (const peer of this.peers.values()) {
+			peer.dyingVoiceRecording?.disconnect();
+			peer.dyingVoiceRecording = undefined;
+			if (peer.bibiriEcho) {
+				peer.gain.disconnect(peer.bibiriEcho.input);
+				disconnectBibiriEcho(peer.bibiriEcho);
+				peer.bibiriEcho = undefined;
+			}
+		}
+	}
+
 	disconnect() {
+		this.stopTanukiAddon();
 		this.interviewer?.disconnect();
 		this.interviewer = undefined;
 		if (this.voiceRoleTimer) clearInterval(this.voiceRoleTimer);

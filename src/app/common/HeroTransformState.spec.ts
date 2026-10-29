@@ -6,7 +6,7 @@ import { selectVoiceEffect } from '../voice/voiceEffectRules';
 describe('Hero transformation costume voice', () => {
 	const me = { id: 1, name: 'listener' } as Player;
 	const speaker = { id: 2, name: 'original', appearanceName: 'hero' } as Player;
-	const state = { mod: 'NoS', gameState: GameState.TASKS, players: [me, speaker] } as AmongUsState;
+	const state = { mod: 'NoS', nosAddonIds: ['tanuki.bcl.roles'], gameState: GameState.TASKS, players: [me, speaker] } as AmongUsState;
 	const effect = (game: AmongUsState) => selectVoiceEffect(game,
 		{ voiceEffectStrength: 100 } as ISettings, { voiceEffectEnabled: true } as ILobbySettings, me, speaker, -1);
 	it('keeps both transformed costumes in the normal voice', () => {

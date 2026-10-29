@@ -1,8 +1,9 @@
 import { GameState, type AmongUsState, type Player } from '../common/AmongUsState';
+import { hasTanukiAddon } from '../common/tanukiAddon';
 
 export function chargingMegaphone(state: AmongUsState, other: Player) {
 	if (
-		state.mod !== 'NoS' ||
+		!hasTanukiAddon(state) ||
 		state.gameState !== GameState.TASKS ||
 		other.isDead ||
 		other.disconnected ||
@@ -10,7 +11,7 @@ export function chargingMegaphone(state: AmongUsState, other: Player) {
 		other.bugged
 	)
 		return;
-	return state.nosMegaphones?.find((entry) => entry.playerId === other.id);
+	return state.nosMegaphones?.find((entry) => entry.playerId === other.id && !entry.phase);
 }
 
 export function megaphoneGain(range: number, dx: number, dy: number): number {
@@ -22,7 +23,7 @@ export function megaphoneGain(range: number, dx: number, dy: number): number {
 
 export function portableMegaphoneExtraRange(state: AmongUsState, other: Player): number {
 	if (
-		state.mod !== 'NoS' ||
+		!hasTanukiAddon(state) ||
 		state.gameState !== GameState.TASKS ||
 		other.isDead ||
 		other.disconnected ||

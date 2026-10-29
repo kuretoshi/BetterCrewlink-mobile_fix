@@ -61,7 +61,7 @@ try {
 		}
 	);
 	const player = { id: 7, clientId: 42, disconnected: false, isDead: false };
-	const state = { mod: 'NoS', gameState: 2, lobbyCode: 'ABCDEF', players: [player] };
+	const state = { mod: 'NoS', nosAddonIds: ['tanuki.bcl.roles'], gameState: 2, lobbyCode: 'ABCDEF', players: [player] };
 	let rms = 0.6,
 		active = true;
 	client.enable(address);

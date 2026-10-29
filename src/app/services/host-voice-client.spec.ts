@@ -2,7 +2,7 @@ import { HostVoiceClient } from './host-voice-client';
 import { AmongUsState, GameState, Player } from '../common/AmongUsState';
 describe('automatic host microphone relay', () => {
 	const player = { id: 7, clientId: 42, disconnected: false } as Player;
-	const state = { mod: 'NoS', gameState: GameState.TASKS, lobbyCode: 'ABCDEF', players: [player] } as AmongUsState;
+	const state = { mod: 'NoS', nosAddonIds: ['tanuki.bcl.roles'], gameState: GameState.TASKS, lobbyCode: 'ABCDEF', players: [player] } as AmongUsState;
 	let sent: Record<string, unknown>[];
 	let client: HostVoiceClient;
 	beforeEach(() => {

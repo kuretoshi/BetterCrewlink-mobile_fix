@@ -3,6 +3,8 @@ import { GameHelperService } from '../../services/game-helper.service';
 import { IDeviceInfo } from '../../services/smallInterfaces';
 import { GameState } from '../../common/AmongUsState';
 import { ModsType } from '../../common/Mods';
+import { SettingsService } from '../../services/settings.service';
+import { hasTanukiAddon } from '../../common/tanukiAddon';
 
 @Component({
 	selector: 'app-game',
@@ -16,7 +18,8 @@ export class GameComponent implements OnInit, OnDestroy {
 
 	constructor(
 		public gameHelper: GameHelperService,
-		private changeDetectorRef: ChangeDetectorRef
+		private changeDetectorRef: ChangeDetectorRef,
+		private settings: SettingsService
 	) {}
 
 	compareFn(e1: IDeviceInfo, e2: IDeviceInfo): boolean {
@@ -25,6 +28,14 @@ export class GameComponent implements OnInit, OnDestroy {
 
 	getPlayers() {
 		return this.gameHelper.voiceController.getRenderablePlayers();
+	}
+
+	getPlayerGroups() {
+		return groupPlayersForLayout(this.getPlayers(), this.settings.get().appPlayerLayout);
+	}
+
+	hasTanukiAddon(): boolean {
+		return hasTanukiAddon(this.gameHelper.cManager.currentGameState);
 	}
 
 	/** The lobby's mod, forwarded to each avatar so mod-specific cosmetics resolve. */
@@ -78,4 +89,13 @@ export class GameComponent implements OnInit, OnDestroy {
 		this.gameHelper.events.off('onChange', this.onChangeListener);
 		this.stopRadio();
 	}
+}
+
+/** Uses the same revealed death state as avatars; task deaths stay hidden until the meeting. */
+export function groupPlayersForLayout<T extends { isDead: boolean }>(players: T[], layout: string) {
+	if (layout !== 'aliveAboveGhosts') return [{ key: 'all', label: '', players }];
+	return [
+		{ key: 'alive', label: '生存者', players: players.filter((item) => !item.isDead) },
+		{ key: 'ghosts', label: '霊界', players: players.filter((item) => item.isDead) },
+	];
 }
