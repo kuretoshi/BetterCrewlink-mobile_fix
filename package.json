@@ -1,6 +1,6 @@
 {
   "name": "better-crewlink-mobile",
-  "version": "3.47.0",
+  "version": "3.48.0",
   "author": "OhMyGuus",
   "homepage": "https://bettercrewlink.app",
   "scripts": {
@@ -14,6 +14,7 @@
     "check:nesting": "node scripts/check-nesting.mjs",
     "check:drift": "node scripts/check-schema-drift.mjs",
     "test:nos-direct": "node scripts/test-direct-nos-voice.mjs",
+    "test:vad-buffer": "node scripts/test-vad-buffer.mjs",
     "ios:configure": "node scripts/configure-ios.mjs",
     "ios:sync": "npm run ngbuild -- --configuration production && cap sync ios && npm run ios:configure"
   },

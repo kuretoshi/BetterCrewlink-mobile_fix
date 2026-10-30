@@ -61,6 +61,7 @@ jobs:
       - name: Lint and browser tests
         run: |
           npm run lint
+          npm run test:vad-buffer
           export CHROME_BIN="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
           npm test -- --watch=false --browsers=ChromeHeadlessWebRTC
           python3 -m unittest discover -s scripts/tests -p 'test_ios*.py'

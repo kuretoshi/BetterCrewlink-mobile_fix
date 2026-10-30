@@ -240,8 +240,10 @@ export class GameHelperService {
 		let status: 'clear' | 'banned' | 'unavailable' = 'unavailable';
 		if (uid.length <= 256 && name.length <= 80) {
 			try {
+				// isLocal is reported from the desktop host's perspective, not this device's.
+				const localClientId = this.cManager.localPLayer?.clientId;
 				const observedPlayers = (this.cManager.currentGameState?.players ?? [])
-					.filter((player) => !player.isLocal && !player.disconnected && !player.isDummy)
+					.filter((player) => player.clientId !== localClientId && !player.disconnected && !player.isDummy)
 					.map((player) => ({
 						playerUid: player.playerUid?.trim() ?? '',
 						playerName: player.name?.trim() ?? '',
