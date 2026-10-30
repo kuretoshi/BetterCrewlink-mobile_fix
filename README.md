@@ -4,6 +4,10 @@
 
 元プロジェクトは [BetterCrewLink](https://github.com/OhMyGuus/BetterCrewLink) と [CrewLink](https://github.com/ottomated/CrewLink) の流れを引き継いでいます。Among Us、Innersloth、CrewLink、BetterCrewLink の公式プロジェクトとは別の非公式版です。
 
+## 3.49
+
+PC版3.2.58との互換バージョンを揃えました。NoSの読み取り補助ツールがゲームを一時停止する処理の改善はPC版側の変更です。Web・Android・iOS版にはゲームプロセスを読み取る処理はなく、今回モバイル側の音声処理は変更していません。
+
 ## 3.48
 
 音声検出では解析バッファを再利用し、毎回のメモリ確保を減らしました。音声判定のしきい値やタイミングは従来と同じです。接続まわりの安定性を改善し、PC版3.2.57／.NET版3.2.57-net-beta.1と互換バージョンを揃えました。
@@ -92,11 +96,7 @@ Web・モバイルの役職マイク連携はホスト中継方式（ベータ�
 
 Android では APK ファイルを端末にインストールします。環境によっては、ブラウザやファイルマネージャーからのアプリインストールを許可する必要があります。
 
-### Discordへのリリース通知（管理者向け）
-
-Discordの通知先チャンネルでWebhookを作成し、このリポジトリの **Settings → Secrets and variables → Actions → New repository secret** に `DISCORD_RELEASE_WEBHOOK_URL` という名前でURLを登録してください。Webhook URLはリポジトリのファイルに書き込まないでください。
-
-設定後にGitHub Releaseを公開すると、GitHub Actionsの `Notify Discord on release` がリリース名・バージョン・リンクを通知します。通常リリースとプレリリースの両方が対象で、既に公開済みのリリースには遡って通知しません。Secretが未設定の場合はワークフローが失敗し、通知されません。
+リリース告知は既存のBotで行っています。旧Discord Webhook通知は廃止済みです。
 
 ## Web版
 
