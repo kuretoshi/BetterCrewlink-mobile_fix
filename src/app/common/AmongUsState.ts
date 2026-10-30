@@ -125,6 +125,7 @@ export interface AmongUsState {
 	nosReadStatus?: { failed: boolean; message: string; schemaVersion?: number };
 	nosLoadedContents?: { path: string; status: string; data?: unknown };
 	nosLocalMicPosition?: { x: number; y: number };
+	nosLocalIsPseudocide?: boolean;
 	nosRadios?: NosRadioData[];
 	nosAddonIds?: string[];
 	nosMegaphones?: MegaphoneState[];
