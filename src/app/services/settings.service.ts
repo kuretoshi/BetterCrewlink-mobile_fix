@@ -5,6 +5,8 @@ import { Platform } from '@ionic/angular';
 import { Storage } from '@ionic/storage';
 
 const DEFAULTSETTINGS: Omit<ISettings, 'playerSettings'> = {
+	rokuroVoice: { headVolume: 100, bodyVolume: 35, bodyEcho: 50 },
+	voiceEffectTunings: {},
 	appPlayerLayout: 'standard',
 	gamecode: '',
 	voiceServerOption: VoiceServerOption.BETTERCREWLINK,
@@ -52,7 +54,7 @@ const DEFAULTPLAYERSETTING: PlayerSetting = {
 export class SettingsService {
 	// Cloned per-instance (not shared off a module-level constant) - the map in particular must
 	// not be shared, or every SettingsService would silently alias the same player-settings store.
-	private settings: ISettings = { ...DEFAULTSETTINGS, playerSettings: new PlayerSettingsMap() };
+	private settings: ISettings = { ...DEFAULTSETTINGS, voiceEffectTunings: {}, playerSettings: new PlayerSettingsMap() };
 	IsMobile: boolean;
 	loaded = false;
 	private loadPromise: Promise<void> | undefined;

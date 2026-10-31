@@ -31,11 +31,12 @@ describe('Voice Jamminger host relay', () => {
 		expect(audio.gain).toBe(0);
 		expect(audio.muffle).toEqual({ type: 'lowpass', frequency: 1200, q: Math.SQRT1_2 });
 	});
-	it('uses the synchronized speaker pitch and removes it at expiration or meeting end', () => {
+	it('keeps synchronized ability timing while using the listener pitch controls', () => {
 		const speaker = { id: 2 } as Player;
 		const select = (state: AmongUsState) =>
 			selectVoiceEffect(state, {} as ISettings, {} as ILobbySettings, { id: 1 } as Player, speaker, -1);
-		expect(select(meeting)?.sourceFilter?.pitch).toBe(1.5);
+		expect(select(meeting)?.id).toBe('nosVoiceJamming');
+		expect(select(meeting)?.tuning.pitch).toBe(-100);
 		expect(select({ ...meeting, nosVoiceJamming: [] })).toBeNull();
 		expect(select({ ...meeting, gameState: GameState.LOBBY })).toBeNull();
 	});

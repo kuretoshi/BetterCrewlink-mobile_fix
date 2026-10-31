@@ -36,6 +36,26 @@ function makeStorage(initialValue?: unknown) {
 // SettingsService only uses platform.is() in its constructor.
 const platform = { is: () => false } as any;
 
+describe('Personal effect tuning persistence', () => {
+	it('loads and saves partial tunings without rewriting legacy strength fields', async () => {
+		const storage = makeStorage({ voiceEffectStrength: 37, nosRainbowStarEchoStrength: 64,
+			voiceEffectTunings: { nosRainbowStar: { pitch: -50, echo: 12 } } });
+		const service = new SettingsService(storage as any, platform);
+		await service.load();
+		expect(service.get().voiceEffectTunings).toEqual({ nosRainbowStar: { pitch: -50, echo: 12 } });
+		await service.save();
+		expect(storage.set).toHaveBeenCalledWith('settings', jasmine.objectContaining({
+			voiceEffectStrength: 37, nosRainbowStarEchoStrength: 64,
+			voiceEffectTunings: { nosRainbowStar: { pitch: -50, echo: 12 } },
+		}));
+	});
+	it('does not share tuning maps between settings instances', () => {
+		const a = new SettingsService(makeStorage() as any, platform), b = new SettingsService(makeStorage() as any, platform);
+		a.get().voiceEffectTunings!.disguise = { pitch: -20 };
+		expect(b.get().voiceEffectTunings).toEqual({});
+	});
+});
+
 describe('SettingsService', () => {
 	describe('custom voice server', () => {
 		it('loads, normalizes, and saves a custom server URL', async () => {

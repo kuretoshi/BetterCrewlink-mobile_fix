@@ -3,6 +3,8 @@ import type { VoiceProcessingEffect } from './sourceFilterEffect';
 
 // --- verbatim from bettercrewlink (desktop) v3.2.1 src/renderer/voice/types.ts ---
 export interface PeerAudioNodes {
+	rokuroVoice?: ReturnType<typeof import('./rokuroVoice').createRokuroVoice>;
+	rokuroDestinationChanged?: boolean;
 	dyingVoiceRecording?: ReturnType<typeof import('./dyingVoiceRecording').createDyingVoiceRecording>;
 	bibiriEcho?: ReturnType<typeof import('./bibiriEcho').createBibiriEcho>;
 	stream: MediaStream;
@@ -19,8 +21,8 @@ export interface PeerAudioNodes {
 	voiceEffectConnected: boolean;
 	radioEcho: RadioEchoNodes;
 	radioEchoConnected: boolean;
-	starEcho?: RadioEchoNodes;
-	starEchoConnected?: boolean;
+	roleReverbConnected?: boolean;
+	peakGuard?: ReturnType<typeof import('./voicePeakGuard').createVoicePeakGuard>;
 }
 
 export interface RadioEchoNodes {

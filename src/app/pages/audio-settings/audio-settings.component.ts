@@ -3,6 +3,7 @@ import { GameHelperService } from '../../services/game-helper.service';
 import { IDeviceInfo } from '../../services/smallInterfaces';
 import { SettingsService } from '../../services/settings.service';
 import { createVoiceEffectPreview, VoiceEffectPreview, VoiceEffectPreviewKind } from './voiceEffectPreview';
+import { getVoiceEffectTuning } from '../../common/VoiceEffectTuning';
 
 @Component({
 	selector: 'app-audio-settings',
@@ -17,7 +18,7 @@ export class AudioSettingsComponent implements OnInit, OnDestroy {
 	voiceEffectTestEnabled = true;
 	voiceEffectTestVolume = 70;
 	voiceEffectTestError = '';
-	selectedVoiceEffect: VoiceEffectPreviewKind = 'voiceEffectStrength';
+	selectedVoiceEffect: VoiceEffectPreviewKind = 'disguise';
 	private testContext?: AudioContext;
 	private testStream?: MediaStream;
 	private testSource?: MediaStreamAudioSourceNode;
@@ -53,7 +54,7 @@ export class AudioSettingsComponent implements OnInit, OnDestroy {
 			void this.toggleVoiceEffectTest();
 			return;
 		}
-		this.testEffect?.update(this.getSettings()[this.selectedVoiceEffect] ?? 100);
+		this.testEffect?.update(getVoiceEffectTuning(this.getSettings(), this.selectedVoiceEffect));
 		this.connectTestPreview();
 	}
 
@@ -83,7 +84,7 @@ export class AudioSettingsComponent implements OnInit, OnDestroy {
 			this.testContext = context;
 			this.testSource = context.createMediaStreamSource(stream);
 			this.testGain = context.createGain();
-			const effect = await createVoiceEffectPreview(context, this.selectedVoiceEffect, settings[this.selectedVoiceEffect] ?? 100);
+			const effect = await createVoiceEffectPreview(context, this.selectedVoiceEffect, getVoiceEffectTuning(settings, this.selectedVoiceEffect));
 			if (generation !== this.testGeneration) {
 				effect.dispose();
 				return;
@@ -121,7 +122,7 @@ export class AudioSettingsComponent implements OnInit, OnDestroy {
 		try { this.testEffect.output.disconnect(); } catch { /* already disconnected */ }
 		try { this.testGain.disconnect(); } catch { /* already disconnected */ }
 		this.testGain.gain.value = this.voiceEffectTestVolume / 100;
-		if (this.voiceEffectTestEnabled && this.getSettings()[this.selectedVoiceEffect] > 0) {
+		if (this.voiceEffectTestEnabled) {
 			this.testSource.connect(this.testEffect.input);
 			this.testEffect.output.connect(this.testGain);
 		} else {

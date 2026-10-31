@@ -1,4 +1,6 @@
 import { connectReverbMix, createReverbMix, reverbLevels } from '../voice/reverbMix';
+import { setEffectGain } from '../voice/effectGain';
+import { createVoicePeakGuard } from '../voice/voicePeakGuard';
 import { applyVoiceJamming } from '../common/VoiceJammingState';
 import { hasTanukiAddon } from '../common/tanukiAddon';
 import { createInterviewerRecording } from '../voice/interviewerRecording';
@@ -7,19 +9,18 @@ import { EventEmitter as EventEmitterO } from 'events';
 import { AmongUsState, GameState, Player } from '../common/AmongUsState';
 import { ILobbySettings, ISettings } from '../common/ISettings';
 import { IDeviceInfo } from './smallInterfaces';
+import { combineVoiceEffectTunings, getVoiceEffectTuning, VoiceEffectTuning } from '../common/VoiceEffectTuning';
 import { ConnectingStage, ConnectionController } from './ConnectionController.service';
 import { SettingsService } from './settings.service';
 import { calculateVoiceAudio } from '../voice/spatialAudio';
+import { calculateRokuroVoice, createRokuroVoice } from '../voice/rokuroVoice';
 import { PeerAudioNodes, RadioEchoNodes } from '../voice/types';
 import VAD from './vad';
 import { voiceRoleLevel } from './voice-role-level';
-import { selectVoiceEffect, shouldApplyRainbowStarEcho, type VoiceEffectSetting } from '../voice/voiceEffectRules';
-import { createVoiceDisguiseEffect, updateVoiceDisguiseEffect } from './voiceEffect';
-import { createBerserkerEffect, updateBerserkerEffect } from '../voice/berserkerEffect';
+import { selectVoiceEffect, shouldApplyRainbowStarEcho } from '../voice/voiceEffectRules';
+import { createTunedVoiceEffect } from '../voice/tunedVoiceEffect';
 import {
 	prepareSourceFilter,
-	createSourceFilterEffect,
-	updateSourceFilterEffect,
 	disconnectProcessingEffect,
 } from '../voice/sourceFilterEffect';
 
@@ -345,13 +346,14 @@ export default class AudioController {
 		this.teardownAudioElement(peer.dummyAudioElement);
 		peer.source.disconnect();
 		peer.pan.disconnect();
+		peer.rokuroVoice?.disconnect();
 		peer.gain.disconnect();
 		peer.reverb?.disconnect();
 		if (peer.reverbMix) for (const node of Object.values(peer.reverbMix)) node.disconnect();
 		peer.muffle?.disconnect();
 		if (peer.voiceEffect) disconnectProcessingEffect(peer.voiceEffect);
+		peer.peakGuard?.disconnect();
 		disconnectRadioEcho(peer.radioEcho);
-		if (peer.starEcho) disconnectRadioEcho(peer.starEcho);
 		if (peer.bibiriEcho) disconnectBibiriEcho(peer.bibiriEcho);
 	}
 
@@ -369,9 +371,9 @@ export default class AudioController {
 	silenceAllPeers(clearRecordings = false): void {
 		if (clearRecordings) this.interviewer?.clear();
 		else this.interviewer?.silence();
-		for (const peer of this.peers.values()) {
+		for (const [peerId, peer] of this.peers) {
 			peer.dyingVoiceRecording?.cancel();
-			peer.gain.gain.value = 0;
+			this.setPeerGain(peerId, 0);
 			if (peer.bibiriEcho) stopBibiriEcho(peer.bibiriEcho);
 		}
 	}
@@ -380,7 +382,7 @@ export default class AudioController {
 		for (const [peerId, peer] of this.peers) {
 			if (!peerIds.includes(peerId)) {
 				peer.dyingVoiceRecording?.cancel();
-				peer.gain.gain.value = 0;
+				this.setPeerGain(peerId, 0);
 				if (peer.bibiriEcho) stopBibiriEcho(peer.bibiriEcho);
 			}
 		}
@@ -390,6 +392,8 @@ export default class AudioController {
 		if (volume > 0) this.interviewMuted.delete(peerId);
 		else this.interviewMuted.add(peerId);
 		this.peers.get(peerId)?.dyingVoiceRecording?.setVolume(volume);
+		const echo = this.peers.get(peerId)?.bibiriEcho;
+		if (echo && volume <= 0) stopBibiriEcho(echo);
 	}
 
 	private updateInterviewer(state: AmongUsState): void {
@@ -426,7 +430,11 @@ export default class AudioController {
 
 	setPeerGain(peerId: string, gain: number): void {
 		const peer = this.peers.get(peerId);
-		if (peer) peer.gain.gain.value = gain;
+		if (!peer) return;
+		const headGain = peer.rokuroVoice?.setGain(gain) ?? gain;
+		peer.gain.gain.value = headGain;
+		for (const output of [peer.voiceEffect?.output, peer.reverbMix?.output, peer.radioEcho?.output])
+			if (output) output.gain.value = headGain > 0 ? 1 : 0;
 	}
 	stopPeerDeathEcho(peerId: string): void {
 		const echo = this.peers.get(peerId)?.bibiriEcho;
@@ -474,23 +482,24 @@ export default class AudioController {
 		// Mobile-only: a local "mute all incoming audio" toggle desktop doesn't have.
 		if (this.audioMuted) {
 			peer.gain.gain.value = 0;
-			return 0;
 		}
 
 		if (hasTanukiAddon(state) && peer.bibiriEcho)
 			updateBibiriEcho(
 				peer.bibiriEcho,
 				state.mod === 'NoS' &&
-					(settings.nosBibiriEchoStrength ?? 100) > 0 &&
 					!other.disconnected &&
+					!this.audioMuted &&
 					(state.gameState === GameState.TASKS || state.gameState === GameState.DISCUSSION),
 				other.isDead,
 				state.nosBibiriEchoes?.find((e) => e.playerId === other.id)?.unixMs,
 				state.nosVoiceFrameTime,
-				settings.nosBibiriEchoStrength ?? 100
+				getVoiceEffectTuning(settings, 'nosBibiri'),
+				this.convolverBuffer,
+				this.sourceFilterReady
 			);
 		const { pan, muffle } = peer;
-		const result = calculateVoiceAudio({
+		const voiceInput = {
 			state,
 			settings,
 			activeLobbySettings,
@@ -501,10 +510,18 @@ export default class AudioController {
 			impostorRadioClientIds,
 			nosJackalRadioHearable,
 			nosImpostorRadioHearable,
-		});
+		};
+		const result = calculateVoiceAudio(voiceInput);
+		if (this.audioMuted) result.gain = 0;
 
 		pan.maxDistance = result.panMaxDistance ?? this.maxDistance;
 		applyVoiceJamming(state, other.id, result);
+		const rokuro = !this.audioMuted ? calculateRokuroVoice(voiceInput) : undefined;
+		if (rokuro && this.context) {
+			if (!peer.rokuroVoice) { peer.rokuroVoice = createRokuroVoice(this.context, peer.source, destination); peer.rokuroDestinationChanged = true; }
+		} else if (peer.rokuroVoice) {
+			peer.rokuroVoice.disconnect(); peer.rokuroVoice = undefined; peer.rokuroDestinationChanged = true;
+		}
 
 		if (result.muffle) {
 			muffle.type = result.muffle.type;
@@ -512,16 +529,7 @@ export default class AudioController {
 			muffle.Q.value = result.muffle.q;
 		}
 
-		const wantReverb = result.reverb === null ? peer.reverbConnected : result.reverb;
-		if (wantReverb && this.context) {
-			peer.reverbMix ??= createReverbMix(this.context);
-			const levels = reverbLevels(result.reverbStrength);
-			peer.reverbMix.dry.gain.value = levels.dry;
-			peer.reverbMix.wet.gain.value = levels.wet;
-		}
-		const wantMuffle = result.muffle === null ? peer.muffleConnected : result.muffle !== false;
-		const wantRadioEcho = result.radioEcho;
-		let effect =
+		const effect =
 			result.gain > 0
 				? selectVoiceEffect(
 						state,
@@ -533,32 +541,56 @@ export default class AudioController {
 						impostorRadioClientIds
 					)
 				: null;
-		if (effect?.sourceFilter && !this.sourceFilterReady) effect = null;
-		const wantKind = effect?.berserker ? 'berserker' : effect?.sourceFilter ? 'source-filter' : 'disguise';
-		const currentKind = peer.voiceEffect && 'kind' in peer.voiceEffect ? peer.voiceEffect.kind : 'disguise';
-		if (effect && peer.voiceEffect && wantKind !== currentKind) {
-			disconnectProcessingEffect(peer.voiceEffect);
-			peer.voiceEffect = undefined;
-			peer.voiceEffectConnected = false;
+		const tunings: VoiceEffectTuning[] = effect ? [effect.tuning] : [];
+		if (result.gain > 0 && shouldApplyRainbowStarEcho(state, other, activeLobbySettings, settings))
+			tunings.push(getVoiceEffectTuning(settings, 'nosRainbowStar'));
+		const falling = result.reverbStrength !== undefined;
+		if (result.gain > 0 && falling && activeLobbySettings.snrPushReverb !== false)
+			tunings.push(getVoiceEffectTuning(settings, 'snrPush'));
+		const tuning = combineVoiceEffectTunings(tunings);
+		const roleReverb = !!this.convolverBuffer && tuning.reverb > 0;
+		const ordinaryReverb = falling ? false : result.reverb;
+		const wantReverb =
+			roleReverb || (ordinaryReverb === null ? peer.reverbConnected && !peer.roleReverbConnected : ordinaryReverb);
+		if (wantReverb && this.context) {
+			if (!peer.reverb) {
+				peer.reverb = this.context.createConvolver();
+				peer.reverb.buffer = this.convolverBuffer;
+			}
+			peer.reverbMix ??= createReverbMix(this.context);
+			const strength =
+				ordinaryReverb === true
+					? Math.max(tuning.reverb, result.reverbStrength ?? 100)
+					: roleReverb
+						? tuning.reverb
+						: 100;
+			const levels = reverbLevels(strength);
+			setEffectGain(peer.reverbMix.dry, levels.dry);
+			setEffectGain(peer.reverbMix.wet, levels.wet);
 		}
-		if (effect && this.context) {
-			updatePeerVoiceEffect(peer, this.context, effect);
+		const wantMuffle = result.muffle === null ? peer.muffleConnected : result.muffle !== false;
+		const wantRadioEcho = result.radioEcho;
+		if (wantRadioEcho && this.context) peer.radioEcho ??= createRadioEcho(this.context);
+		const grit =
+			effect?.id === 'nosBerserker'
+				? Math.max(Math.abs(effect.tuning.pitch), effect.tuning.reverb, effect.tuning.echo)
+				: 0;
+		const wantProcessing = tuning.pitch !== 0 || tuning.echo > 0 || grit > 0;
+		if (wantProcessing && this.context) {
+			if (peer.voiceEffect && (!('kind' in peer.voiceEffect) || peer.voiceEffect.kind !== 'tuned')) {
+				disconnectProcessingEffect(peer.voiceEffect);
+				peer.voiceEffect = undefined;
+				peer.voiceEffectConnected = false;
+			}
+			peer.voiceEffect ??= createTunedVoiceEffect(this.context);
+			if ('kind' in peer.voiceEffect && peer.voiceEffect.kind === 'tuned')
+				peer.voiceEffect.update(tuning, grit, this.sourceFilterReady);
 		} else if (peer.voiceEffect) {
 			disconnectProcessingEffect(peer.voiceEffect);
 			peer.voiceEffect = undefined;
 		}
-		const wantStarEcho = result.gain > 0 && shouldApplyRainbowStarEcho(state, other, activeLobbySettings, settings);
-		if (wantStarEcho && !peer.starEcho && this.context) {
-			peer.starEcho = createRadioEcho(this.context);
-			peer.starEcho.delay.delayTime.value = 0.075;
-			peer.starEcho.feedback.gain.value = 0.08;
-		}
-		if (peer.starEcho && wantStarEcho) {
-			const amount = Math.min(1, Math.max(0, (settings.nosRainbowStarEchoStrength ?? 100) / 100));
-			peer.starEcho.dry.gain.value = 1 - 0.06 * amount;
-			peer.starEcho.wet.gain.value = 0.08 * amount;
-		}
-		rebuildEffectChain(peer, destination, wantReverb, wantMuffle, !!effect, wantRadioEcho, wantStarEcho);
+		rebuildEffectChain(peer, peer.rokuroVoice?.mix ?? destination, wantReverb, wantMuffle, wantRadioEcho, wantProcessing);
+		peer.roleReverbConnected = roleReverb && peer.reverbConnected;
 
 		if (result.panPosition) {
 			const time = pan.context.currentTime;
@@ -567,7 +599,10 @@ export default class AudioController {
 			pan.positionZ.setValueAtTime(-0.5, time);
 		}
 
-		return result.gain;
+		return rokuro && peer.rokuroVoice ? peer.rokuroVoice.configure(
+			result.gain * rokuro.settings.headVolume / 100, rokuro.body.gain * rokuro.settings.bodyVolume / 100,
+			rokuro.body.panPosition, rokuro.body.panMaxDistance ?? this.maxDistance, rokuro.settings.bodyEcho,
+			rokuro.body.muffle ? rokuro.body.muffle.frequency : 1800) : result.gain;
 	}
 
 	private syncTanukiAddon(state: AmongUsState | undefined): void {
@@ -698,108 +733,84 @@ export default class AudioController {
 	}
 }
 
-function updatePeerVoiceEffect(peer: PeerAudioNodes, context: AudioContext, effect: VoiceEffectSetting): void {
-	if (effect.berserker) {
-		peer.voiceEffect ??= createBerserkerEffect(context);
-		if ('kind' in peer.voiceEffect && peer.voiceEffect.kind === 'berserker')
-			updateBerserkerEffect(peer.voiceEffect, effect.strength);
-		return;
-	}
-	if (effect.sourceFilter) {
-		peer.voiceEffect ??= createSourceFilterEffect(context);
-		if ('kind' in peer.voiceEffect && peer.voiceEffect.kind === 'source-filter')
-			updateSourceFilterEffect(peer.voiceEffect, effect.sourceFilter);
-		return;
-	}
-	peer.voiceEffect ??= createVoiceDisguiseEffect(context, effect.strength);
-	if (!('kind' in peer.voiceEffect))
-		updateVoiceDisguiseEffect(
-			peer.voiceEffect,
-			effect.strength,
-			effect.direction,
-			effect.formantScale,
-			effect.jumbo,
-			effect.squash,
-			effect.toneRate,
-			effect.directPitch
-		);
-}
-
 export function rebuildEffectChain(
 	peer: PeerAudioNodes,
 	destination: AudioNode,
 	wantReverb: boolean,
 	wantMuffle: boolean,
-	wantVoiceEffect: boolean,
 	wantRadioEcho: boolean,
-	wantStarEcho: boolean
+	wantVoiceEffect: boolean
 ): void {
+	const effect = peer.voiceEffect;
+	const wantPeakGuard =
+		wantReverb ||
+		(wantVoiceEffect &&
+			!!effect &&
+			(!('kind' in effect) || effect.kind !== 'tuned' || !!(effect.pitch || effect.berserker || effect.echo)));
 	if (
 		peer.reverbConnected === wantReverb &&
 		peer.muffleConnected === wantMuffle &&
-		peer.voiceEffectConnected === wantVoiceEffect &&
 		peer.radioEchoConnected === wantRadioEcho &&
-		!!peer.starEchoConnected === wantStarEcho
+		peer.voiceEffectConnected === wantVoiceEffect &&
+		!!peer.peakGuard === wantPeakGuard && !peer.rokuroDestinationChanged
 	)
 		return;
+	peer.rokuroDestinationChanged = false;
 
-	for (const node of [peer.gain, peer.muffle, peer.reverb]) {
+	for (const node of [peer.gain, peer.muffle, peer.reverb, peer.radioEcho?.output]) {
 		try {
-			node.disconnect();
+			node?.disconnect();
 		} catch {
 			/* not connected */
 		}
 	}
+	peer.peakGuard?.output.disconnect();
+	// Chain rebuilds disconnect gain, including this live audio tap.
 	if (peer.bibiriEcho) peer.gain.connect(peer.bibiriEcho.input);
-	peer.voiceEffect?.output.disconnect();
-	try {
-		peer.radioEcho.output.disconnect();
-	} catch {
-		/* not connected */
-	}
-	peer.starEcho?.output.disconnect();
 
 	const chain: AudioNode[] = [peer.gain];
-	if (wantMuffle) chain.push(peer.muffle);
+	if (wantVoiceEffect && peer.voiceEffect) {
+		peer.voiceEffect.output.disconnect();
+		peer.gain.connect(peer.voiceEffect.input);
+		chain[0] = peer.voiceEffect.output;
+	}
+	if (wantMuffle && peer.muffle) chain.push(peer.muffle);
 	if (peer.reverbMix) for (const node of Object.values(peer.reverbMix)) node.disconnect();
 
 	try {
 		for (let index = 0; index < chain.length - 1; index++) {
 			chain[index].connect(chain[index + 1]);
 		}
-		let tail = chain[chain.length - 1];
-		if (wantReverb && peer.reverbMix) {
-			tail = connectReverbMix(tail, peer.reverb, peer.reverbMix);
-		} else if (wantReverb) {
-			tail.connect(peer.reverb);
-			tail = peer.reverb;
+		let chainOutput = chain[chain.length - 1];
+		if (wantReverb && peer.reverb && peer.reverbMix) {
+			chainOutput = connectReverbMix(chainOutput, peer.reverb, peer.reverbMix);
+		} else if (wantReverb && peer.reverb) {
+			chainOutput.connect(peer.reverb);
+			chainOutput = peer.reverb;
 		}
-		if (wantVoiceEffect && peer.voiceEffect) {
-			tail.connect(peer.voiceEffect.input);
-			tail = peer.voiceEffect.output;
+		if (wantRadioEcho && peer.radioEcho) {
+			chainOutput.connect(peer.radioEcho.input);
+			chainOutput = peer.radioEcho.output;
 		}
-		if (wantStarEcho && peer.starEcho) {
-			tail.connect(peer.starEcho.input);
-			tail = peer.starEcho.output;
-		}
-		if (wantRadioEcho) {
-			tail.connect(peer.radioEcho.input);
-			peer.radioEcho.output.connect(destination);
+		if (wantPeakGuard) {
+			peer.peakGuard ??= createVoicePeakGuard(peer.gain.context);
+			chainOutput.connect(peer.peakGuard.input);
+			chainOutput = peer.peakGuard.output;
 		} else {
-			tail.connect(destination);
+			peer.peakGuard?.disconnect();
+			peer.peakGuard = undefined;
 		}
+		chainOutput.connect(destination);
 		peer.reverbConnected = wantReverb;
 		peer.muffleConnected = wantMuffle;
-		peer.voiceEffectConnected = wantVoiceEffect;
 		peer.radioEchoConnected = wantRadioEcho;
-		peer.starEchoConnected = wantStarEcho;
+		peer.voiceEffectConnected = wantVoiceEffect;
 	} catch (error) {
 		console.warn('Failed to rebuild audio effect chain', error);
 		peer.reverbConnected = false;
 		peer.muffleConnected = false;
-		peer.voiceEffectConnected = false;
 		peer.radioEchoConnected = false;
-		peer.starEchoConnected = false;
+		peer.voiceEffectConnected = false;
 		try {
 			peer.gain.connect(destination);
 		} catch {

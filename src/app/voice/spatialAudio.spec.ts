@@ -138,6 +138,67 @@ function run(overrides: Partial<VoiceAudioInput> = {}) {
 	});
 }
 
+describe('NoS Rokurokubi head positions', () => {
+	const role = { roleId: 1, roleName: 'rokurokubi', displayName: 'Rokurokubi', runtimeClass: 'Rokurokubi.Instance' };
+	const state = makeState({ mod: 'NoS', nosLocalMicPosition: { x: 20, y: 0 } });
+
+	for (const identity of [{ nosRole: role }, { nosPlayer: makeNosPlayer({ bodyType: 3 }) }]) {
+		it(`follows the host microphone with the position option off (${Object.keys(identity)[0]})`, () => {
+			const result = run({ state, me: makePlayer({ isLocal: true, ...identity }), other: makePlayer({ x: 21 }) });
+			expect(result.gain).toBeGreaterThan(0);
+			expect(result.panPosition).toEqual([1, 0]);
+		});
+	}
+	it('follows the remote head with the option off', () => {
+		const result = run({ state, me: makePlayer({ x: 20 }),
+			other: makePlayer({ x: 60, nosRole: role, nosPlayer: makeNosPlayer({ speakerPositionX: 21 }) }) });
+		expect(result.gain).toBeGreaterThan(0);
+		expect(result.panPosition).toEqual([1, 0]);
+	});
+	for (const enabled of [false, true]) {
+		it(`uses the selected mobile guest's own head, not the host microphone (general=${enabled})`, () => {
+			const result = run({ state: makeState({ mod: 'NoS', nosLocalMicPosition: { x: 999, y: 999 } }),
+				me: makePlayer({ isLocal: false, nosRole: role, nosPlayer: makeNosPlayer({ speakerPositionX: 20 }) }),
+				other: makePlayer({ x: 21, nosPlayer: makeNosPlayer({ speakerPositionX: 21 }) }),
+				activeLobbySettings: makeLobbySettings({ nosVoicePositions: enabled }) });
+			expect(result.gain).toBeGreaterThan(0);
+			expect(result.panPosition).toEqual([1, 0]);
+		});
+	}
+	it('uses ordinary selected guest endpoints when general NoS positions are enabled', () => {
+		const result = run({ state, me: makePlayer({ isLocal: false, nosPlayer: makeNosPlayer({ speakerPositionX: 40 }) }),
+			other: makePlayer({ nosPlayer: makeNosPlayer({ speakerPositionX: 41 }) }),
+			activeLobbySettings: makeLobbySettings({ nosVoicePositions: true }) });
+		expect(result.panPosition).toEqual([1, 0]);
+	});
+	it('keeps ordinary body positions when the option is off', () => {
+		expect(run({ state, other: makePlayer({ x: 21 }) }).gain).toBe(0);
+	});
+	for (const invalid of [NaN, Infinity, -Infinity]) {
+		it(`falls back to body coordinates for invalid head endpoints (${invalid})`, () => {
+			const result = run({ state: makeState({ mod: 'NoS', nosLocalMicPosition: { x: invalid, y: 0 } }),
+				me: makePlayer({ isLocal: true, nosRole: role }),
+				other: makePlayer({ x: 1, nosRole: role, nosPlayer: makeNosPlayer({ speakerPositionX: invalid }) }) });
+			expect(result.gain).toBeGreaterThan(0);
+			expect(result.panPosition).toEqual([1, 0]);
+		});
+	}
+	it('keeps death, disconnect and non-NoS hearing restrictions', () => {
+		for (const overrides of [{ isDead: true }, { disconnected: true }]) {
+			expect(run({ state, other: makePlayer({ x: 60, nosRole: role,
+				nosPlayer: makeNosPlayer({ speakerPositionX: 1 }), ...overrides }) }).gain).toBe(0);
+		}
+		expect(run({ state: makeState(), me: makePlayer({ isLocal: true, nosRole: role }),
+			other: makePlayer({ x: 21 }) }).gain).toBe(0);
+	});
+	it('keeps meeting conversation centered', () => {
+		const result = run({ state: { ...state, gameState: GameState.DISCUSSION },
+			me: makePlayer({ isLocal: true, nosRole: role }), other: makePlayer({ x: 21 }) });
+		expect(result.gain).toBeGreaterThan(0);
+		expect(result.panPosition).toEqual([0, 0]);
+	});
+});
+
 describe('NoS neutral voice hearing distance', () => {
 	const lobby = makeLobbySettings({ maxDistance: 5.32, visionHearing: true });
 	const state = makeState({ mod: 'NoS', map: MapType.AIRSHIP, lightRadius: 30 });
@@ -573,17 +634,23 @@ describe('NoS 3.2.21 voice effects', () => {
 	const effectFor = (other: Player, changes: Partial<AmongUsState> = {}, options: Partial<ILobbySettings> = {}, personal: Partial<ISettings> = {}) =>
 		selectVoiceEffect({ ...state, ...changes }, { ...settings, ...personal }, { ...lobby, ...options }, me, other, -1);
 
-	it('applies size pitch and formant independently with smooth squash', () => {
+	it('keeps the size gate while pitch and tails come from personal controls', () => {
 		const small = effectFor(makePlayer({ nosPlayer: makeNosPlayer({ bodyRateX: 0.8, bodyRateY: 0.5 }) }));
-		expect(small?.sourceFilter?.pitch).toBeGreaterThan(1);
-		expect(small?.sourceFilter?.formant).toBeCloseTo(1.25);
+		expect(small?.id).toBe('nosSize');
+		expect(small?.tuning).toEqual({ pitch: -100, reverb: 0, echo: 0 });
 		const squash = effectFor(makePlayer({ nosPlayer: makeNosPlayer({ bodyRateX: 1, bodyRateY: 0.5 }) }));
-		expect(squash?.sourceFilter?.squash).toBeGreaterThan(0);
+		expect(squash?.id).toBe('nosSize');
 		const half = effectFor(makePlayer({ nosPlayer: makeNosPlayer({ bodyRateX: 0.8, bodyRateY: 0.5 }) }), {}, { nosSizeVoiceEffectStrength: 0 }, { nosSizeVoiceEffectStrength: 50 });
-		expect(half?.sourceFilter?.pitch).toBeCloseTo(1 + ((small?.sourceFilter?.pitch ?? 1) - 1) / 2);
-		expect(half?.sourceFilter?.formant).toBeCloseTo(1.125);
+		expect(half?.tuning.pitch).toBe(-50);
+		const custom = effectFor(makePlayer({ nosPlayer: makeNosPlayer({ bodyRateX: .8, bodyRateY: .5 }) }), {}, {},
+			{ voiceEffectTunings: { nosSize: { pitch: 0, reverb: 30, echo: 20 } } });
+		expect(custom?.tuning).toEqual({ pitch: 0, reverb: 30, echo: 20 });
 		expect(effectFor(makePlayer({ nosPlayer: makeNosPlayer({ bodyRateX: 0.8, bodyRateY: 0.5 }) }), {}, {}, { nosSizeVoiceEffectStrength: 0 })).toBeNull();
 		expect(effectFor(makePlayer({ nosPlayer: makeNosPlayer({ bodyRateX: 0.8, bodyRateY: 0.5 }) }), {}, { nosSizeVoiceEffect: false })).toBeNull();
+	});
+	it('keeps all nine ordinary-size boundary pairs outside the role effect', () => {
+		for (const x of [.98, 1, 1.02]) for (const y of [.98, 1, 1.02])
+			expect(effectFor(makePlayer({ nosPlayer: makeNosPlayer({ bodyRateX: x, bodyRateY: y }) }))).toBeNull();
 	});
 
 	it('gates Berserker overload by role and active body type', () => {
@@ -591,26 +658,26 @@ describe('NoS 3.2.21 voice effects', () => {
 			nosRole: { roleId: 1, roleName: 'berserker', displayName: 'Berserker', runtimeClass: 'Berserker' },
 			nosPlayer: makeNosPlayer({ bodyType: 2 }),
 		});
-		expect(effectFor(other)?.berserker).toBeTrue();
-		expect(effectFor(other, {}, { nosBerserkerVoiceEffectStrength: 0 }, { nosBerserkerVoiceEffectStrength: 40 })?.strength).toBe(40);
+		expect(effectFor(other)?.id).toBe('nosBerserker');
+		expect(effectFor(other, {}, { nosBerserkerVoiceEffectStrength: 0 }, { nosBerserkerVoiceEffectStrength: 40 })?.tuning).toEqual({ pitch: 0, reverb: 40, echo: 40 });
 		expect(effectFor(other, {}, { nosBerserkerVoiceEffect: false })).toBeNull();
 		expect(effectFor({ ...other, nosPlayer: makeNosPlayer({ bodyType: 1 }) })).toBeNull();
 	});
 
-	it('uses neck length for Rokurokubi pitch', () => {
+	it('keeps neck extension as the Rokurokubi activation gate', () => {
 		const other = makePlayer({ nosPlayer: makeNosPlayer({ bodyType: 3, neckLength: 40, bodyRateX: 0.8 }) });
-		expect(effectFor(other)?.sourceFilter?.pitch).toBeCloseTo(2);
-		expect(effectFor(other)?.sourceFilter?.formant).toBeCloseTo(1.25);
+		expect(effectFor(other)?.id).toBe('nosRokurokubi');
+		expect(effectFor(other)?.tuning.pitch).toBe(100);
 		expect(effectFor(other, {}, { nosRokurokubiVoiceEffect: false })).toBeNull();
 	});
 
 	it('keeps Citrus disguise in tasks and discussion only', () => {
 		const other = makePlayer({ nosPlayer: makeNosPlayer({ hat: { name: 'noshat_catudon_Citrus_Lemon' } }) });
-		expect(effectFor(other)?.direction).toBe('up');
-		expect(effectFor(other, { gameState: GameState.DISCUSSION })?.direction).toBe('up');
+		expect(effectFor(other)?.tuning.pitch).toBe(100);
+		expect(effectFor(other, { gameState: GameState.DISCUSSION })?.id).toBe('nosCitrus');
 		expect(effectFor(other, { gameState: GameState.LOBBY })).toBeNull();
 		expect(effectFor(other, {}, { nosCitrusVoiceEffect: false })).toBeNull();
-		expect(effectFor(other, {}, { nosCitrusVoiceEffectStrength: 0 }, { nosCitrusVoiceEffectStrength: 35 })?.strength).toBe(35);
+		expect(effectFor(other, {}, { nosCitrusVoiceEffectStrength: 0 }, { nosCitrusVoiceEffectStrength: 35 })?.tuning.pitch).toBe(35);
 		expect(effectFor(other, {}, {}, { nosCitrusVoiceEffectStrength: 0 })).toBeNull();
 	});
 
@@ -623,14 +690,16 @@ describe('NoS 3.2.21 voice effects', () => {
 		expect(shouldApplyRainbowStarEcho(state, { ...other, isDead: true }, lobby)).toBeFalse();
 		expect(shouldApplyRainbowStarEcho(state, other, { ...lobby, nosRainbowStarEcho: false })).toBeFalse();
 		expect(shouldApplyRainbowStarEcho(state, other, lobby, { ...settings, nosRainbowStarEchoStrength: 0 })).toBeFalse();
+		expect(shouldApplyRainbowStarEcho(state, other, lobby, { ...settings, nosRainbowStarEchoStrength: 0,
+			voiceEffectTunings: { nosRainbowStar: { pitch: -50, reverb: 0, echo: 0 } } })).toBeTrue();
 	});
 
 	it('preserves camouflage and mushroom voice disguises outside NoS', () => {
 		const other = makePlayer({ id: 2, clientId: 2 });
 		const disguised = effectFor(other, { mod: 'NONE', camouflaged: true });
-		expect(disguised?.strength).toBe(settings.voiceEffectStrength);
-		expect(disguised?.sourceFilter).toBeUndefined();
-		expect(effectFor(other, { mod: 'NONE', mushroomMixupSabotaged: true })?.strength).toBe(settings.voiceEffectStrength);
+		expect(disguised?.id).toBe('disguise');
+		expect(disguised?.tuning.pitch).toBe(-settings.voiceEffectStrength);
+		expect(effectFor(other, { mod: 'NONE', mushroomMixupSabotaged: true })?.tuning.pitch).toBe(-settings.voiceEffectStrength);
 	});
 
 	it('avoids applying the task voice effect during an Airship outfit meeting', () => {

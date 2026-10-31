@@ -14,6 +14,8 @@ export interface MuffleSetting {
 }
 
 export interface VoiceAudioInput {
+	airshipSpawnFallback?: boolean;
+	rokuroBodyOrigin?: boolean;
 	state: AmongUsState;
 	settings: ISettings;
 	activeLobbySettings: ILobbySettings;
@@ -52,6 +54,19 @@ function fallingVoicePlayer(state: AmongUsState, player: Player): Player {
 	return isFalling(state, player) ? { ...player, ...player.snrPushOrigin, isDead: false } : player;
 }
 
+function followsRokuroPosition(state: AmongUsState, player: Player): boolean {
+	return state.mod === 'NoS' && state.gameState === GameState.TASKS && !player.isDead && !player.disconnected &&
+		(player.nosRole?.roleName === 'rokurokubi' || player.nosPlayer?.bodyType === 3);
+}
+
+function nosVoicePlayer(state: AmongUsState, player: Player, enabled: boolean, local: boolean): Player {
+	if (!enabled && !followsRokuroPosition(state, player)) return player;
+	// The published global microphone belongs to the PC host, not a selected mobile guest.
+	const x = local && player.isLocal ? state.nosLocalMicPosition?.x : player.nosPlayer?.speakerPositionX;
+	const y = local && player.isLocal ? state.nosLocalMicPosition?.y : player.nosPlayer?.speakerPositionY;
+	return Number.isFinite(x) && Number.isFinite(y) ? { ...player, x: x!, y: y! } : player;
+}
+
 export function voiceHearingDistance(state: AmongUsState, lobby: ILobbySettings, me: Player): number {
 	let maxDistance = lobby.maxDistance;
 	// NoS neutral roles can see farther than they should hear ordinary conversation.
@@ -87,12 +102,8 @@ export function calculateVoiceAudio(input: VoiceAudioInput): VoiceAudioResult {
 	const useNosPositions = state.mod === 'NoS' && activeLobbySettings.nosVoicePositions === true;
 	const localPlayer = fallingVoicePlayer(state, withImpostorClassification(state.mod, input.me));
 	const remotePlayer = fallingVoicePlayer(state, withImpostorClassification(state.mod, input.other));
-	const me =
-		useNosPositions && state.nosLocalMicPosition ? { ...localPlayer, ...state.nosLocalMicPosition } : localPlayer;
-	const other =
-		useNosPositions && remotePlayer.nosPlayer
-			? { ...remotePlayer, x: remotePlayer.nosPlayer.speakerPositionX, y: remotePlayer.nosPlayer.speakerPositionY }
-			: remotePlayer;
+	const me = nosVoicePlayer(state, localPlayer, useNosPositions, true);
+	const other = input.rokuroBodyOrigin ? remotePlayer : nosVoicePlayer(state, remotePlayer, useNosPositions, false);
 
 	const extraRange = me.isDead ? 0 : portableMegaphoneExtraRange(state, other);
 	const maxDistance = input.maxDistance + extraRange;

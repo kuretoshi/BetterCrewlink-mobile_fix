@@ -17,8 +17,8 @@ describe('Hero transformation costume voice', () => {
 		}
 	});
 	it('keeps ordinary disguise effects and releases the exception when transformation ends', () => {
-		expect(effect({ ...state, nosHeroTransforms: [] })?.strength).toBe(100);
-		expect(effect({ ...state, nosHeroTransforms: [{ playerId: 3, kind: 'super' }] })?.strength).toBe(100);
+		expect(effect({ ...state, nosHeroTransforms: [] })?.id).toBe('disguise');
+		expect(effect({ ...state, nosHeroTransforms: [{ playerId: 3, kind: 'super' }] })?.tuning.pitch).toBe(-100);
 	});
 	it('ignores unrelated roles and phases', () => {
 		expect(validHeroTransform({ playerId: 2, kind: 'other' })).toBeFalse();

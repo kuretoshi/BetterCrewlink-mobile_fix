@@ -105,7 +105,7 @@ export class LobbySettingsComponent implements OnInit, OnDestroy {
 			);
 			if (this.gameHelper.cManager.currentGameState?.nosAddonIds?.includes('UchuAddon')) {
 				toggles.push({ label: 'NoS シトラスの声', value: settings.nosCitrusVoiceEffect });
-				toggles.push({ label: 'NoS レインボースターのエコー', value: settings.nosRainbowStarEcho });
+				toggles.push({ label: 'NoS レインボースターのリバーブ', value: settings.nosRainbowStarEcho });
 			}
 		} else if (mod === 'TOH4E' && settings.tohGhostRoles === undefined) {
 			toggles.push({ label: 'TOH4E 旧設定（対象キラー共通）', value: settings.tohNeutralKillerHaunting });

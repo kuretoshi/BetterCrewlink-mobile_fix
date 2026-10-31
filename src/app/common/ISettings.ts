@@ -1,4 +1,5 @@
 import type { IDeviceInfo, PlayerSettingsMap, VoiceServerOption } from '../services/smallInterfaces';
+import type { VoiceEffectTunings } from './VoiceEffectTuning';
 
 // --- verbatim from bettercrewlink (desktop) v3.2.1 src/common/ISettings.d.ts ---
 // Keep this block textually identical to desktop's `ILobbySettings`; see
@@ -63,6 +64,8 @@ export interface ILobbySettings {
  * (ghostVolumeAsImpostor, crewVolumeAsGhost, masterVolume, enableSpatialAudio).
  */
 export interface ISettings {
+	rokuroVoice?: Partial<import('./RokuroVoice').RokuroVoiceSettings>;
+	voiceEffectTunings?: VoiceEffectTunings;
 	appPlayerLayout: 'standard' | 'aliveAboveGhosts';
 	voiceServerOption: VoiceServerOption;
 	customVoiceServer: string;
