@@ -126,6 +126,8 @@ export interface AmongUsState {
 	nosLoadedContents?: { path: string; status: string; data?: unknown };
 	nosLocalMicPosition?: { x: number; y: number };
 	nosLocalIsPseudocide?: boolean;
+	/** Desktop meeting-page metadata, retained for protocol compatibility. */
+	snrMeeting?: { enabled: boolean; currentPage: number; playerIds: number[] };
 	nosRadios?: NosRadioData[];
 	nosAddonIds?: string[];
 	nosMegaphones?: MegaphoneState[];
