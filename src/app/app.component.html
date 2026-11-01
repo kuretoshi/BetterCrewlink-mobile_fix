@@ -32,6 +32,12 @@
 				</ion-item>
 				@if (reloadError) { <p role="alert" style="padding:16px">{{ reloadError }}</p> }
 			}
+			<ion-menu-toggle auto-hide="false">
+				<ion-item button routerLink="/inquiry" routerDirection="root" color="primary" lines="none">
+					<ion-icon slot="start" name="help-circle-outline" color="light"></ion-icon>
+					<ion-label>問い合わせ</ion-label>
+				</ion-item>
+			</ion-menu-toggle>
 		</ion-content>
 	</ion-menu>
 	<ion-header #appHeaderEl>
