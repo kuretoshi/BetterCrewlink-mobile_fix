@@ -4,6 +4,10 @@
 
 元プロジェクトは [BetterCrewLink](https://github.com/OhMyGuus/BetterCrewLink) と [CrewLink](https://github.com/ottomated/CrewLink) の流れを引き継いでいます。Among Us、Innersloth、CrewLink、BetterCrewLink の公式プロジェクトとは別の非公式版です。
 
+## 3.52
+
+AndroidでAmong Usへ切り替えた際もWebViewの通信処理を維持する対策を追加しました。モバイル版は3.52、PC版・.NET版との通信互換バージョンは3.2.60です。切断報告への効果は実機での継続確認が必要です。
+
 ## 3.50
 
 PC版3.2.59との通信互換バージョンを揃えました。NoSの会議中に表示する発話枠の位置調整はPC版側の変更です。Web・Android・iOS版はゲームの会議画面に枠を重ねる機能を持たず、今回モバイル側の音声処理は変更していません。

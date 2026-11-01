@@ -1,3 +1,4 @@
+import { Capacitor } from '@capacitor/core';
 import { Injectable } from '@angular/core';
 import { IDeviceInfo } from './smallInterfaces';
 import { AndroidPermissions } from '@awesome-cordova-plugins/android-permissions/ngx';import { Platform } from '@ionic/angular';
@@ -89,6 +90,13 @@ export class GameHelperService {
 		private settings: SettingsService
 	) {
 		this.IsMobile = true;//this.platform.is('cordova') || this.platform.is('android') || this.platform.is('mobile');
+		if (Capacitor.getPlatform() === 'android') {
+			this.backgroundMode.on('activate').subscribe(() => {
+				if (this.cManager.connectionState !== ConnectionState.disconnected) {
+					this.backgroundMode.disableWebViewOptimizations();
+				}
+			});
+		}
 		this.load();
 	}
 
