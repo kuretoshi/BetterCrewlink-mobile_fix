@@ -1,0 +1,19 @@
+<ion-content color="secondary">
+	<form (ngSubmit)="submit()">
+		<h1>問い合わせ</h1>
+		<p>件名・本文・添付ファイル・診断ログは、モバイル版の公開GitHub IssueとDiscordの「バグ報告＆要望」へ送信されます。個人情報や秘密情報は含めないでください。</p>
+		<fieldset [disabled]="sending || !!issueUrl" style="border:0;padding:0;display:grid;gap:16px">
+			<label>種別<select name="tag" [(ngModel)]="tag"><option value="question">質問</option><option value="bug">不具合</option><option value="request">要望</option></select></label>
+			<label>件名<input name="subject" [(ngModel)]="subject" required maxlength="100"></label>
+			<label>本文<textarea name="body" [(ngModel)]="body" required maxlength="1800" rows="7" placeholder="症状・発生時刻・再現手順・利用端末など"></textarea></label>
+			<label>添付ファイル（9件まで・ログを含め合計24MB以下）<input type="file" multiple (change)="selectFiles($event)"></label>
+			<details><summary>添付する診断ログを確認</summary><pre>{{ log }}</pre></details>
+			<ion-button type="button" fill="outline" (click)="refreshLog()">ログを最新に更新</ion-button>
+			<p>診断ログにはアプリのバージョン、ブラウザ情報、接続状態・切断理由を記録します。音声、会話内容、プレイヤー名、ロビーコードは記録しません。</p>
+			<label><span><input style="width:auto" type="checkbox" name="consent" [(ngModel)]="consent"> 内容・添付・ログが公開されることに同意します</span></label>
+			<ion-button type="submit" [disabled]="!consent || !subject.trim() || !body.trim()">{{ sending ? '送信中…' : 'ログと共に送信' }}</ion-button>
+		</fieldset>
+		@if (error) { <p role="alert">{{ error }}</p> }
+		@if (issueUrl) { <p role="status">送信しました。Discordへの反映には時間がかかる場合があります。</p><a [href]="issueUrl" target="_blank" rel="noopener noreferrer">投稿したIssueを開く</a> }
+	</form>
+</ion-content>

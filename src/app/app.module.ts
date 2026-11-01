@@ -14,6 +14,7 @@ import { LobbySettingsComponent } from './pages/lobby-settings/lobby-settings.co
 import { AudioSettingsComponent } from './pages/audio-settings/audio-settings.component';
 import { VoiceEffectsComponent } from './pages/voice-effects/voice-effects.component';
 import { FormsModule } from '@angular/forms';
+import { InquiryComponent } from './pages/inquiry/inquiry.component';
 import { GlobalFooterComponent } from './compontents/global-footer/global-footer.component';
 import { GlobalHeaderComponent } from './compontents/global-header/global-header.component';
 import { AvatarComponent } from './compontents/avatar/avatar.component';
@@ -21,6 +22,7 @@ import { AndroidPermissions } from '@awesome-cordova-plugins/android-permissions
 import { BackgroundMode } from '@awesome-cordova-plugins/background-mode/ngx';
 @NgModule({
 	declarations: [
+		InquiryComponent,
 		AppComponent,
 		GlobalFooterComponent,
 		AvatarComponent,

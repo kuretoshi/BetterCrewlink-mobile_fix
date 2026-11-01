@@ -5,8 +5,10 @@ import { GameComponent } from './pages/game/game.component';
 import { LobbySettingsComponent } from './pages/lobby-settings/lobby-settings.component';
 import { AudioSettingsComponent } from './pages/audio-settings/audio-settings.component';
 import { VoiceEffectsComponent } from './pages/voice-effects/voice-effects.component';
+import { InquiryComponent } from './pages/inquiry/inquiry.component';
 
 const routes: Routes = [
+	{ path: 'inquiry', component: InquiryComponent },
 	{
 		path: '',
 		redirectTo: 'settings',

@@ -14,6 +14,7 @@ import { GameInfo } from '../common/GameInfo';
 import { environment } from '../../environments/environment';
 import { nosCosmeticAssets } from '../lib/nosCosmeticAssets';
 import { HostVoiceClient } from './host-voice-client';
+import { DiagnosticsService } from './diagnostics.service';
 
 // Ported from bettercrewlink (desktop) v3.2.1 src/renderer/voice/ConnectionController.ts.
 const ICE_DISCONNECT_TIMEOUT_MS = 12000;
@@ -98,7 +99,7 @@ export class ConnectionController implements IConnectionController {
 		},
 		() => this.events.emit('onChange')
 	);
-	constructor(private settingsService: SettingsService) {
+	constructor(private settingsService: SettingsService, private diagnostics: DiagnosticsService = new DiagnosticsService()) {
 		this.audioController = new AudioController(this, settingsService);
 		this.audioController.events.on('voiceRoleSample', (rms: number, active: boolean) => {
 			this.voiceRole.sample(
@@ -158,6 +159,7 @@ export class ConnectionController implements IConnectionController {
 	}
 
 	connect(voiceserver: string, gamecode: string, username: string, deviceID: string, natFix: boolean) {
+		this.diagnostics.record('connect-requested', { relay: natFix });
 		this.voiceRoleSources.clear();
 		this.voiceRole.reset();
 		console.log('Connect called??');
@@ -245,6 +247,7 @@ export class ConnectionController implements IConnectionController {
 
 	private retryPeer(socketId: string, connection: PeerConnection, reason: string): void {
 		if (this.peers.get(socketId) !== connection) return;
+		this.diagnostics.record('peer-retry', { reason: /^(ICE (failed|closed|stayed disconnected)|connection (timed out|closed))$/.test(reason) ? reason : 'peer error', state: connection.connectionState });
 		this.destroyPeer(socketId);
 		if (!this.canReconnectPeer(socketId)) {
 			this.peerRetryAttempts.delete(socketId);
@@ -348,6 +351,7 @@ export class ConnectionController implements IConnectionController {
 		);
 
 		connection.on('connect', () => {
+			this.diagnostics.record('peer-connected');
 			if (this.peers.get(socketId) !== connection) return;
 			this.clearPeerTimer(this.peerConnectTimers, socketId);
 			this.clearPeerTimer(this.iceDisconnectTimers, socketId);
@@ -355,6 +359,7 @@ export class ConnectionController implements IConnectionController {
 		});
 
 		connection.on('iceStateChange', (iceState: RTCIceConnectionState) => {
+			this.diagnostics.record('ice-state', { state: iceState });
 			if (this.peers.get(socketId) !== connection) return;
 			if (iceState === 'failed' || iceState === 'closed') {
 				this.retryPeer(socketId, connection, `ICE ${iceState}`);
@@ -429,6 +434,7 @@ export class ConnectionController implements IConnectionController {
 			console.log('[client.error', error);
 		});
 		this.socketIOClient.on('connect', () => {
+			this.diagnostics.record('server-connected');
 			console.log('[client.connect]');
 			if (this.connectionState !== ConnectionState.disconnected) {
 				this.updateConnectingStage(ConnectingStage.connectingToVoiceServer);
@@ -439,7 +445,10 @@ export class ConnectionController implements IConnectionController {
 				});
 			}
 		});
-		this.socketIOClient.on('disconnect', () => {
+		this.socketIOClient.on('connect_error', () => this.diagnostics.record('server-connect-error'));
+		this.socketIOClient.on('disconnect', (reason) => {
+			this.diagnostics.record('server-disconnected', { reason, stage: this.connectingStage, state: this.connectionState,
+				lastHostFrameAgeMs: this.lastPing < 0 ? -1 : Date.now() - this.lastPing });
 			console.log('[client.disconnect]');
 			this.destroyAllPeers();
 			this.setClients({});
