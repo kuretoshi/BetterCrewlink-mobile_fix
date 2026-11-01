@@ -4,6 +4,10 @@
 
 元プロジェクトは [BetterCrewLink](https://github.com/OhMyGuus/BetterCrewLink) と [CrewLink](https://github.com/ottomated/CrewLink) の流れを引き継いでいます。Among Us、Innersloth、CrewLink、BetterCrewLink の公式プロジェクトとは別の非公式版です。
 
+## 3.56
+
+問い合わせボタンをフッターからメニューの一番下へ移動しました。Web版限定の「アプリ再読み込み」は維持しています。
+
 ## 3.55
 
 Web版のメニューに「アプリ再読み込み」を追加しました。保存済みの設定を保持し、このアプリの更新キャッシュを消して最新の画面を読み直します。実行前に通話切断と未送信内容の消失を確認します。通信できない場合はキャッシュを消さず、通話も切断しません。Android・iOSアプリには表示しません。
