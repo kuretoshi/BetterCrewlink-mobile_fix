@@ -27,7 +27,8 @@ APIとDiscordブリッジの両サービスに次を設定します。
 INQUIRY_GITHUB_REPO_MOBILE=kuretoshi/BetterCrewlink-mobile_fix
 ```
 
-既存の共通 `INQUIRY_GITHUB_TOKEN` に上記リポジトリのIssue書込み権限が必要です。
+モバイル用の `INQUIRY_GITHUB_TOKEN_MOBILE`、または既存の共通
+`INQUIRY_GITHUB_TOKEN` に上記リポジトリのIssue書込み権限が必要です。
 既存の `INQUIRY_GITHUB_REPO_NET` や `INQUIRY_GITHUB_TOKEN_NET` は保持します。
 専用Discordフォーラムを新規投稿の自動取込対象にもする場合だけ、両サービスに
 `INQUIRY_DISCORD_FORUM_ID_MOBILE` を設定します。同じフォーラムIDを複数製品へ
@@ -47,4 +48,6 @@ APIはIssue作成後にDiscord転送を行い、Discordに一時障害があれ�
 python3 -m unittest discover -s server/inquiries
 ```
 
-現時点ではサーバーへの適用・実投稿は未実施です。
+2026-11-01に既存サーバーへ適用し、モバイル用Issue #2および
+モバイルカテゴリのDiscord「バグ報告＆要望」へのログ付き送信を確認しました。
+モバイル用フォーラムIDは `1508089571106361465` です。

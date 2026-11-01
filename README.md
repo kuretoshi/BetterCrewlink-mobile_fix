@@ -4,6 +4,10 @@
 
 元プロジェクトは [BetterCrewLink](https://github.com/OhMyGuus/BetterCrewLink) と [CrewLink](https://github.com/ottomated/CrewLink) の流れを引き継いでいます。Among Us、Innersloth、CrewLink、BetterCrewLink の公式プロジェクトとは別の非公式版です。
 
+## 3.54
+
+フッターに問い合わせフォームを追加しました。件名・本文・種別・添付ファイルと、事前確認できる接続診断ログを送信すると、モバイル用GitHub IssueとDiscordのモバイル版「バグ報告＆要望」へ連携します。診断ログに音声・会話内容・プレイヤー名・ロビーコードは含めません。
+
 ## 3.53
 
 Web共通の再接続処理を修正しました。ブラウザのイベント処理が遅れたときに、回復済み・接続済みの音声接続を古いタイムアウトで破棄しないようにしました。実際に切断が続いている場合の再接続は維持します。PC版・.NET版との通信互換バージョンは3.2.60です。

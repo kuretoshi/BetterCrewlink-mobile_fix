@@ -3,6 +3,7 @@ import argparse
 from pathlib import Path
 import sqlite3
 import time
+import re
 from contextlib import closing
 
 
@@ -10,11 +11,24 @@ def patch_sources(root, apply=True):
     changes = {}
     inquiry = root / 'inquiry.py'
     text = inquiry.read_text(encoding='utf-8')
-    text = text.replace("PRODUCTS = ('tanuki', 'net')", "PRODUCTS = ('tanuki', 'net', 'mobile')")
-    text = text.replace("CHECK(product IN ('tanuki','net'))", "CHECK(product IN ('tanuki','net','mobile'))")
+    text = re.sub(r"PRODUCTS = \(([^\n]+)\)", lambda match: match[0] if "'mobile'" in match[1]
+                  else "PRODUCTS = (" + match[1] + ", 'mobile')", text)
+    text = re.sub(r"CHECK\(product IN \(([^)]+)\)\)", lambda match: match[0] if "'mobile'" in match[1]
+                  else "CHECK(product IN (" + match[1] + ",'mobile'))", text)
     if "'mobile'" not in text or 'issue_bridge.create_issue' not in text:
         raise ValueError('Expected the GitHub/Discord inquiry relay implementation')
     changes[inquiry] = text
+    bridge = root / 'issue_bridge.py'
+    if bridge.exists():
+        text = bridge.read_text(encoding='utf-8')
+        marker = 'def _existing_github_token(repository):\n'
+        if marker in text and 'INQUIRY_GITHUB_TOKEN_MOBILE' not in text:
+            text = text.replace(marker, marker +
+                                "    mobile_repository = os.environ.get('INQUIRY_GITHUB_REPO_MOBILE', '')\n"
+                                "    if mobile_repository and repository == mobile_repository:\n"
+                                "        token = os.environ.get('INQUIRY_GITHUB_TOKEN_MOBILE', '')\n"
+                                "        if token:\n            return token\n")
+            changes[bridge] = text
     auth = root / 'auth.py'
     text = auth.read_text(encoding='utf-8')
     text = text.replace("if request.path == '/v1/player-bans/check':",
@@ -42,7 +56,8 @@ def migrate(database, source):
         schema = row[0]
         db.execute('BEGIN IMMEDIATE')
         if "'mobile'" not in schema:
-            updated = schema.replace("'tanuki','net'", "'tanuki','net','mobile'")
+            updated = re.sub(r"CHECK\(product IN \(([^)]+)\)\)",
+                             lambda match: "CHECK(product IN (" + match[1] + ",'mobile'))", schema)
             if updated == schema:
                 raise ValueError('Unexpected webhook schema')
             db.execute('ALTER TABLE inquiry_webhooks RENAME TO inquiry_webhooks_before_mobile')
