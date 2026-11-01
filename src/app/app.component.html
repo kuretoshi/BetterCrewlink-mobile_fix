@@ -25,6 +25,13 @@
 					</ion-menu-toggle>
 				}
 			</ion-list>
+			@if (isWeb) {
+				<ion-item button (click)="confirmReload()" [disabled]="reloading" color="primary">
+					<ion-icon slot="start" name="reload-outline"></ion-icon>
+					<ion-label>{{ reloading ? '再読み込み中…' : 'アプリ再読み込み' }}</ion-label>
+				</ion-item>
+				@if (reloadError) { <p role="alert" style="padding:16px">{{ reloadError }}</p> }
+			}
 		</ion-content>
 	</ion-menu>
 	<ion-header #appHeaderEl>

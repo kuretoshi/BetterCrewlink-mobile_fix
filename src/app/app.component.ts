@@ -2,6 +2,9 @@ import { AfterViewInit, Component, ElementRef, OnDestroy, OnInit, ViewChild, Cha
 import { SettingsService } from './services/settings.service';
 import { GameHelperService } from './services/game-helper.service';
 import { environment } from '../environments/environment';
+import { Capacitor } from '@capacitor/core';
+import { AlertController } from '@ionic/angular';
+import { reloadWebApplication } from './services/app-reload';
 @Component({
 	selector: 'app-root',
 	templateUrl: 'app.component.html',
@@ -11,6 +14,9 @@ import { environment } from '../environments/environment';
 })
 export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
 	readonly appVersion = environment.appVersion;
+	readonly isWeb = !Capacitor.isNativePlatform();
+	reloading = false;
+	reloadError = '';
 	public selectedIndex = 0;
 	public appPages = [
 		{
@@ -45,13 +51,31 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
 	private layoutResizeObserver: ResizeObserver;
 
 	constructor(private settingsService: SettingsService, public gameHelper: GameHelperService,
-		private changes: ChangeDetectorRef) {
+		private changes: ChangeDetectorRef, private alerts: AlertController) {
 		this.gameHelper.events.on('onChange', () => this.changes.markForCheck());
 	}
 
 	async ngOnInit() {
 		console.log('AppComponent initialized');
 		await this.settingsService.load();
+	}
+
+	async confirmReload(): Promise<void> {
+		if (!this.isWeb || this.reloading) return;
+		const alert = await this.alerts.create({
+			header: 'アプリ再読み込み',
+			message: '通話を切断し、最新の画面を読み直します。保存済みの設定は保持されます。送信前の問い合わせ内容は失われます。',
+			buttons: [{ text: 'キャンセル', role: 'cancel' }, { text: '再読み込み', handler: () => { void this.reloadApp(); } }],
+		});
+		await alert.present();
+	}
+
+	private async reloadApp(): Promise<void> {
+		this.reloading = true;
+		this.reloadError = '';
+		try { await reloadWebApplication(() => this.gameHelper.disconnect()); }
+		catch { this.reloadError = '再読み込みできませんでした。通信環境を確認して、再試行してください。'; }
+		finally { this.reloading = false; this.changes.markForCheck(); }
 	}
 
 	ngAfterViewInit() {
