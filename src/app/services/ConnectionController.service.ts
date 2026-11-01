@@ -338,7 +338,13 @@ export class ConnectionController implements IConnectionController {
 		if (connectionId !== undefined) this.peerConnectionIds.set(socketId, connectionId);
 		this.peerConnectTimers.set(
 			socketId,
-			setTimeout(() => this.retryPeer(socketId, connection, 'connection timed out'), PEER_CONNECT_TIMEOUT_MS)
+			setTimeout(() => {
+				if (this.peers.get(socketId) !== connection) return;
+				this.peerConnectTimers.delete(socketId);
+				// A background tab can deliver the timer before the queued channel-open event.
+				if (connection.connectionState === 'connected' || connection.writable) return;
+				this.retryPeer(socketId, connection, 'connection timed out');
+			}, PEER_CONNECT_TIMEOUT_MS)
 		);
 
 		connection.on('connect', () => {
@@ -362,7 +368,13 @@ export class ConnectionController implements IConnectionController {
 			if (iceState === 'disconnected' && !this.iceDisconnectTimers.has(socketId)) {
 				this.iceDisconnectTimers.set(
 					socketId,
-					setTimeout(() => this.retryPeer(socketId, connection, 'ICE stayed disconnected'), ICE_DISCONNECT_TIMEOUT_MS)
+					setTimeout(() => {
+						if (this.peers.get(socketId) !== connection) return;
+						this.iceDisconnectTimers.delete(socketId);
+						// Native ICE may already have recovered while JavaScript was suspended.
+						if (connection.iceConnectionState !== 'disconnected') return;
+						this.retryPeer(socketId, connection, 'ICE stayed disconnected');
+					}, ICE_DISCONNECT_TIMEOUT_MS)
 				);
 			}
 		});

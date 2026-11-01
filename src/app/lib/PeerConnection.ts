@@ -91,6 +91,10 @@ export default class PeerConnection {
 		return this.pc.connectionState;
 	}
 
+	get iceConnectionState(): RTCIceConnectionState {
+		return this.pc.iceConnectionState;
+	}
+
 	on<E extends keyof PeerConnectionEvents>(event: E, listener: Listener<E>): void {
 		if (this.destroyed) return;
 		(this.listeners[event] ??= []).push(listener);

@@ -4,6 +4,10 @@
 
 元プロジェクトは [BetterCrewLink](https://github.com/OhMyGuus/BetterCrewLink) と [CrewLink](https://github.com/ottomated/CrewLink) の流れを引き継いでいます。Among Us、Innersloth、CrewLink、BetterCrewLink の公式プロジェクトとは別の非公式版です。
 
+## 3.53
+
+Web共通の再接続処理を修正しました。ブラウザのイベント処理が遅れたときに、回復済み・接続済みの音声接続を古いタイムアウトで破棄しないようにしました。実際に切断が続いている場合の再接続は維持します。PC版・.NET版との通信互換バージョンは3.2.60です。
+
 ## 3.52
 
 AndroidでAmong Usへ切り替えた際もWebViewの通信処理を維持する対策を追加しました。モバイル版は3.52、PC版・.NET版との通信互換バージョンは3.2.60です。切断報告への効果は実機での継続確認が必要です。
