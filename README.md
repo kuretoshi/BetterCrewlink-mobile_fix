@@ -4,6 +4,10 @@
 
 元プロジェクトは [BetterCrewLink](https://github.com/OhMyGuus/BetterCrewLink) と [CrewLink](https://github.com/ottomated/CrewLink) の流れを引き継いでいます。Among Us、Innersloth、CrewLink、BetterCrewLink の公式プロジェクトとは別の非公式版です。
 
+## 3.57
+
+PC版3.2.61のNoS UchuAddon「グラトニー」飲み込み中の声設定へ対応しました。ホストが選んだ「聞こえない」（初期値）、「かなり小さく・こもった声」、「通常どおり」をWeb・Android・iOSの通話にも反映します。UchuAddon検出時だけロビー設定に現在値を表示します。ロビー設定の変更は従来どおりPCホスト側で行います。
+
 ## 3.56
 
 問い合わせボタンをフッターからメニューの一番下へ移動しました。Web版限定の「アプリ再読み込み」は維持しています。

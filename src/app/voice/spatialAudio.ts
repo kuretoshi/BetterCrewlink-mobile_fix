@@ -1,5 +1,5 @@
 import { AmongUsState, GameState, Player } from '../common/AmongUsState';
-import { ISettings, ILobbySettings } from '../common/ISettings';
+import { ISettings, ILobbySettings, NosGluttonySwallowVoice } from '../common/ISettings';
 import { AmongUsMaps, CameraLocation } from '../common/AmongusMap';
 import { poseCollide } from '../common/ColliderMap';
 import { isSnrJackal, isSnrNeutralKiller, isSnrSidekick } from '../common/SnrRole';
@@ -43,6 +43,22 @@ export interface VoiceAudioResult {
 
 function distance(panPos: [number, number]): number {
 	return Math.sqrt(panPos[0] * panPos[0] + panPos[1] * panPos[1]);
+}
+
+function hasGluttonySwallowPosition(state: AmongUsState, player: Player): boolean {
+	return state.mod === 'NoS' && state.nosAddonIds?.includes('UchuAddon') === true &&
+		player.nosPlayer?.speakerPositionX === 1000 && player.nosPlayer.speakerPositionY === 1000;
+}
+
+function applyGluttonySwallowVoice(
+	audio: VoiceAudioResult, mode: NosGluttonySwallowVoice
+): VoiceAudioResult {
+	if (mode !== 'quiet' || audio.gain <= 0) return audio;
+	return {
+		...audio,
+		gain: audio.gain * 0.1,
+		muffle: { type: 'lowpass', frequency: 450, q: Math.SQRT1_2 },
+	};
 }
 
 function isFalling(state: AmongUsState, player: Player): boolean {
@@ -102,8 +118,14 @@ export function calculateVoiceAudio(input: VoiceAudioInput): VoiceAudioResult {
 	const useNosPositions = state.mod === 'NoS' && activeLobbySettings.nosVoicePositions === true;
 	const localPlayer = fallingVoicePlayer(state, withImpostorClassification(state.mod, input.me));
 	const remotePlayer = fallingVoicePlayer(state, withImpostorClassification(state.mod, input.other));
+	const swallowedPosition = hasGluttonySwallowPosition(state, remotePlayer);
+	const swallowVoiceMode: NosGluttonySwallowVoice =
+		swallowedPosition && state.gameState === GameState.TASKS && !remotePlayer.isDead
+			? (activeLobbySettings.nosGluttonySwallowVoice ?? 'mute') : 'normal';
 	const me = nosVoicePlayer(state, localPlayer, useNosPositions, true);
-	const other = input.rokuroBodyOrigin ? remotePlayer : nosVoicePlayer(state, remotePlayer, useNosPositions, false);
+	// The 1000/1000 sentinel identifies the swallow state; it is not a real speaker location.
+	const other = input.rokuroBodyOrigin || swallowedPosition
+		? remotePlayer : nosVoicePlayer(state, remotePlayer, useNosPositions, false);
 
 	const extraRange = me.isDead ? 0 : portableMegaphoneExtraRange(state, other);
 	const maxDistance = input.maxDistance + extraRange;
@@ -125,6 +147,7 @@ export function calculateVoiceAudio(input: VoiceAudioInput): VoiceAudioResult {
 	) {
 		return result;
 	}
+	if (swallowVoiceMode === 'mute') return result;
 	if (
 		state.gameState === GameState.TASKS &&
 		me.isImpostor &&
@@ -144,14 +167,14 @@ export function calculateVoiceAudio(input: VoiceAudioInput): VoiceAudioResult {
 			activeLobbySettings.nosFixerJammingLowpass === true &&
 			activeLobbySettings.nosFixerJammingVoiceBlock === false &&
 			(me.nosPlayer?.isJammed === true || other.nosPlayer?.isJammed === true);
-		return {
+		return applyGluttonySwallowVoice({
 			gain: commsBlocked ? 0 : megaphoneGain(megaphone.range, other.x - me.x, other.y - me.y),
 			panPosition: settings.enableSpatialAudio ? panPos : [0, 0],
 			panMaxDistance: megaphone.range,
 			muffle: jammedLowpass ? { type: 'lowpass', frequency: 1200, q: Math.SQRT1_2 } : false,
 			reverb: false,
 			radioEcho: false,
-		};
+		}, swallowVoiceMode);
 	}
 	let endGain: number;
 	let wallCheckEnabled = false;
@@ -362,5 +385,5 @@ export function calculateVoiceAudio(input: VoiceAudioInput): VoiceAudioResult {
 
 	result.panPosition = panPos;
 	result.gain = endGain;
-	return result;
+	return applyGluttonySwallowVoice(result, swallowVoiceMode);
 }

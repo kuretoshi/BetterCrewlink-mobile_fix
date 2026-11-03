@@ -135,6 +135,16 @@ export class LobbySettingsComponent implements OnInit, OnDestroy {
 		return this.lobbySettings?.maxDistance;
 	}
 
+	get gluttonySwallowVoiceLabel(): string | undefined {
+		const state = this.gameHelper.cManager.currentGameState;
+		if (state?.mod !== 'NoS' || !state.nosAddonIds?.includes('UchuAddon')) return undefined;
+		switch (this.lobbySettings?.nosGluttonySwallowVoice ?? 'mute') {
+			case 'quiet': return 'かなり小さく・こもった声';
+			case 'normal': return '通常どおり';
+			default: return '聞こえない';
+		}
+	}
+
 	gameStateLabel(): string {
 		const state = this.gameHelper.cManager.currentGameState?.gameState;
 		switch (state) {

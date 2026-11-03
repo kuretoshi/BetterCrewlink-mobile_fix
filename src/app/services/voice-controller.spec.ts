@@ -131,6 +131,19 @@ describe('VoiceController impostor radio', () => {
 		connectionController.currentGameState = makeState({ players: [me, ...others] });
 	}
 
+	it('accepts the host Gluttony swallow voice mode and keeps the mute default for older payloads', () => {
+		const voice = makeController() as any;
+		const connection = voice.connectionController as ConnectionController;
+		const oldHostSettings = { ...defaultLobbySettings };
+		delete (oldHostSettings as Partial<typeof oldHostSettings>).nosGluttonySwallowVoice;
+		voice.onLobbySettingsChange(oldHostSettings);
+		expect(connection.lobbySettings.nosGluttonySwallowVoice).toBe('mute');
+		voice.onLobbySettingsChange({ ...defaultLobbySettings, nosGluttonySwallowVoice: 'quiet' });
+		expect(connection.lobbySettings.nosGluttonySwallowVoice).toBe('quiet');
+		voice.onLobbySettingsChange({ ...defaultLobbySettings, nosGluttonySwallowVoice: 'normal' });
+		expect(connection.lobbySettings.nosGluttonySwallowVoice).toBe('normal');
+	});
+
 	it('uses the sender NoS impostor mask even without a sender self bit or local transmit channel', () => {
 		const voice = makeController() as any;
 		const connection = voice.connectionController as ConnectionController;

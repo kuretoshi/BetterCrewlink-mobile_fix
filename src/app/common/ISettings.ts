@@ -1,6 +1,8 @@
 import type { IDeviceInfo, PlayerSettingsMap, VoiceServerOption } from '../services/smallInterfaces';
 import type { VoiceEffectTunings } from './VoiceEffectTuning';
 
+export type NosGluttonySwallowVoice = 'normal' | 'quiet' | 'mute';
+
 // --- verbatim from bettercrewlink (desktop) v3.2.1 src/common/ISettings.d.ts ---
 // Keep this block textually identical to desktop's `ILobbySettings`; see
 // scripts/check-schema-drift.mjs, which fails the build if desktop adds, removes
@@ -23,6 +25,7 @@ export interface ILobbySettings {
 	nosNeutralKillerHaunting: boolean;
 	nosBuskerReviveHideVoice: boolean;
 	nosVoicePositions: boolean;
+	nosGluttonySwallowVoice: NosGluttonySwallowVoice;
 	nosSizeVoiceEffect: boolean;
 	nosSizeVoiceEffectStrength: number;
 	nosBerserkerVoiceEffect: boolean;

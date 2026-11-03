@@ -138,6 +138,71 @@ function run(overrides: Partial<VoiceAudioInput> = {}) {
 	});
 }
 
+describe('NoS UchuAddon Gluttony swallow voice', () => {
+	const state = makeState({ mod: 'NoS', nosAddonIds: ['UchuAddon'] });
+	const swallowed = makePlayer({ id: 2, clientId: 2, x: 1,
+		nosPlayer: makeNosPlayer({ speakerPositionX: 1000, speakerPositionY: 1000 }) });
+	const lobby = makeLobbySettings();
+	const voice = (changes: Partial<VoiceAudioInput> = {}) =>
+		run({ state, other: swallowed, activeLobbySettings: lobby, ...changes });
+
+	it('defaults to mute with old and new lobby payloads, whether NoS positions are enabled or not', () => {
+		expect(voice().gain).toBe(0);
+		expect(voice({ activeLobbySettings: makeLobbySettings({ nosVoicePositions: true }) }).gain).toBe(0);
+		expect(voice({ activeLobbySettings: {
+			...lobby, nosGluttonySwallowVoice: undefined,
+		} }).gain).toBe(0);
+	});
+
+	it('makes swallowed speech quiet and muffled, including with NoS positions enabled', () => {
+		for (const nosVoicePositions of [false, true]) {
+			const result = voice({ activeLobbySettings: makeLobbySettings({
+				nosVoicePositions, nosGluttonySwallowVoice: 'quiet',
+			}) });
+			expect(result.gain).toBe(0.1);
+			expect(result.muffle).toEqual({ type: 'lowpass', frequency: 450, q: Math.SQRT1_2 });
+		}
+	});
+
+	it('allows normal nearby speech even when the NoS speaker position is a swallow sentinel', () => {
+		for (const nosVoicePositions of [false, true]) {
+			expect(voice({ activeLobbySettings: makeLobbySettings({
+				nosVoicePositions, nosGluttonySwallowVoice: 'normal',
+			}) }).gain).toBe(1);
+		}
+	});
+
+	it('only applies to living swallowed players during NoS tasks with UchuAddon', () => {
+		expect(voice({ other: { ...swallowed, nosPlayer: makeNosPlayer() } }).gain).toBe(1);
+		expect(voice({ state: { ...state, nosAddonIds: [] } }).gain).toBe(1);
+		expect(voice({ state: { ...state, gameState: GameState.DISCUSSION } }).gain).toBe(1);
+		expect(voice({ other: { ...swallowed, isDead: true },
+			me: makePlayer({ id: 1, clientId: 1, isDead: true }) }).gain).toBe(1);
+	});
+
+	it('also controls megaphone and radio bypass paths', () => {
+		const megaphoneState = makeState({ ...state, nosAddonIds: ['UchuAddon', 'tanuki.bcl.roles'],
+			nosMegaphones: [{ playerId: 2, range: 5, energy: 100 }] });
+		expect(voice({ state: megaphoneState }).gain).toBe(0);
+		const megaphoneQuiet = voice({ state: megaphoneState,
+			activeLobbySettings: makeLobbySettings({ nosGluttonySwallowVoice: 'quiet' }) });
+		expect(megaphoneQuiet.gain).toBeGreaterThan(0);
+		expect(megaphoneQuiet.gain).toBeLessThanOrEqual(0.1);
+		expect(megaphoneQuiet.muffle).toEqual({ type: 'lowpass', frequency: 450, q: Math.SQRT1_2 });
+
+		const radio = { other: { ...swallowed, isImpostor: true }, impostorRadioClientId: 2,
+			nosImpostorRadioHearable: true };
+		expect(voice({ ...radio, activeLobbySettings: makeLobbySettings({
+			impostorRadioEnabled: true,
+		}) }).gain).toBe(0);
+		const radioQuiet = voice({ ...radio, activeLobbySettings: makeLobbySettings({
+			impostorRadioEnabled: true, nosGluttonySwallowVoice: 'quiet',
+		}) });
+		expect(radioQuiet.gain).toBe(0.1);
+		expect(radioQuiet.muffle).toEqual({ type: 'lowpass', frequency: 450, q: Math.SQRT1_2 });
+	});
+});
+
 describe('NoS Rokurokubi head positions', () => {
 	const role = { roleId: 1, roleName: 'rokurokubi', displayName: 'Rokurokubi', runtimeClass: 'Rokurokubi.Instance' };
 	const state = makeState({ mod: 'NoS', nosLocalMicPosition: { x: 20, y: 0 } });
