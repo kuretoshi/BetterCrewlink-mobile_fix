@@ -522,6 +522,8 @@ export default class AudioController {
 		} else if (peer.rokuroVoice) {
 			peer.rokuroVoice.disconnect(); peer.rokuroVoice = undefined; peer.rokuroDestinationChanged = true;
 		}
+		if (state.mod === 'NoS' && (state.gameState === GameState.TASKS || state.gameState === GameState.DISCUSSION) &&
+			state.nosLimitSpeechMuted?.includes(other.id)) result.gain = 0;
 
 		if (result.muffle) {
 			muffle.type = result.muffle.type;

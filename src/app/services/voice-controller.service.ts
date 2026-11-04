@@ -308,7 +308,9 @@ export class VoiceController {
 			state.mod === 'NoS' &&
 				((connectionController.lobbySettings.nosFixerJammingVoiceBlock !== false &&
 					newLocalPlayer.nosPlayer?.isJammed === true) ||
-					voiceJammingFor(state, newLocalPlayer.id)?.muted === true)
+					voiceJammingFor(state, newLocalPlayer.id)?.muted === true ||
+					((state.gameState === GameState.TASKS || state.gameState === GameState.DISCUSSION) &&
+						state.nosLimitSpeechMuted?.includes(newLocalPlayer.id) === true))
 		);
 		this.syncNosRadioReports(state, newLocalPlayer);
 		this.syncAppVersion(state, newLocalPlayer);
