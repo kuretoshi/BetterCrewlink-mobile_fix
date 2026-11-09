@@ -96,7 +96,7 @@ export class LobbySettingsComponent implements OnInit, OnDestroy {
 			toggles.push(
 				{ label: 'NoS 第三陣営キラーの幽霊音声', value: settings.nosNeutralKillerHaunting },
 				{ label: 'NoS 偽装死中のバスカーの声をインポスターに聞かせない', value: settings.nosBuskerReviveHideVoice === true },
-				{ label: 'NoS の音声位置', value: settings.nosVoicePositions },
+				{ label: 'NoS の音声位置（常時使用）', value: true },
 				{ label: 'NoS サイズ連動ボイスエフェクト', value: settings.nosSizeVoiceEffect },
 				{ label: 'NoS バーサーカーの声', value: settings.nosBerserkerVoiceEffect },
 				{ label: 'NoS ろくろ首の声', value: settings.nosRokurokubiVoiceEffect },

@@ -10,6 +10,8 @@ export {
 
 /** NoS TBCLFields data; deliberately separate from SNR RoleId/ModifierRoleId. */
 export interface NosPlayerData {
+	/** UchuAddon v1.4.0 uses the whole value 100 for a swallowed player. */
+	addonData?: number;
 	skin?: { name: string };
 	hat?: { name: string };
 	visor?: { name: string };

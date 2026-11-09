@@ -141,10 +141,66 @@ function run(overrides: Partial<VoiceAudioInput> = {}) {
 describe('NoS UchuAddon Gluttony swallow voice', () => {
 	const state = makeState({ mod: 'NoS', nosAddonIds: ['UchuAddon'] });
 	const swallowed = makePlayer({ id: 2, clientId: 2, x: 1,
-		nosPlayer: makeNosPlayer({ speakerPositionX: 1000, speakerPositionY: 1000 }) });
+		nosPlayer: makeNosPlayer({ speakerPositionX: 1000, speakerPositionY: 1000, addonData: 100 }) });
 	const lobby = makeLobbySettings();
 	const voice = (changes: Partial<VoiceAudioInput> = {}) =>
 		run({ state, other: swallowed, activeLobbySettings: lobby, ...changes });
+
+	it('preserves the swallower and hides the same victim from bystanders, including radio', () => {
+		const ownVictim = { ...swallowed, nosPlayer: makeNosPlayer({ addonData: 100 }) };
+		for (const nosVoicePositions of [false, true]) {
+			const activeLobbySettings = makeLobbySettings({ nosVoicePositions });
+			expect(voice({ other: ownVictim, activeLobbySettings }).gain).toBe(1);
+			expect(voice({ activeLobbySettings }).gain).toBe(0);
+			const radio = { impostorRadioClientId: 2, nosImpostorRadioHearable: true,
+				activeLobbySettings: { ...activeLobbySettings, impostorRadioEnabled: true } };
+			expect(voice({ ...radio, other: ownVictim }).gain).toBe(1);
+			expect(voice(radio).gain).toBe(0);
+		}
+	});
+
+	it('uses the explicit per-player value even at ordinary published coordinates', () => {
+		const nearby = { ...swallowed, nosPlayer: makeNosPlayer({ addonData: 100 }) };
+		expect(voice({ other: nearby }).gain).toBe(1);
+		const quiet = voice({ other: nearby,
+			activeLobbySettings: makeLobbySettings({ nosGluttonySwallowVoice: 'quiet' }) });
+		expect(quiet.gain).toBe(0.1);
+		expect(quiet.muffle).toEqual({ type: 'lowpass', frequency: 450, q: Math.SQRT1_2 });
+		expect(voice({ other: nearby,
+			activeLobbySettings: makeLobbySettings({ nosGluttonySwallowVoice: 'normal' }) }).gain).toBe(1);
+		expect(voice({ other: nearby, state: { ...state, nosAddonIds: [] } }).gain).toBe(1);
+		for (const mod of ['NONE', 'SUPER_NEW_ROLES', 'TOH4E'] as const) {
+			expect(voice({ other: nearby, state: { ...state, mod } }).gain).toBe(1);
+		}
+	});
+
+	for (const addonData of [undefined, 0, 1, 36, 64, 99, 101, 128, 164, -100, 100.5, NaN]) {
+		it(`never infers swallowing from coordinates (AddonData=${addonData})`, () => {
+			expect(voice({ state: { ...state, nosLocalMicPosition: { x: 1000, y: 1000 } },
+				other: { ...swallowed, nosPlayer: makeNosPlayer({
+					speakerPositionX: 1000, speakerPositionY: 1000, addonData,
+				}) } }).gain).toBe(1);
+		});
+	}
+
+	it('takes effect and clears immediately for 0 -> 100 -> 0', () => {
+		for (const addonData of [0, 100, 0]) {
+			const other = { ...swallowed, nosPlayer: makeNosPlayer({ addonData }) };
+			expect(voice({ other }).gain).toBe(1);
+			const quiet = voice({ other,
+				activeLobbySettings: makeLobbySettings({ nosGluttonySwallowVoice: 'quiet' }) });
+			expect(quiet.gain).toBe(addonData === 100 ? 0.1 : 1);
+		}
+	});
+
+	it('does not apply Gluttony mute or quiet to another role using the same coordinates and radio', () => {
+		const other = { ...swallowed, isImpostor: true,
+			nosPlayer: makeNosPlayer({ speakerPositionX: 1000, speakerPositionY: 1000, addonData: 0 }) };
+		for (const nosGluttonySwallowVoice of ['mute', 'quiet'] as const) {
+			expect(voice({ other, impostorRadioClientId: 2, nosImpostorRadioHearable: true,
+				activeLobbySettings: makeLobbySettings({ impostorRadioEnabled: true, nosGluttonySwallowVoice }) }).gain).toBe(1);
+		}
+	});
 
 	it('defaults to mute with old and new lobby payloads, whether NoS positions are enabled or not', () => {
 		expect(voice().gain).toBe(0);
@@ -154,29 +210,28 @@ describe('NoS UchuAddon Gluttony swallow voice', () => {
 		} }).gain).toBe(0);
 	});
 
-	it('makes swallowed speech quiet and muffled, including with NoS positions enabled', () => {
+	it('quiet mode cannot bypass the published NoS hidden position', () => {
 		for (const nosVoicePositions of [false, true]) {
 			const result = voice({ activeLobbySettings: makeLobbySettings({
 				nosVoicePositions, nosGluttonySwallowVoice: 'quiet',
 			}) });
-			expect(result.gain).toBe(0.1);
-			expect(result.muffle).toEqual({ type: 'lowpass', frequency: 450, q: Math.SQRT1_2 });
+			expect(result.gain).toBe(0);
 		}
 	});
 
-	it('allows normal nearby speech even when the NoS speaker position is a swallow sentinel', () => {
+	it('normal mode cannot bypass the published NoS hidden position', () => {
 		for (const nosVoicePositions of [false, true]) {
 			expect(voice({ activeLobbySettings: makeLobbySettings({
 				nosVoicePositions, nosGluttonySwallowVoice: 'normal',
-			}) }).gain).toBe(1);
+			}) }).gain).toBe(0);
 		}
 	});
 
 	it('only applies to living swallowed players during NoS tasks with UchuAddon', () => {
 		expect(voice({ other: { ...swallowed, nosPlayer: makeNosPlayer() } }).gain).toBe(1);
-		expect(voice({ state: { ...state, nosAddonIds: [] } }).gain).toBe(1);
+		expect(voice({ state: { ...state, nosAddonIds: [] } }).gain).toBe(0);
 		expect(voice({ state: { ...state, gameState: GameState.DISCUSSION } }).gain).toBe(1);
-		expect(voice({ other: { ...swallowed, isDead: true },
+		expect(voice({ other: { ...swallowed, isDead: true, nosPlayer: makeNosPlayer({ speakerPositionX: 1 }) },
 			me: makePlayer({ id: 1, clientId: 1, isDead: true }) }).gain).toBe(1);
 	});
 
@@ -186,9 +241,7 @@ describe('NoS UchuAddon Gluttony swallow voice', () => {
 		expect(voice({ state: megaphoneState }).gain).toBe(0);
 		const megaphoneQuiet = voice({ state: megaphoneState,
 			activeLobbySettings: makeLobbySettings({ nosGluttonySwallowVoice: 'quiet' }) });
-		expect(megaphoneQuiet.gain).toBeGreaterThan(0);
-		expect(megaphoneQuiet.gain).toBeLessThanOrEqual(0.1);
-		expect(megaphoneQuiet.muffle).toEqual({ type: 'lowpass', frequency: 450, q: Math.SQRT1_2 });
+		expect(megaphoneQuiet.gain).toBe(0);
 
 		const radio = { other: { ...swallowed, isImpostor: true }, impostorRadioClientId: 2,
 			nosImpostorRadioHearable: true };
@@ -221,9 +274,9 @@ describe('NoS Rokurokubi head positions', () => {
 		expect(result.panPosition).toEqual([1, 0]);
 	});
 	for (const enabled of [false, true]) {
-		it(`uses the selected mobile guest's own head, not the host microphone (general=${enabled})`, () => {
+		it(`uses the selected mobile guest's own position, not the host microphone (legacy=${enabled})`, () => {
 			const result = run({ state: makeState({ mod: 'NoS', nosLocalMicPosition: { x: 999, y: 999 } }),
-				me: makePlayer({ isLocal: false, nosRole: role, nosPlayer: makeNosPlayer({ speakerPositionX: 20 }) }),
+				me: makePlayer({ isLocal: false, nosPlayer: makeNosPlayer({ speakerPositionX: 20 }) }),
 				other: makePlayer({ x: 21, nosPlayer: makeNosPlayer({ speakerPositionX: 21 }) }),
 				activeLobbySettings: makeLobbySettings({ nosVoicePositions: enabled }) });
 			expect(result.gain).toBeGreaterThan(0);
@@ -236,9 +289,15 @@ describe('NoS Rokurokubi head positions', () => {
 			activeLobbySettings: makeLobbySettings({ nosVoicePositions: true }) });
 		expect(result.panPosition).toEqual([1, 0]);
 	});
-	it('keeps ordinary body positions when the option is off', () => {
-		expect(run({ state, other: makePlayer({ x: 21 }) }).gain).toBe(0);
-	});
+	for (const enabled of [false, true]) {
+		it(`uses ordinary NoS microphone and speaker positions (legacy=${enabled})`, () => {
+			const result = run({ state,
+				other: makePlayer({ x: 80, nosPlayer: makeNosPlayer({ speakerPositionX: 21 }) }),
+				activeLobbySettings: makeLobbySettings({ nosVoicePositions: enabled }) });
+			expect(result.gain).toBe(1);
+			expect(result.panPosition).toEqual([1, 0]);
+		});
+	}
 	for (const invalid of [NaN, Infinity, -Infinity]) {
 		it(`falls back to body coordinates for invalid head endpoints (${invalid})`, () => {
 			const result = run({ state: makeState({ mod: 'NoS', nosLocalMicPosition: { x: invalid, y: 0 } }),

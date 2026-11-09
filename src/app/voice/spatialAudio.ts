@@ -45,9 +45,9 @@ function distance(panPos: [number, number]): number {
 	return Math.sqrt(panPos[0] * panPos[0] + panPos[1] * panPos[1]);
 }
 
-function hasGluttonySwallowPosition(state: AmongUsState, player: Player): boolean {
+function isGluttonySwallowed(state: AmongUsState, player: Player): boolean {
 	return state.mod === 'NoS' && state.nosAddonIds?.includes('UchuAddon') === true &&
-		player.nosPlayer?.speakerPositionX === 1000 && player.nosPlayer.speakerPositionY === 1000;
+		player.nosPlayer?.addonData === 100;
 }
 
 function applyGluttonySwallowVoice(
@@ -70,13 +70,8 @@ function fallingVoicePlayer(state: AmongUsState, player: Player): Player {
 	return isFalling(state, player) ? { ...player, ...player.snrPushOrigin, isDead: false } : player;
 }
 
-function followsRokuroPosition(state: AmongUsState, player: Player): boolean {
-	return state.mod === 'NoS' && state.gameState === GameState.TASKS && !player.isDead && !player.disconnected &&
-		(player.nosRole?.roleName === 'rokurokubi' || player.nosPlayer?.bodyType === 3);
-}
-
-function nosVoicePlayer(state: AmongUsState, player: Player, enabled: boolean, local: boolean): Player {
-	if (!enabled && !followsRokuroPosition(state, player)) return player;
+function nosVoicePlayer(state: AmongUsState, player: Player, local: boolean): Player {
+	if (state.mod !== 'NoS') return player;
 	// The published global microphone belongs to the PC host, not a selected mobile guest.
 	const x = local && player.isLocal ? state.nosLocalMicPosition?.x : player.nosPlayer?.speakerPositionX;
 	const y = local && player.isLocal ? state.nosLocalMicPosition?.y : player.nosPlayer?.speakerPositionY;
@@ -115,17 +110,15 @@ function cameraPanPosition(state: AmongUsState, other: Player): [number, number]
 
 export function calculateVoiceAudio(input: VoiceAudioInput): VoiceAudioResult {
 	const { state, settings, activeLobbySettings, impostorRadioClientId } = input;
-	const useNosPositions = state.mod === 'NoS' && activeLobbySettings.nosVoicePositions === true;
 	const localPlayer = fallingVoicePlayer(state, withImpostorClassification(state.mod, input.me));
 	const remotePlayer = fallingVoicePlayer(state, withImpostorClassification(state.mod, input.other));
-	const swallowedPosition = hasGluttonySwallowPosition(state, remotePlayer);
+	const swallowed = isGluttonySwallowed(state, remotePlayer);
 	const swallowVoiceMode: NosGluttonySwallowVoice =
-		swallowedPosition && state.gameState === GameState.TASKS && !remotePlayer.isDead
+		swallowed && state.gameState === GameState.TASKS && !remotePlayer.isDead
 			? (activeLobbySettings.nosGluttonySwallowVoice ?? 'mute') : 'normal';
-	const me = nosVoicePlayer(state, localPlayer, useNosPositions, true);
-	// The 1000/1000 sentinel identifies the swallow state; it is not a real speaker location.
-	const other = input.rokuroBodyOrigin || swallowedPosition
-		? remotePlayer : nosVoicePlayer(state, remotePlayer, useNosPositions, false);
+	const me = nosVoicePlayer(state, localPlayer, true);
+	const other = input.rokuroBodyOrigin
+		? remotePlayer : nosVoicePlayer(state, remotePlayer, false);
 
 	const extraRange = me.isDead ? 0 : portableMegaphoneExtraRange(state, other);
 	const maxDistance = input.maxDistance + extraRange;
@@ -147,7 +140,9 @@ export function calculateVoiceAudio(input: VoiceAudioInput): VoiceAudioResult {
 	) {
 		return result;
 	}
-	if (swallowVoiceMode === 'mute') return result;
+	// NoS keeps the victim audible to its swallower and hides it from other listeners.
+	// Preserve that range even for radio/megaphone; never blanket-mute the swallower.
+	if (swallowVoiceMode === 'mute' && distance([other.x - me.x, other.y - me.y]) > maxDistance) return result;
 	if (
 		state.gameState === GameState.TASKS &&
 		me.isImpostor &&
