@@ -14,6 +14,8 @@ import type { TohRole, TohRoleDefinition } from './TohRole';
 // See scripts/check-schema-drift.mjs for the field-coverage check against desktop.
 
 export interface AmongUsState {
+	nosParrots?: import('./ParrotState').ParrotState[];
+	nosWallEars?: import('./WallEarState').WallEarState[];
 	nosLimitSpeechMuted?: number[];
 	nosVoiceJamming?: import('./VoiceJammingState').VoiceJammingState[];
 	nosHeroTransforms?: import('./HeroTransformState').HeroTransformState[];

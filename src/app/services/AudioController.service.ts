@@ -3,6 +3,7 @@ import { setEffectGain } from '../voice/effectGain';
 import { createVoicePeakGuard } from '../voice/voicePeakGuard';
 import { applyVoiceJamming } from '../common/VoiceJammingState';
 import { hasTanukiAddon } from '../common/tanukiAddon';
+import { createParrotRecording } from '../voice/parrotRecording';
 import { createInterviewerRecording } from '../voice/interviewerRecording';
 import { createDyingVoiceRecording, inDyingVoiceRange } from '../voice/dyingVoiceRecording';
 import { EventEmitter as EventEmitterO } from 'events';
@@ -60,6 +61,8 @@ export default class AudioController {
 	private peers = new Map<string, PeerAudioNodes>();
 	// Input chain (desktop's createInputChain): raw mic stream -> optional microphoneGain ->
 	// optional processed MediaStreamDestination. `stream` above is the last stage's output.
+	private parrotCommsBlocked = false;
+	private parrots?: ReturnType<typeof createParrotRecording>;
 	private interviewer?: ReturnType<typeof createInterviewerRecording>;
 	private interviewMic?: { stream: MediaStream; source: MediaStreamAudioSourceNode };
 	private interviewMuted = new Set<string>();
@@ -258,7 +261,10 @@ export default class AudioController {
 	changeMuteState(microphoneMuted: boolean, audioMuted: boolean) {
 		this.microphoneMuted = microphoneMuted;
 		this.audioMuted = audioMuted;
-		if (audioMuted) this.interviewer?.silence();
+		if (audioMuted) {
+			this.interviewer?.silence();
+			this.parrots?.silence();
+		}
 
 		if (this.audioMuted) {
 			this.silenceAllPeers();
@@ -336,6 +342,7 @@ export default class AudioController {
 	}
 
 	removePeer(peerId: string): void {
+		this.parrots?.removeInput(peerId);
 		this.interviewer?.removeInput(peerId);
 		this.interviewMuted.delete(peerId);
 		const peer = this.peers.get(peerId);
@@ -369,6 +376,8 @@ export default class AudioController {
 	}
 
 	silenceAllPeers(clearRecordings = false): void {
+		if (clearRecordings) this.parrots?.clear();
+		else this.parrots?.silence();
 		if (clearRecordings) this.interviewer?.clear();
 		else this.interviewer?.silence();
 		for (const [peerId, peer] of this.peers) {
@@ -389,11 +398,16 @@ export default class AudioController {
 	}
 
 	setDyingVoicePlaybackVolume(peerId: string, volume: number): void {
+		this.parrots?.setVolume(peerId, volume);
 		if (volume > 0) this.interviewMuted.delete(peerId);
 		else this.interviewMuted.add(peerId);
 		this.peers.get(peerId)?.dyingVoiceRecording?.setVolume(volume);
 		const echo = this.peers.get(peerId)?.bibiriEcho;
 		if (echo && volume <= 0) stopBibiriEcho(echo);
+	}
+
+	isCloneTalking(id: number): boolean {
+		return this.parrots?.isCloneTalking(id) ?? false;
 	}
 
 	private updateInterviewer(state: AmongUsState): void {
@@ -403,6 +417,19 @@ export default class AudioController {
 				this.interviewMic?.source.disconnect();
 				this.interviewMic = { stream: this.stream, source: this.context.createMediaStreamSource(this.stream) };
 			}
+			if (state.nosParrots?.length)
+				this.parrots?.setInput(
+					'local',
+					this.interviewMic.source,
+					local.id,
+					() =>
+						!this.parrotCommsBlocked &&
+						!this.microphoneMuted &&
+						!this.audioMuted &&
+						!this.jammed &&
+						!this.radioTransmitting &&
+						!!this.stream?.getAudioTracks()[0]?.enabled
+				);
 			this.interviewer?.setInput(
 				'local',
 				this.interviewMic.source,
@@ -410,6 +437,13 @@ export default class AudioController {
 				() => !this.microphoneMuted && !this.audioMuted && !this.jammed && !!this.stream?.getAudioTracks()[0]?.enabled
 			);
 		}
+		this.parrots?.update(
+			state.nosParrots ?? [],
+			state,
+			local,
+			this.audioMuted || this.parrotCommsBlocked ? 0 : this.settingsService.get().masterVolume / 100,
+			state.nosVoiceFrameTime ?? NaN
+		);
 		this.interviewer?.update(
 			state.nosInterviews ?? [],
 			state.mod === 'NoS' && (state.gameState === GameState.TASKS || state.gameState === GameState.DISCUSSION),
@@ -456,10 +490,24 @@ export default class AudioController {
 		nosJackalRadioHearable?: boolean,
 		nosImpostorRadioHearable?: boolean
 	): number | null {
+		this.parrotCommsBlocked = activeLobbySettings.commsSabotage && state.comsSabotaged && !me.isImpostor;
+		if (this.parrotCommsBlocked) this.parrots?.silence();
 		const peer = this.peers.get(peerId);
 		const destination = this.masterGain;
 		if (!peer || !destination) return null;
 		if (hasTanukiAddon(state)) {
+		if (state.nosParrots?.length)
+			this.parrots?.setInput(
+				peerId,
+				peer.source,
+				other.id,
+				() =>
+					!this.parrotCommsBlocked &&
+					!this.audioMuted &&
+					!other.disconnected &&
+					!this.interviewMuted.has(peerId) &&
+					!(impostorRadioClientIds ?? [impostorRadioClientId]).includes(other.clientId)
+			);
 			this.interviewer?.setInput(
 				peerId,
 				peer.source,
@@ -488,6 +536,7 @@ export default class AudioController {
 			updateBibiriEcho(
 				peer.bibiriEcho,
 				state.mod === 'NoS' &&
+					(settings.nosBibiriEchoStrength ?? 100) > 0 &&
 					!other.disconnected &&
 					!this.audioMuted &&
 					(state.gameState === GameState.TASKS || state.gameState === GameState.DISCUSSION),
@@ -616,6 +665,7 @@ export default class AudioController {
 			destination = this.masterGain;
 		if (!context || !destination) return;
 		this.interviewer ??= createInterviewerRecording(context, destination);
+		this.parrots ??= createParrotRecording(context, destination);
 		const inputSource = this.inputSource;
 		if (inputSource && !this.voiceRoleAnalyser) {
 			const analyser = context.createAnalyser();
@@ -654,6 +704,8 @@ export default class AudioController {
 	}
 
 	private stopTanukiAddon(): void {
+		this.parrots?.disconnect();
+		this.parrots = undefined;
 		if (this.voiceRoleTimer !== undefined) clearInterval(this.voiceRoleTimer);
 		this.voiceRoleTimer = undefined;
 		if (this.voiceRoleAnalyser) this.inputSource?.disconnect(this.voiceRoleAnalyser);
@@ -685,6 +737,7 @@ export default class AudioController {
 		this.audioListener?.destroy();
 		this.audioListener = undefined;
 
+		this.parrots?.removeInput('local');
 		this.interviewer?.removeInput('local');
 		this.interviewMic?.source.disconnect();
 		this.interviewMic = undefined;

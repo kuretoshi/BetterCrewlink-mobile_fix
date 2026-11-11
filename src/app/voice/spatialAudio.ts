@@ -1,3 +1,4 @@
+import { wallEarFor } from '../common/WallEarState';
 import { AmongUsState, GameState, Player } from '../common/AmongUsState';
 import { ISettings, ILobbySettings, NosGluttonySwallowVoice } from '../common/ISettings';
 import { AmongUsMaps, CameraLocation } from '../common/AmongusMap';
@@ -62,8 +63,14 @@ function applyGluttonySwallowVoice(
 }
 
 function isFalling(state: AmongUsState, player: Player): boolean {
-	return state.mod === 'SUPER_NEW_ROLES' && state.gameState === GameState.TASKS &&
-		player.snrPushedFalling === true && player.isDead && !player.disconnected && !player.isDummy;
+	return (
+		state.mod === 'SUPER_NEW_ROLES' &&
+		state.gameState === GameState.TASKS &&
+		player.snrPushedFalling === true &&
+		player.isDead &&
+		!player.disconnected &&
+		!player.isDummy
+	);
 }
 
 function fallingVoicePlayer(state: AmongUsState, player: Player): Player {
@@ -116,16 +123,17 @@ export function calculateVoiceAudio(input: VoiceAudioInput): VoiceAudioResult {
 	const swallowVoiceMode: NosGluttonySwallowVoice =
 		swallowed && state.gameState === GameState.TASKS && !remotePlayer.isDead
 			? (activeLobbySettings.nosGluttonySwallowVoice ?? 'mute') : 'normal';
-	const me = nosVoicePlayer(state, localPlayer, true);
+	const ear = wallEarFor(state, input.me);
+	const me = ear ? { ...localPlayer, x: ear.x, y: ear.y } : nosVoicePlayer(state, localPlayer, true);
 	const other = input.rokuroBodyOrigin
 		? remotePlayer : nosVoicePlayer(state, remotePlayer, false);
 
-	const extraRange = me.isDead ? 0 : portableMegaphoneExtraRange(state, other);
-	const maxDistance = input.maxDistance + extraRange;
+	const extraRange = me.isDead || ear ? 0 : portableMegaphoneExtraRange(state, other);
+	const maxDistance = ear?.range ?? input.maxDistance + extraRange;
 	const result: VoiceAudioResult = {
 		gain: 0,
 		panPosition: null,
-		panMaxDistance: extraRange > 0 ? maxDistance : null,
+		panMaxDistance: ear || extraRange > 0 ? maxDistance : null,
 		muffle: null,
 		reverb: null,
 		radioEcho: false,
@@ -156,7 +164,7 @@ export function calculateVoiceAudio(input: VoiceAudioInput): VoiceAudioResult {
 
 	let panPos: [number, number] = [other.x - me.x, other.y - me.y];
 	const megaphone = chargingMegaphone(state, other);
-	if (megaphone && !me.isDead && !activeLobbySettings.deadOnly) {
+	if (megaphone && !ear && !me.isDead && !activeLobbySettings.deadOnly) {
 		const commsBlocked = activeLobbySettings.commsSabotage && state.comsSabotaged && !me.isImpostor;
 		const jammedLowpass =
 			activeLobbySettings.nosFixerJammingLowpass === true &&
@@ -263,7 +271,7 @@ export function calculateVoiceAudio(input: VoiceAudioInput): VoiceAudioResult {
 			) {
 				endGain = 0;
 			}
-			wallCheckEnabled = activeLobbySettings.wallsBlockAudio && !me.isDead;
+			wallCheckEnabled = activeLobbySettings.wallsBlockAudio && !me.isDead && !ear;
 			if (otherUsingRadio && !canHearRadio) {
 				endGain = 0;
 			} else if (canHearRadio) {
@@ -334,7 +342,7 @@ export function calculateVoiceAudio(input: VoiceAudioInput): VoiceAudioResult {
 
 	let isOnCamera = state.currentCamera !== CameraLocation.NONE;
 	if (!skipDistanceCheck && distance(panPos) > maxDistance) {
-		if (!activeLobbySettings.hearThroughCameras || state.gameState !== GameState.TASKS) {
+		if (ear || !activeLobbySettings.hearThroughCameras || state.gameState !== GameState.TASKS) {
 			return result;
 		}
 

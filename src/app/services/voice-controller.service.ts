@@ -90,6 +90,7 @@ export function playerSettingsKey(player: Player): number {
 	providedIn: 'root',
 })
 export class VoiceController {
+	private cloneDisplay = new Map<number, boolean>();
 	private playerStates = new Map<number, VoicePlayerState>();
 	private impostorRadioClientId = -1;
 	private impostorRadioClientIds: number[] = [];
@@ -154,12 +155,17 @@ export class VoiceController {
 	}
 
 	public isTalking(clientId: number): boolean {
-		return this.playerStates.get(clientId)?.talking ?? false;
+		const player = this.connectionController.currentGameState?.players?.find((p) => p.clientId === clientId);
+		return (
+			(this.playerStates.get(clientId)?.talking ?? false) ||
+			(!!player && this.connectionController.audioController.isCloneTalking(player.id))
+		);
 	}
 
 	/** Resets impostor-radio state; call on disconnect. */
 	public reset(): void {
 		this.playerStates.clear();
+		this.cloneDisplay.clear();
 		this.impostorRadioClientId = -1;
 		this.impostorRadioClientIds = [];
 		this.impostorRadioPressed = false;
@@ -435,6 +441,19 @@ export class VoiceController {
 			playerState.audible = endGain > 0;
 		}
 		audioController.silencePeersExcept(handledPeerIds);
+		this.updateCloneDisplay(state);
+	}
+
+	private updateCloneDisplay(state: AmongUsState): void {
+		const next = new Map<number, boolean>();
+		for (const player of state.players)
+			next.set(player.clientId, this.connectionController.audioController.isCloneTalking(player.id));
+		const ids = new Set([...this.cloneDisplay.keys(), ...next.keys()]);
+		for (const id of ids) {
+			if (!!this.cloneDisplay.get(id) !== !!next.get(id))
+				this.connectionController.audioController.events.emit('clone_talk', id);
+		}
+		this.cloneDisplay = next;
 	}
 
 	/**
@@ -460,8 +479,8 @@ export class VoiceController {
 					player,
 					settings: playerState.settings,
 					isDead: playerState.isDead,
-					talking: playerState.talking,
-					audible: playerState.audible,
+					talking: playerState.talking || this.connectionController.audioController.isCloneTalking(player.id),
+					audible: playerState.audible || this.connectionController.audioController.isCloneTalking(player.id),
 					connectionState: this.getPlayerConnectionState(player.clientId, playerSocketIds),
 				};
 			})
@@ -668,7 +687,12 @@ export class VoiceController {
 				.filter((peerId): peerId is string => Boolean(peerId));
 			this.connectionController.sendToPeers(
 				targets,
-				JSON.stringify({ type: 'app-version', lobbyCode: state.lobbyCode, version: environment.desktopCompatVersion, platform: this.settingsService.IsMobile ? 'mobile' : 'web' })
+				JSON.stringify({
+					type: 'app-version',
+					lobbyCode: state.lobbyCode,
+					version: environment.desktopCompatVersion,
+					platform: this.settingsService.IsMobile ? 'mobile' : 'web',
+				})
 			);
 			this.versionSentAt = Date.now();
 		}

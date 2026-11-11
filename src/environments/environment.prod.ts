@@ -1,5 +1,5 @@
 export const environment = {
 	production: true,
-	appVersion: '3.59',
-	desktopCompatVersion: '3.2.63',
+	appVersion: '3.60',
+	desktopCompatVersion: '3.2.64',
 };

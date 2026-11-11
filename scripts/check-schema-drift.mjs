@@ -166,7 +166,8 @@ function checkObjectDeepEqual(label, desktopBlockText, mobileBlockText, allowedE
 		mergedInterfaceFields(desktopSrc, 'AmongUsState'),
 		mergedInterfaceFields(mobileSrc, 'AmongUsState'),
 		// Pending NoS addon support, newer than the pinned desktop baseline.
-		['mushroomMixupSabotaged', 'nosMegaphones', 'nosPortableMegaphones', 'nosBibiriEchoes', 'nosVoiceFrameTime', 'nosDyingVoices', 'nosInterviews', 'nosVoiceJamming', 'nosHeroTransforms']
+		['mushroomMixupSabotaged', 'nosMegaphones', 'nosPortableMegaphones', 'nosBibiriEchoes', 'nosVoiceFrameTime', 'nosDyingVoices', 'nosInterviews', 'nosVoiceJamming',
+			'nosParrots', 'nosWallEars', 'nosLimitSpeechMuted', 'nosHeroTransforms']
 	);
 
 	// --- Player (mobile may add its own `isbetter` flag; nothing else) ---

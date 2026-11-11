@@ -12,7 +12,7 @@ globalThis.WebSocket = WebSocket;
 const directory = await mkdtemp(join(tmpdir(), 'tanuki-direct-web-'));
 const child = spawn(
 	'dotnet',
-	['run', '--project', resolve('../TanukiBCL-NoS-Addon/tests/GateTests.csproj'), '--', '--direct-test-server'],
+	['run', '--project', resolve(process.env.TANUKI_ADDON_TEST_PROJECT ?? '../TanukiBCL-NoS-Addon/tests/GateTests.csproj'), '--no-restore', '--', '--direct-test-server'],
 	{ stdio: ['pipe', 'pipe', 'pipe'] }
 );
 let client, interval;

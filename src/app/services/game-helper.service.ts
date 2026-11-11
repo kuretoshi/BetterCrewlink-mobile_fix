@@ -1,7 +1,8 @@
 import { Capacitor } from '@capacitor/core';
 import { Injectable } from '@angular/core';
 import { IDeviceInfo } from './smallInterfaces';
-import { AndroidPermissions } from '@awesome-cordova-plugins/android-permissions/ngx';import { Platform } from '@ionic/angular';
+import { AndroidPermissions } from '@awesome-cordova-plugins/android-permissions/ngx';
+import { Platform } from '@ionic/angular';
 import { ConnectingStage, ConnectionController, ConnectionState } from './ConnectionController.service';
 import { AmongUsState } from '../common/AmongUsState';
 import { VoiceController } from './voice-controller.service';
@@ -55,12 +56,15 @@ export function connectionStageLabel(
 }
 
 export function selectMicrophone(devices: IDeviceInfo[], stored: IDeviceInfo | undefined): IDeviceInfo {
-	return devices.find((device) => device.id === stored?.id) ?? devices[0] ?? {
-		id: 0,
-		label: 'default',
-		deviceId: 'default',
-		kind: 'audioinput',
-	};
+	return (
+		devices.find((device) => device.id === stored?.id) ??
+		devices[0] ?? {
+			id: 0,
+			label: 'default',
+			deviceId: 'default',
+			kind: 'audioinput',
+		}
+	);
 }
 
 @Injectable({
@@ -80,7 +84,9 @@ export class GameHelperService {
 	audioMuted = () => this.cManager.audioController.audioMuted ?? false;
 	microphoneMuted = () =>
 		(this.cManager.audioController.microphoneMuted || this.cManager.audioController.audioMuted) ?? false;
-	localTalking = () => this.cManager?.audioController?.localTalking ?? false;
+	localTalking = () =>
+		(this.cManager?.audioController?.localTalking ?? false) ||
+		(!!this.cManager?.localPLayer && this.cManager.audioController.isCloneTalking(this.cManager.localPLayer.id));
 	constructor(
 		private androidPermissions: AndroidPermissions,
 		public platform: Platform,
@@ -331,7 +337,7 @@ export class GameHelperService {
 			switch (info.action) {
 				case 'REFRESH': {
 					this.reconnect();
-					break; 
+					break;
 				}
 				case 'MUTEAUDIO': {
 					this.muteAudio();
@@ -368,6 +374,17 @@ export class GameHelperService {
 				},
 				talking ? 0 : 2000
 			);
+		});
+
+		this.cManager.audioController.events.on('clone_talk', (clientId: number) => {
+			if (!this.IsMobile) return;
+			const player = this.cManager.getPlayer(clientId);
+			if (!player) return;
+			const talking =
+				player.clientId === this.cManager.localPLayer?.clientId
+					? this.localTalking()
+					: this.voiceController.isTalking(clientId);
+			BetterCrewlinkNativeService.showTalking({ color: player.colorId, talking });
 		});
 
 		this.cManager.audioController.events.on('local_talk', async (talking: boolean) => {
@@ -424,10 +441,7 @@ export class GameHelperService {
 		const devices = await this.cManager.audioController.getDevices();
 		this.microphones = devices.filter((device) => device.kind === 'audioinput');
 		this.speakers = devices.filter((device) => device.kind === 'audiooutput');
-		this.settings.get().selectedMicrophone = selectMicrophone(
-			this.microphones,
-			this.settings.get().selectedMicrophone
-		);
+		this.settings.get().selectedMicrophone = selectMicrophone(this.microphones, this.settings.get().selectedMicrophone);
 		this.updateViews();
 	}
 }
