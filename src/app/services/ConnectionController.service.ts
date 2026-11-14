@@ -15,6 +15,8 @@ import { environment } from '../../environments/environment';
 import { nosCosmeticAssets } from '../lib/nosCosmeticAssets';
 import { HostVoiceClient } from './host-voice-client';
 import { DiagnosticsService } from './diagnostics.service';
+import { SocketHeartbeat } from './socket-heartbeat';
+import { SignalingRecovery } from './signaling-recovery';
 
 // Ported from bettercrewlink (desktop) v3.2.1 src/renderer/voice/ConnectionController.ts.
 const ICE_DISCONNECT_TIMEOUT_MS = 12000;
@@ -429,6 +431,16 @@ export class ConnectionController implements IConnectionController {
 		this.socketIOClient = io(serverUrl, {
 			transports: ['websocket'],
 		});
+		let heartbeat = new SocketHeartbeat();
+		const recovery = new SignalingRecovery();
+		let transport = 'websocket';
+		// Manager emits open for every reconnect, each with a new Engine.IO instance.
+		this.socketIOClient.io.on('open', () => {
+			heartbeat = new SocketHeartbeat();
+			const engine = this.socketIOClient.io.engine;
+			transport = engine.transport.name;
+			engine.on('packet', (packet) => heartbeat.packet(packet.type));
+		});
 
 		this.socketIOClient.on('error', (error: string) => {
 			console.log('[client.error', error);
@@ -448,7 +460,13 @@ export class ConnectionController implements IConnectionController {
 		this.socketIOClient.on('connect_error', () => this.diagnostics.record('server-connect-error'));
 		this.socketIOClient.on('disconnect', (reason) => {
 			this.diagnostics.record('server-disconnected', { reason, stage: this.connectingStage, state: this.connectionState,
-				lastHostFrameAgeMs: this.lastPing < 0 ? -1 : Date.now() - this.lastPing });
+				transport, lastHostFrameAgeMs: this.lastPing < 0 ? -1 : Date.now() - this.lastPing, ...heartbeat.snapshot() });
+			// Official service supports polling. Custom servers may intentionally disable it.
+			if (this.isOfficialVoiceServer(serverUrl) && recovery.usePolling(reason, transport)) {
+				this.socketIOClient.io.opts.transports = ['polling'];
+				this.socketIOClient.io.opts.upgrade = false;
+				this.diagnostics.record('server-transport-fallback', { transport: 'polling' });
+			}
 			console.log('[client.disconnect]');
 			this.destroyAllPeers();
 			this.setClients({});
@@ -495,6 +513,12 @@ export class ConnectionController implements IConnectionController {
 		this.socketIOClient.on('signal', (payload: { data: Record<string, unknown>; from: string; client?: Client }) => {
 			this.handleSignal(payload);
 		});
+	}
+
+	private isOfficialVoiceServer(serverUrl: string): boolean {
+		try {
+			return new URL(serverUrl).origin === 'https://bettercrewl.ink';
+		} catch { return false; }
 	}
 
 	private handleSignal({ data, from, client }: { data: Record<string, unknown>; from: string; client?: Client }): void {
