@@ -15,6 +15,7 @@ import type { TohRole, TohRoleDefinition } from './TohRole';
 
 export interface AmongUsState {
 	nosParrots?: import('./ParrotState').ParrotState[];
+	nosBitCharacters?: import('./BitCharacterState').BitCharacterState[];
 	nosWallEars?: import('./WallEarState').WallEarState[];
 	nosLimitSpeechMuted?: number[];
 	nosVoiceJamming?: import('./VoiceJammingState').VoiceJammingState[];

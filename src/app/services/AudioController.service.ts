@@ -3,6 +3,8 @@ import { setEffectGain } from '../voice/effectGain';
 import { createVoicePeakGuard } from '../voice/voicePeakGuard';
 import { applyVoiceJamming } from '../common/VoiceJammingState';
 import { hasTanukiAddon } from '../common/tanukiAddon';
+import { bitCharacterStage } from '../common/BitCharacterState';
+import { syncBitVoice } from '../voice/bitVoiceEffect';
 import { createParrotRecording } from '../voice/parrotRecording';
 import { createInterviewerRecording } from '../voice/interviewerRecording';
 import { createDyingVoiceRecording, inDyingVoiceRange } from '../voice/dyingVoiceRecording';
@@ -20,10 +22,7 @@ import VAD from './vad';
 import { voiceRoleLevel } from './voice-role-level';
 import { selectVoiceEffect, shouldApplyRainbowStarEcho } from '../voice/voiceEffectRules';
 import { createTunedVoiceEffect } from '../voice/tunedVoiceEffect';
-import {
-	prepareSourceFilter,
-	disconnectProcessingEffect,
-} from '../voice/sourceFilterEffect';
+import { prepareSourceFilter, disconnectProcessingEffect } from '../voice/sourceFilterEffect';
 
 import { createBibiriEcho, updateBibiriEcho, stopBibiriEcho, disconnectBibiriEcho } from '../voice/bibiriEcho';
 
@@ -348,6 +347,7 @@ export default class AudioController {
 		const peer = this.peers.get(peerId);
 		if (!peer) return;
 		this.peers.delete(peerId);
+		peer.bitVoice?.disconnect();
 		peer.dyingVoiceRecording?.disconnect();
 
 		this.teardownAudioElement(peer.dummyAudioElement);
@@ -496,18 +496,18 @@ export default class AudioController {
 		const destination = this.masterGain;
 		if (!peer || !destination) return null;
 		if (hasTanukiAddon(state)) {
-		if (state.nosParrots?.length)
-			this.parrots?.setInput(
-				peerId,
-				peer.source,
-				other.id,
-				() =>
-					!this.parrotCommsBlocked &&
-					!this.audioMuted &&
-					!other.disconnected &&
-					!this.interviewMuted.has(peerId) &&
-					!(impostorRadioClientIds ?? [impostorRadioClientId]).includes(other.clientId)
-			);
+			if (state.nosParrots?.length)
+				this.parrots?.setInput(
+					peerId,
+					peer.source,
+					other.id,
+					() =>
+						!this.parrotCommsBlocked &&
+						!this.audioMuted &&
+						!other.disconnected &&
+						!this.interviewMuted.has(peerId) &&
+						!(impostorRadioClientIds ?? [impostorRadioClientId]).includes(other.clientId)
+				);
 			this.interviewer?.setInput(
 				peerId,
 				peer.source,
@@ -565,14 +565,24 @@ export default class AudioController {
 
 		pan.maxDistance = result.panMaxDistance ?? this.maxDistance;
 		applyVoiceJamming(state, other.id, result);
+		const playbackSource = syncBitVoice(peer, bitCharacterStage(state, other));
 		const rokuro = !this.audioMuted ? calculateRokuroVoice(voiceInput) : undefined;
 		if (rokuro && this.context) {
-			if (!peer.rokuroVoice) { peer.rokuroVoice = createRokuroVoice(this.context, peer.source, destination); peer.rokuroDestinationChanged = true; }
+			if (!peer.rokuroVoice) {
+				peer.rokuroVoice = createRokuroVoice(this.context, playbackSource, destination);
+				peer.rokuroDestinationChanged = true;
+			}
 		} else if (peer.rokuroVoice) {
-			peer.rokuroVoice.disconnect(); peer.rokuroVoice = undefined; peer.rokuroDestinationChanged = true;
+			peer.rokuroVoice.disconnect();
+			peer.rokuroVoice = undefined;
+			peer.rokuroDestinationChanged = true;
 		}
-		if (state.mod === 'NoS' && (state.gameState === GameState.TASKS || state.gameState === GameState.DISCUSSION) &&
-			state.nosLimitSpeechMuted?.includes(other.id)) result.gain = 0;
+		if (
+			state.mod === 'NoS' &&
+			(state.gameState === GameState.TASKS || state.gameState === GameState.DISCUSSION) &&
+			state.nosLimitSpeechMuted?.includes(other.id)
+		)
+			result.gain = 0;
 
 		if (result.muffle) {
 			muffle.type = result.muffle.type;
@@ -640,7 +650,14 @@ export default class AudioController {
 			disconnectProcessingEffect(peer.voiceEffect);
 			peer.voiceEffect = undefined;
 		}
-		rebuildEffectChain(peer, peer.rokuroVoice?.mix ?? destination, wantReverb, wantMuffle, wantRadioEcho, wantProcessing);
+		rebuildEffectChain(
+			peer,
+			peer.rokuroVoice?.mix ?? destination,
+			wantReverb,
+			wantMuffle,
+			wantRadioEcho,
+			wantProcessing
+		);
 		peer.roleReverbConnected = roleReverb && peer.reverbConnected;
 
 		if (result.panPosition) {
@@ -650,10 +667,16 @@ export default class AudioController {
 			pan.positionZ.setValueAtTime(-0.5, time);
 		}
 
-		return rokuro && peer.rokuroVoice ? peer.rokuroVoice.configure(
-			result.gain * rokuro.settings.headVolume / 100, rokuro.body.gain * rokuro.settings.bodyVolume / 100,
-			rokuro.body.panPosition, rokuro.body.panMaxDistance ?? this.maxDistance, rokuro.settings.bodyEcho,
-			rokuro.body.muffle ? rokuro.body.muffle.frequency : 1800) : result.gain;
+		return rokuro && peer.rokuroVoice
+			? peer.rokuroVoice.configure(
+					(result.gain * rokuro.settings.headVolume) / 100,
+					(rokuro.body.gain * rokuro.settings.bodyVolume) / 100,
+					rokuro.body.panPosition,
+					rokuro.body.panMaxDistance ?? this.maxDistance,
+					rokuro.settings.bodyEcho,
+					rokuro.body.muffle ? rokuro.body.muffle.frequency : 1800
+				)
+			: result.gain;
 	}
 
 	private syncTanukiAddon(state: AmongUsState | undefined): void {
@@ -717,6 +740,7 @@ export default class AudioController {
 		this.interviewMic = undefined;
 		for (const peer of this.peers.values()) {
 			peer.dyingVoiceRecording?.disconnect();
+			if (peer.bitVoice) syncBitVoice(peer, -1);
 			peer.dyingVoiceRecording = undefined;
 			if (peer.bibiriEcho) {
 				peer.gain.disconnect(peer.bibiriEcho.input);
@@ -807,7 +831,8 @@ export function rebuildEffectChain(
 		peer.muffleConnected === wantMuffle &&
 		peer.radioEchoConnected === wantRadioEcho &&
 		peer.voiceEffectConnected === wantVoiceEffect &&
-		!!peer.peakGuard === wantPeakGuard && !peer.rokuroDestinationChanged
+		!!peer.peakGuard === wantPeakGuard &&
+		!peer.rokuroDestinationChanged
 	)
 		return;
 	peer.rokuroDestinationChanged = false;

@@ -3,6 +3,7 @@ import type { VoiceProcessingEffect } from './sourceFilterEffect';
 
 // --- verbatim from bettercrewlink (desktop) v3.2.1 src/renderer/voice/types.ts ---
 export interface PeerAudioNodes {
+	bitVoice?: ReturnType<typeof import('./bitVoiceEffect').createBitVoiceEffect>;
 	rokuroVoice?: ReturnType<typeof import('./rokuroVoice').createRokuroVoice>;
 	rokuroDestinationChanged?: boolean;
 	dyingVoiceRecording?: ReturnType<typeof import('./dyingVoiceRecording').createDyingVoiceRecording>;
