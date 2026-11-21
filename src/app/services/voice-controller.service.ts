@@ -1,4 +1,5 @@
 import { voiceJammingFor } from '../common/VoiceJammingState';
+import { hasTanukiAddon, limitSpeechMuted } from '../common/tanukiAddon';
 import { Injectable } from '@angular/core';
 import { AmongUsState, GameState, numberStringMap, Player } from '../common/AmongUsState';
 import { ILobbySettings } from '../common/ISettings';
@@ -277,6 +278,8 @@ export class VoiceController {
 		const connectionController = this.connectionController;
 		connectionController.oldGameState = connectionController.currentGameState;
 		connectionController.currentGameState = state;
+		// Stop old addon graphs even when the host no longer includes our local player.
+		if (!hasTanukiAddon(state)) connectionController.audioController.clearDyingVoicesOutsideGame(state);
 
 		const { player: newLocalPlayer, ambiguous } = matchLocalPlayer(state.players, connectionController.amongusUsername);
 		if (ambiguous) {
@@ -315,8 +318,7 @@ export class VoiceController {
 				((connectionController.lobbySettings.nosFixerJammingVoiceBlock !== false &&
 					newLocalPlayer.nosPlayer?.isJammed === true) ||
 					voiceJammingFor(state, newLocalPlayer.id)?.muted === true ||
-					((state.gameState === GameState.TASKS || state.gameState === GameState.DISCUSSION) &&
-						state.nosLimitSpeechMuted?.includes(newLocalPlayer.id) === true))
+					limitSpeechMuted(state, newLocalPlayer.id))
 		);
 		this.syncNosRadioReports(state, newLocalPlayer);
 		this.syncAppVersion(state, newLocalPlayer);
@@ -337,7 +339,7 @@ export class VoiceController {
 			connectionController.connectionState = ConnectionState.conencted;
 		}
 
-		connectionController.audioController.clearDyingVoicesOutsideGame(state);
+		if (hasTanukiAddon(state)) connectionController.audioController.clearDyingVoicesOutsideGame(state);
 		this.updateMaxDistance(state, newLocalPlayer);
 		this.updatePlayerDeadStates(state, newLocalPlayer);
 		this.updatePeerAudio(state, newLocalPlayer);

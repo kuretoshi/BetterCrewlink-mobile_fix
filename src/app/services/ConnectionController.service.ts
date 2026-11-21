@@ -1,4 +1,5 @@
 import { VoiceRoleSources } from '../common/VoiceRoleSource';
+import { hasTanukiAddon } from '../common/tanukiAddon';
 import { EventEmitter as EventEmitterO } from 'events';
 import { io, Socket } from 'socket.io-client';
 import { AmongUsState, MobileData, numberStringMap, Player } from '../common/AmongUsState';
@@ -151,6 +152,10 @@ export class ConnectionController implements IConnectionController {
 		const map: numberStringMap = {};
 		for (const socketId of Object.keys(this.clients)) {
 			map[this.clients[socketId].clientId] = socketId;
+		}
+		if (!hasTanukiAddon(this.currentGameState)) {
+			this.voiceRoleSources.clear();
+			return map;
 		}
 		return this.voiceRoleSources.apply(map, this.clients);
 	}
@@ -523,10 +528,11 @@ export class ConnectionController implements IConnectionController {
 
 	private handleSignal({ data, from, client }: { data: Record<string, unknown>; from: string; client?: Client }): void {
 		if (data.type === 'nos-host-voice-ack' && from === this.currentHost) {
-			this.voiceRole.acknowledge();
+			if (hasTanukiAddon(this.currentGameState)) this.voiceRole.acknowledge();
 			return;
 		}
 		if (data.type === 'nos-voice-source') {
+			if (!hasTanukiAddon(this.currentGameState)) return;
 			if (this.voiceRoleSources.receive(client, data, this.gamecode, this.clients)) this.updateViews();
 			return;
 		}

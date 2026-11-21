@@ -1,5 +1,6 @@
 import { AmongUsState, GameState, Player } from './AmongUsState';
 import { poseCollide } from './ColliderMap';
+import { hasTanukiAddon } from './tanukiAddon';
 
 export interface ParrotState {
 	mode?: 'clone';
@@ -73,5 +74,5 @@ export function parrotNear(p: ParrotState, player: Player | undefined, state: Am
 	);
 }
 export function parrotsActive(state: AmongUsState): boolean {
-	return state.mod === 'NoS' && [GameState.TASKS, GameState.DISCUSSION].includes(state.gameState);
+	return hasTanukiAddon(state) && [GameState.TASKS, GameState.DISCUSSION].includes(state.gameState);
 }

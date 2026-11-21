@@ -1,6 +1,6 @@
 {
   "name": "better-crewlink-mobile",
-  "version": "3.64.0",
+  "version": "3.65.0",
   "author": "OhMyGuus",
   "homepage": "https://bettercrewlink.app",
   "scripts": {
@@ -16,7 +16,8 @@
     "test:nos-direct": "node scripts/test-direct-nos-voice.mjs",
     "test:vad-buffer": "node scripts/test-vad-buffer.mjs",
     "ios:configure": "node scripts/configure-ios.mjs",
-    "ios:sync": "npm run ngbuild -- --configuration production && cap sync ios && npm run ios:configure"
+    "ios:sync": "npm run ngbuild -- --configuration production && cap sync ios && npm run ios:configure",
+    "test:addon-lifecycle": "node scripts/test-tanuki-addon-lifecycle.mjs"
   },
   "private": true,
   "engines": {

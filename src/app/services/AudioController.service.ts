@@ -2,7 +2,7 @@ import { connectReverbMix, createReverbMix, reverbLevels } from '../voice/reverb
 import { setEffectGain } from '../voice/effectGain';
 import { createVoicePeakGuard } from '../voice/voicePeakGuard';
 import { applyVoiceJamming } from '../common/VoiceJammingState';
-import { hasTanukiAddon } from '../common/tanukiAddon';
+import { hasTanukiAddon, limitSpeechMuted } from '../common/tanukiAddon';
 import { bitCharacterStage } from '../common/BitCharacterState';
 import { syncBitVoice } from '../voice/bitVoiceEffect';
 import { createParrotRecording } from '../voice/parrotRecording';
@@ -577,12 +577,7 @@ export default class AudioController {
 			peer.rokuroVoice = undefined;
 			peer.rokuroDestinationChanged = true;
 		}
-		if (
-			state.mod === 'NoS' &&
-			(state.gameState === GameState.TASKS || state.gameState === GameState.DISCUSSION) &&
-			state.nosLimitSpeechMuted?.includes(other.id)
-		)
-			result.gain = 0;
+		if (limitSpeechMuted(state, other.id)) result.gain = 0;
 
 		if (result.muffle) {
 			muffle.type = result.muffle.type;
