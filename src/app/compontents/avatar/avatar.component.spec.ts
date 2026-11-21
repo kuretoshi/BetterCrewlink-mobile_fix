@@ -60,6 +60,42 @@ function makeComponent(player: Player = makePlayer()) {
 }
 
 describe('AvatarComponent', () => {
+	it('keeps a usable volume track on small avatars and saves intermediate values', async () => {
+		const save = jasmine.createSpy('savePlayerSetting');
+		await TestBed.configureTestingModule({
+			declarations: [AvatarComponent], imports: [FormsModule],
+			providers: [
+				{ provide: SettingsService, useValue: { savePlayerSetting: save } },
+				{ provide: CosmeticsService, useValue: {
+					version$: new BehaviorSubject(0), initializeHats() { return undefined; }, getCosmeticRender() { return undefined; },
+				} },
+			], schemas: [NO_ERRORS_SCHEMA],
+		}).compileComponents();
+		const fixture = TestBed.createComponent(AvatarComponent);
+		const component = fixture.componentInstance;
+		component.player = makePlayer();
+		component.settings = { volume: 100, isMuted: false };
+		component.volumeOpen = true;
+		Object.assign(fixture.nativeElement.style, { display: 'block', width: '70px' });
+		fixture.detectChanges();
+		await fixture.whenStable();
+		const input = fixture.nativeElement.querySelector('input[type=range]') as HTMLInputElement;
+		expect(input.getBoundingClientRect().width).toBeGreaterThan(60);
+		expect(input.max).toBe('500');
+		for (const value of [125, 250, 375, 0, 500]) {
+			input.value = String(value);
+			input.dispatchEvent(new Event('input', { bubbles: true }));
+			fixture.detectChanges();
+			expect(component.settings.volume).toBe(value);
+			expect(save).toHaveBeenCalledWith(0, { volume: value, isMuted: false });
+			expect(fixture.nativeElement.querySelector('output').textContent).toBe(`${value}%`);
+		}
+		component.onMuteToggle();
+		expect(component.settings.isMuted).toBeTrue();
+		expect(component.settings.volume).toBe(500);
+		fixture.destroy();
+	});
+
 	it('aligns host NoS cosmetic PNGs with their body mask at mobile avatar sizes', () => {
 		const id = 'b'.repeat(64);
 		const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aT1sAAAAASUVORK5CYII=';
