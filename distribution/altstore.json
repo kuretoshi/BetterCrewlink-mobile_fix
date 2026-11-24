@@ -16,6 +16,15 @@
       "tintColor": "8C38FF",
       "versions": [
         {
+          "version": "3.69.0",
+          "date": "2026-11-25",
+          "downloadURL": "https://github.com/kuretoshi/BetterCrewlink-mobile_fix/releases/download/v3.69/TanukiBCL-Mobile-iOS-3.69.ipa",
+          "size": 5862996,
+          "minOSVersion": "15.0",
+          "localizedDescription": "v3.69の修正を反映。iOS版は試験版で、ゲーム中の通話継続は未検証です。\nhttps://github.com/kuretoshi/BetterCrewlink-mobile_fix/releases/tag/v3.69",
+          "buildVersion": "112001"
+        },
+        {
           "version": "3.68.0",
           "date": "2026-11-22",
           "downloadURL": "https://github.com/kuretoshi/BetterCrewlink-mobile_fix/releases/download/v3.68/TanukiBCL-Mobile-iOS-3.68.ipa",
