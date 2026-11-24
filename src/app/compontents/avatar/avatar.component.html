@@ -79,6 +79,34 @@
 					alt=""
 				/>
 			}
+			@if (getHat2Back(); as hat2Back) {
+				<img
+					[src]="hat2Back.src"
+					class="cosmetic hat2-back no-drag-img"
+					[style.top]="hat2Back.top"
+					[style.left]="hat2Back.left"
+					[style.width]="hat2Back.width"
+					[style.z-index]="hat2Back.zIndex"
+					style="display: none"
+					onload="this.style.display = ''"
+					onerror="this.style.display = 'none'"
+					alt=""
+				/>
+			}
+			@if (getHat2(); as hat2) {
+				<img
+					[src]="hat2.src"
+					class="cosmetic hat2-front no-drag-img"
+					[style.top]="hat2.top"
+					[style.left]="hat2.left"
+					[style.width]="hat2.width"
+					[style.z-index]="hat2.zIndex"
+					style="display: none"
+					onload="this.style.display = ''"
+					onerror="this.style.display = 'none'"
+					alt=""
+				/>
+			}
 			@if (getHat(); as hat) {
 				<img
 					[src]="hat.src"
@@ -93,6 +121,20 @@
 					alt=""
 				/>
 			}
+			@if (getVisor2(); as visor2) {
+				<img
+					[src]="visor2.src"
+					class="cosmetic visor2 no-drag-img"
+					[style.top]="visor2.top"
+					[style.left]="visor2.left"
+					[style.width]="visor2.width"
+					[style.z-index]="visor2.zIndex"
+					style="display: none"
+					(load)="onCosmeticImageLoad($event, visor2)"
+					onerror="this.style.display = 'none'"
+					alt=""
+				/>
+			}
 			@if (getVisor(); as visor) {
 				<img
 					[src]="visor.src"
@@ -102,7 +144,7 @@
 					[style.width]="visor.width"
 					[style.z-index]="visor.zIndex"
 					style="display: none"
-					onload="this.style.display = ''"
+					(load)="onCosmeticImageLoad($event, visor)"
 					onerror="this.style.display = 'none'"
 					alt=""
 				/>

@@ -60,16 +60,120 @@ function makeComponent(player: Player = makePlayer()) {
 }
 
 describe('AvatarComponent', () => {
+	it('uses host-completed SNR layers, including independent secondary slots and updated colors', async () => {
+		const png = (color: string) => {
+			const canvas = document.createElement('canvas');
+			canvas.width = 300;
+			canvas.height = 375;
+			const context = canvas.getContext('2d')!;
+			context.fillStyle = color;
+			context.fillRect(88, 75, 168, 194);
+			return canvas.toDataURL('image/png');
+		};
+		const first = 'c'.repeat(64),
+			next = 'd'.repeat(64);
+		const firstPng = png('#117f2d'),
+			nextPng = png('#7825e0');
+		nosCosmeticAssets.receive('snr-host', 'ABCDEF', { [first]: firstPng });
+		nosCosmeticAssets.receive('snr-host', 'ABCDEF', { [next]: nextPng });
+		const cosmetics = {
+			version$: new BehaviorSubject(0),
+			initializeHats() {
+				return undefined;
+			},
+			getCosmeticRender() {
+				return undefined;
+			},
+		};
+		TestBed.configureTestingModule({
+			declarations: [AvatarComponent],
+			imports: [FormsModule],
+			providers: [
+				{ provide: SettingsService, useValue: {} },
+				{ provide: CosmeticsService, useValue: cosmetics },
+			],
+			schemas: [NO_ERRORS_SCHEMA],
+		});
+		const fixture = TestBed.createComponent(AvatarComponent);
+		const component = fixture.componentInstance;
+		component.mod = 'SUPER_NEW_ROLES';
+		component.player = makePlayer({
+			snrHat2Id: 'Modded_Test_Hat2',
+			snrVisor2Id: 'Modded_Test_Visor2',
+			snrCosmetics: Object.fromEntries(
+				['skin', 'hat', 'hatBack', 'visor', 'hat2', 'hat2Back', 'visor2'].map((part) => [part, `nos-web://${first}`])
+			),
+		});
+		fixture.detectChanges();
+		const images = [...fixture.nativeElement.querySelectorAll('img.cosmetic')] as HTMLImageElement[];
+		expect(images.length).toBe(7);
+		await Promise.all(images.map((image) => image.decode()));
+		for (const image of images) {
+			expect(image.naturalWidth).toBe(300);
+			expect(image.naturalHeight).toBe(375);
+			expect(image.style.width).toBe('140%');
+			image.dispatchEvent(new Event('load'));
+		}
+		fixture.componentRef.setInput('player', { ...component.player, snrCosmeticScale: { visor2: true } });
+		fixture.detectChanges();
+		const scaled = fixture.nativeElement.querySelector('img.visor2') as HTMLImageElement;
+		expect(Number.parseFloat(scaled.style.width)).toBeCloseTo((300 / (115 * (8 / 3))) * 140, 2);
+		expect(Number.parseFloat(scaled.style.left)).toBeCloseTo(50 - Number.parseFloat(scaled.style.width) / 2, 2);
+		const secondary = fixture.nativeElement.querySelector('img.hat2-front') as HTMLImageElement;
+		secondary.dispatchEvent(new Event('error'));
+		expect(secondary.style.display).toBe('none');
+		fixture.componentRef.setInput('player', {
+			...component.player,
+			colorId: 7,
+			snrCosmetics: { ...component.player.snrCosmetics, hat2: `nos-web://${next}` },
+		});
+		fixture.detectChanges();
+		await secondary.decode();
+		secondary.dispatchEvent(new Event('load'));
+		expect(secondary.src).toBe(nextPng);
+		expect(secondary.style.display).not.toBe('none');
+		fixture.componentRef.setInput('player', {
+			...component.player,
+			snrCosmetics: { hat2: `nos-web://${next}`, visor2: `nos-web://${next}` },
+		});
+		fixture.detectChanges();
+		expect(fixture.nativeElement.querySelectorAll('img.cosmetic').length).toBe(2);
+		fixture.componentRef.setInput('isDead', true);
+		fixture.detectChanges();
+		expect(fixture.nativeElement.querySelectorAll('img.cosmetic').length).toBe(0);
+		fixture.destroy();
+		nosCosmeticAssets.clear();
+	});
+
+	it('never opens received SNR URLs outside the selected-host PNG cache', () => {
+		const { component } = makeComponent(makePlayer({ snrCosmetics: { hat: 'https://untrusted.example/hat.png' } }));
+		component.mod = 'SUPER_NEW_ROLES';
+		expect(component.getHat()).toBeUndefined();
+		component.mod = 'NONE';
+		expect(component.getHat2()).toBeUndefined();
+	});
+
 	it('keeps a usable volume track on small avatars and saves intermediate values', async () => {
 		const save = jasmine.createSpy('savePlayerSetting');
 		await TestBed.configureTestingModule({
-			declarations: [AvatarComponent], imports: [FormsModule],
+			declarations: [AvatarComponent],
+			imports: [FormsModule],
 			providers: [
 				{ provide: SettingsService, useValue: { savePlayerSetting: save } },
-				{ provide: CosmeticsService, useValue: {
-					version$: new BehaviorSubject(0), initializeHats() { return undefined; }, getCosmeticRender() { return undefined; },
-				} },
-			], schemas: [NO_ERRORS_SCHEMA],
+				{
+					provide: CosmeticsService,
+					useValue: {
+						version$: new BehaviorSubject(0),
+						initializeHats() {
+							return undefined;
+						},
+						getCosmeticRender() {
+							return undefined;
+						},
+					},
+				},
+			],
+			schemas: [NO_ERRORS_SCHEMA],
 		}).compileComponents();
 		const fixture = TestBed.createComponent(AvatarComponent);
 		const component = fixture.componentInstance;
@@ -98,7 +202,8 @@ describe('AvatarComponent', () => {
 
 	it('aligns host NoS cosmetic PNGs with their body mask at mobile avatar sizes', () => {
 		const id = 'b'.repeat(64);
-		const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aT1sAAAAASUVORK5CYII=';
+		const png =
+			'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aT1sAAAAASUVORK5CYII=';
 		nosCosmeticAssets.receive('geometry-host', 'TEST', { [id]: png });
 		const cosmetics = {
 			version$: new BehaviorSubject(0),
@@ -115,7 +220,9 @@ describe('AvatarComponent', () => {
 			schemas: [NO_ERRORS_SCHEMA],
 		});
 		const fixture = TestBed.createComponent(AvatarComponent);
-		fixture.componentInstance.player = makePlayer({ nosCosmetics: { hat: `nos-web://${id}`, bodyMask: `nos-web://${id}` } });
+		fixture.componentInstance.player = makePlayer({
+			nosCosmetics: { hat: `nos-web://${id}`, bodyMask: `nos-web://${id}` },
+		});
 		fixture.componentInstance.mod = 'NoS';
 		fixture.nativeElement.style.display = 'block';
 		fixture.detectChanges();
@@ -128,7 +235,9 @@ describe('AvatarComponent', () => {
 			const maskY = Number.parseFloat(getComputedStyle(mask).maskPosition.split(' ')[1]);
 			const maskTop = mask.getBoundingClientRect().top + maskY;
 			const hatTop = hat.getBoundingClientRect().top;
-			expect(Math.abs(maskTop - hatTop)).withContext(`${size}px avatar`).toBeLessThan(0.1);
+			expect(Math.abs(maskTop - hatTop))
+				.withContext(`${size}px avatar`)
+				.toBeLessThan(0.1);
 		}
 		fixture.destroy();
 		nosCosmeticAssets.clear();
@@ -315,9 +424,18 @@ describe('AvatarComponent', () => {
 				makePlayer({
 					nosLobbyColor: '#123456',
 					nosPlayer: {
-						playerId: 1, name: 'NoS', isKiller: false, isImpostor: false, isCrewmate: true,
-						isNeutral: false, isImpostorlike: false, speakerPositionX: 0, speakerPositionY: 0,
-						colorR: 0x65 / 255, colorG: 0x43 / 255, colorB: 0xd2 / 255,
+						playerId: 1,
+						name: 'NoS',
+						isKiller: false,
+						isImpostor: false,
+						isCrewmate: true,
+						isNeutral: false,
+						isImpostorlike: false,
+						speakerPositionX: 0,
+						speakerPositionY: 0,
+						colorR: 0x65 / 255,
+						colorG: 0x43 / 255,
+						colorB: 0xd2 / 255,
 					},
 				})
 			);

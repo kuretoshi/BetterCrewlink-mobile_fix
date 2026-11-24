@@ -160,6 +160,10 @@ export interface Player {
 	snrPushOrigin?: { x: number; y: number };
 	snrHat2Id?: string;
 	snrVisor2Id?: string;
+	/** Finished local SNR PNGs supplied by the selected PC host; already sized and tinted. */
+	snrCosmetics?: Partial<Record<'skin' | 'hat' | 'hatBack' | 'visor' | 'hat2' | 'hat2Back' | 'visor2', string>>;
+	/** Legacy SNR visors use a centered pivot and fixed 115 pixels per unit. */
+	snrCosmeticScale?: Partial<Record<'visor' | 'visor2', boolean>>;
 	nosPlayer?: NosPlayerData;
 	nosRole?: NosRole;
 	/** Relayed by the desktop host from the Busker player's own NoS snapshot. */

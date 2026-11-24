@@ -102,7 +102,10 @@ export class ConnectionController implements IConnectionController {
 		},
 		() => this.events.emit('onChange')
 	);
-	constructor(private settingsService: SettingsService, private diagnostics: DiagnosticsService = new DiagnosticsService()) {
+	constructor(
+		private settingsService: SettingsService,
+		private diagnostics: DiagnosticsService = new DiagnosticsService()
+	) {
 		this.audioController = new AudioController(this, settingsService);
 		this.audioController.events.on('voiceRoleSample', (rms: number, active: boolean) => {
 			this.voiceRole.sample(
@@ -254,7 +257,12 @@ export class ConnectionController implements IConnectionController {
 
 	private retryPeer(socketId: string, connection: PeerConnection, reason: string): void {
 		if (this.peers.get(socketId) !== connection) return;
-		this.diagnostics.record('peer-retry', { reason: /^(ICE (failed|closed|stayed disconnected)|connection (timed out|closed))$/.test(reason) ? reason : 'peer error', state: connection.connectionState });
+		this.diagnostics.record('peer-retry', {
+			reason: /^(ICE (failed|closed|stayed disconnected)|connection (timed out|closed))$/.test(reason)
+				? reason
+				: 'peer error',
+			state: connection.connectionState,
+		});
 		this.destroyPeer(socketId);
 		if (!this.canReconnectPeer(socketId)) {
 			this.peerRetryAttempts.delete(socketId);
@@ -464,8 +472,14 @@ export class ConnectionController implements IConnectionController {
 		});
 		this.socketIOClient.on('connect_error', () => this.diagnostics.record('server-connect-error'));
 		this.socketIOClient.on('disconnect', (reason) => {
-			this.diagnostics.record('server-disconnected', { reason, stage: this.connectingStage, state: this.connectionState,
-				transport, lastHostFrameAgeMs: this.lastPing < 0 ? -1 : Date.now() - this.lastPing, ...heartbeat.snapshot() });
+			this.diagnostics.record('server-disconnected', {
+				reason,
+				stage: this.connectingStage,
+				state: this.connectionState,
+				transport,
+				lastHostFrameAgeMs: this.lastPing < 0 ? -1 : Date.now() - this.lastPing,
+				...heartbeat.snapshot(),
+			});
 			// Official service supports polling. Custom servers may intentionally disable it.
 			if (this.isOfficialVoiceServer(serverUrl) && recovery.usePolling(reason, transport)) {
 				this.socketIOClient.io.opts.transports = ['polling'];
@@ -523,7 +537,9 @@ export class ConnectionController implements IConnectionController {
 	private isOfficialVoiceServer(serverUrl: string): boolean {
 		try {
 			return new URL(serverUrl).origin === 'https://bettercrewl.ink';
-		} catch { return false; }
+		} catch {
+			return false;
+		}
 	}
 
 	private handleSignal({ data, from, client }: { data: Record<string, unknown>; from: string; client?: Client }): void {
@@ -556,7 +572,10 @@ export class ConnectionController implements IConnectionController {
 			}
 			nosCosmeticAssets.receive(from, mobiledata.gameState.lobbyCode, data.nosCosmeticAssets);
 			const missingIds = nosCosmeticAssets.missingRequest(
-				mobiledata.gameState.players.flatMap((player) => Object.values(player.nosCosmetics ?? {}))
+				(Array.isArray(mobiledata.gameState.players) ? mobiledata.gameState.players : []).flatMap((player) => [
+					...Object.values(player.nosCosmetics ?? {}),
+					...Object.values(player.snrCosmetics ?? {}),
+				])
 			);
 			if (missingIds.length) {
 				this.socketIOClient?.emit('signal', {

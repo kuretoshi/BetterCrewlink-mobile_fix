@@ -36,6 +36,7 @@ export class AvatarComponent implements OnDestroy {
 	private requestedBodyKey?: string;
 	private coloredBody?: { key: string; url: string };
 	private destroyed = false;
+	private readonly snrImageSizes = new Map<string, { width: number; height: number }>();
 
 	constructor(
 		private settingsService: SettingsService,
@@ -96,7 +97,9 @@ export class AvatarComponent implements OnDestroy {
 	/** Use the host's published RGB without reducing custom NoS colours to 18 bundled IDs. */
 	getNosDisplayColor(): string | undefined {
 		if (this.mod !== 'NoS') return undefined;
-		const hex = this.isLobby ? this.player?.nosLobbyColor : nosColorHex(this.player?.nosPlayer) ?? this.player?.nosLobbyColor;
+		const hex = this.isLobby
+			? this.player?.nosLobbyColor
+			: (nosColorHex(this.player?.nosPlayer) ?? this.player?.nosLobbyColor);
 		return hex && /^#[0-9a-f]{6}$/i.test(hex) ? hex : undefined;
 	}
 
@@ -131,12 +134,54 @@ export class AvatarComponent implements OnDestroy {
 		(event.currentTarget as HTMLImageElement).style.display = 'none';
 	}
 
+	onCosmeticImageLoad(event: Event, render: CosmeticRender): void {
+		const image = event.currentTarget as HTMLImageElement;
+		image.style.display = '';
+		if (render.snrScale === undefined || !image.naturalWidth || !image.naturalHeight) return;
+		const size = this.snrImageSizes.get(render.src);
+		if (size?.width !== image.naturalWidth || size?.height !== image.naturalHeight) {
+			if (this.snrImageSizes.size >= 16) this.snrImageSizes.delete(this.snrImageSizes.keys().next().value!);
+			this.snrImageSizes.set(render.src, { width: image.naturalWidth, height: image.naturalHeight });
+			this.changeDetectorRef.markForCheck();
+		}
+		Object.assign(image.style, this.snrPlacement(render.src, render.snrScale));
+	}
+
+	private snrPlacement(src: string, scale: boolean): Pick<CosmeticRender, 'top' | 'left' | 'width'> {
+		const size = this.snrImageSizes.get(src);
+		if (scale && size) {
+			const width = Math.min((size.width / (115 * (8 / 3))) * 140, 140);
+			const height = (size.height / size.width) * width;
+			// Same SNR layout as desktop, plus mobile's body offset (+22%, -6px).
+			return { width: `${width}%`, left: `${50 - width / 2}px`, top: `${44 - height / 2}%` };
+		}
+		return { top: '-30%', left: '-24px', width: '140%' };
+	}
+
 	getHat(): CosmeticRender | undefined {
 		return this.resolveCosmetic(CosmeticType.hat, this.getCosmeticId('hat'));
 	}
 
 	getHatBack(): CosmeticRender | undefined {
 		return this.resolveCosmetic(CosmeticType.hatBack, this.getCosmeticId('hat'));
+	}
+
+	getHat2(): CosmeticRender | undefined {
+		return this.mod === 'SUPER_NEW_ROLES'
+			? this.resolveCosmetic(CosmeticType.hat, this.player?.snrHat2Id, 'hat2')
+			: undefined;
+	}
+
+	getHat2Back(): CosmeticRender | undefined {
+		return this.mod === 'SUPER_NEW_ROLES'
+			? this.resolveCosmetic(CosmeticType.hatBack, this.player?.snrHat2Id, 'hat2Back')
+			: undefined;
+	}
+
+	getVisor2(): CosmeticRender | undefined {
+		return this.mod === 'SUPER_NEW_ROLES'
+			? this.resolveCosmetic(CosmeticType.visor, this.player?.snrVisor2Id, 'visor2')
+			: undefined;
 	}
 
 	getVisor(): CosmeticRender | undefined {
@@ -167,9 +212,38 @@ export class AvatarComponent implements OnDestroy {
 	}
 
 	/** Dead players lose their cosmetics, exactly like desktop's `display: isAlive ? ...`. */
-	private resolveCosmetic(type: CosmeticType, id: string | undefined): CosmeticRender | undefined {
+	private resolveCosmetic(
+		type: CosmeticType,
+		id: string | undefined,
+		snrPart?: keyof NonNullable<Player['snrCosmetics']>
+	): CosmeticRender | undefined {
 		if (this.isDead || !this.player) {
 			return undefined;
+		}
+		if (this.mod === 'SUPER_NEW_ROLES') {
+			const part =
+				snrPart ??
+				(type === CosmeticType.hat
+					? 'hat'
+					: type === CosmeticType.hatBack
+						? 'hatBack'
+						: type === CosmeticType.skin
+							? 'skin'
+							: 'visor');
+			const reference = this.player.snrCosmetics?.[part];
+			if (reference) {
+				const received = nosCosmeticAssets.get(reference);
+				const snrScale =
+					part === 'visor' || part === 'visor2' ? this.player.snrCosmeticScale?.[part] === true : undefined;
+				return received
+					? {
+							src: received,
+							...this.snrPlacement(received, snrScale === true),
+							snrScale,
+							zIndex: type === CosmeticType.hatBack ? 1 : type === CosmeticType.hat ? 4 : 3,
+						}
+					: undefined;
+			}
 		}
 		// Resolve only PNGs received from the selected desktop host.
 		if (this.mod === 'NoS') {

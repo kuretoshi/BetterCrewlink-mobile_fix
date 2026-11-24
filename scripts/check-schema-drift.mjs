@@ -170,12 +170,12 @@ function checkObjectDeepEqual(label, desktopBlockText, mobileBlockText, allowedE
 			'nosParrots', 'nosWallEars', 'nosBitCharacters', 'nosLimitSpeechMuted', 'nosHeroTransforms']
 	);
 
-	// --- Player (mobile may add its own `isbetter` flag; nothing else) ---
+	// Player also accepts SNR host PNG metadata added in desktop 3.2.71, newer than this baseline.
 	checkFieldsSuperset(
 		'Player',
 		mergedInterfaceFields(desktopSrc, 'Player'),
 		mergedInterfaceFields(mobileSrc, 'Player'),
-		['isbetter', 'nosIsPseudocide']
+		['isbetter', 'nosIsPseudocide', 'snrCosmetics', 'snrCosmeticScale']
 	);
 
 	// --- GameState enum ---

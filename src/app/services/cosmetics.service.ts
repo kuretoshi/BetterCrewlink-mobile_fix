@@ -23,6 +23,8 @@ export interface CosmeticRender {
 	left: string;
 	width: string;
 	zIndex: number;
+	/** Set only for host-provided SNR visors. */
+	snrScale?: boolean;
 }
 
 interface HatEntry {
@@ -156,7 +158,12 @@ export class CosmeticsService {
 	 * A `multi_color` sprite that hasn't been recoloured yet returns `undefined` while the canvas
 	 * work is queued; `version$` fires when it is ready and the avatar re-renders.
 	 */
-	getCosmeticRender(colorId: number, type: CosmeticType, id: string | undefined, mod: ModsType = 'NONE'): CosmeticRender | undefined {
+	getCosmeticRender(
+		colorId: number,
+		type: CosmeticType,
+		id: string | undefined,
+		mod: ModsType = 'NONE'
+	): CosmeticRender | undefined {
 		this.initializeHats();
 		if (!id) {
 			return undefined;

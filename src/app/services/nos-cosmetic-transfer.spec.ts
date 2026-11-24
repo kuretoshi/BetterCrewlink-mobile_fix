@@ -4,6 +4,38 @@ import { SettingsService } from './settings.service';
 import { nosCosmeticAssets } from '../lib/nosCosmeticAssets';
 
 describe('NoS cosmetic host transfer', () => {
+	it('requests missing SNR primary and secondary layers from only the selected host', () => {
+		const connection = new ConnectionController({} as SettingsService);
+		const emit = jasmine.createSpy('emit');
+		connection.socketIOClient = { emit } as any;
+		connection.currentHost = 'selected';
+		connection.gamecode = 'ABCDEF';
+		const primary = 'c'.repeat(64),
+			secondary = 'd'.repeat(64);
+		const gameState = {
+			lobbyCode: 'ABCDEF',
+			mod: 'SUPER_NEW_ROLES',
+			players: [
+				{
+					snrCosmetics: {
+						hat: `nos-web://${primary}`,
+						hat2: `nos-web://${secondary}`,
+						visor2: `nos-web://${secondary}`,
+					},
+				},
+			],
+		};
+		const handle = (from: string) => (connection as any).handleSignal({ data: { gameState }, from });
+		handle('other');
+		expect(emit).not.toHaveBeenCalled();
+		handle('selected');
+		expect(emit).toHaveBeenCalledWith('signal', {
+			to: 'selected',
+			data: {
+				mobilePlayerInfo: { code: 'ABCDEF', askingForHost: false, nosCosmeticIds: [primary, secondary] },
+			},
+		});
+	});
 	afterEach(() => nosCosmeticAssets.clear());
 	it('accepts image assets from the selected host and requests only missing images', () => {
 		const connection = new ConnectionController({} as SettingsService);

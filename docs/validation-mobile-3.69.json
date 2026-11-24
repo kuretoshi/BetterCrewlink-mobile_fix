@@ -1,0 +1,61 @@
+{
+  "version": "3.69.0",
+  "desktopCompat": "3.2.71",
+  "androidVersionCode": 112,
+  "packageId": "io.bettercrewlink.tanuki",
+  "androidCertificateSha256": "4b049857f5f55b39b2972928c72686df08d80979aa01dd0f24ce43729938c462",
+  "sameCertificateAsPublished3.65": true,
+  "webFilesMatchedInApkAndAab": 1667,
+  "assets": [
+    {
+      "name": "TanukiBCL-Mobile-3.69.aab",
+      "size": 4764188,
+      "sha256": "6b989a46515643a647564d83dd2038f2fb32dcbee91be30b7465da57a7d975a8"
+    },
+    {
+      "name": "TanukiBCL-Mobile-3.69.apk",
+      "size": 4243299,
+      "sha256": "7d3c117ad043646abad4168a4ef1ccc73a4ad91d3d6f35c50440506c8c4086ef"
+    },
+    {
+      "name": "TanukiBCL-Mobile-Web-3.69.zip",
+      "size": 2512818,
+      "sha256": "4e366c72480b76e7c0e4a465dc26d5dc81dd429d19f68e1f36b438663f9e3460"
+    }
+  ],
+  "checks": [
+    "356 ChromeHeadlessWebRTC tests",
+    "full Angular lint",
+    "production Web build",
+    "signed APK/AAB build",
+    "APK/AAB signatures verified",
+    "VAD1000callbacks reuse",
+    "addon lifecycle",
+    "schema drift/nesting",
+    "6 iOS metadata tests"
+  ],
+  "limits": [
+    "Physical Android/iPhone installation and live many-player background audio unverified",
+    "iOS actual IPA build follows existing release workflow after publication"
+  ],
+  "wireContract": {
+    "imageReferences": "Player.snrCosmetics uses existing nos-web://SHA-256 selected-host PNG cache",
+    "parts": [
+      "hat",
+      "hatBack",
+      "skin",
+      "visor",
+      "hat2",
+      "hat2Back",
+      "visor2"
+    ],
+    "scale": "Optional Player.snrCosmeticScale visor/visor2 uses fixed115PPU rule; no recoloring on phone",
+    "transport": "Existing nosCosmeticAssets / mobilePlayerInfo.nosCosmeticIds stream"
+  },
+  "testEvidence": {
+    "browser": "356 passed including seven decoded SNR layers, secondary-only outfit, color asset replacement, load recovery, death cleanup, IsSNR late metadata and selected-host isolation",
+    "lint": "PASS",
+    "sourceDependencyLock": "All top-level installed versions match package-lock; no missing nonoptional packages",
+    "pluginSource": "No plugin changes between existing dependency cache base and current public3.68"
+  }
+}
